@@ -1,0 +1,17 @@
+{
+  "name": "vscode-embedded-language-server",
+  "description": "Packages the Azure Sphere Hardware Definition language server into a folder that will be embedded in the vscode extension",
+  "version": "1.0.0",
+  "scripts": {
+    "preinstall": "sh ../../server/pack-server.sh && npm install ../../server/packed/language-server.tar.gz"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "azsphere-hardware-definition-language-server": "file:../../server/packed/language-server.tar.gz"
+  },
+  "comments": {
+    "scripts": {
+      "preinstall": "Runs before 'npm install'. Ensures that the latest version of language server dependency is packaged and generated first"
+    }
+  }
+}

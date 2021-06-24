@@ -1,0 +1,18 @@
+{
+	"editor.insertSpaces": false,
+	"tslint.enable": true,
+	"typescript.tsc.autoDetect": "off",
+	"typescript.preferences.quoteStyle": "single",
+	"editor.codeActionsOnSave": {
+		"source.fixAll.eslint": true
+	},
+	"mochaExplorer.mochaPath": "node_modules/mocha",
+	"mochaExplorer.files": [ "server/dist/test/*.test.js"],
+	"mochaExplorer.ui": "tdd",
+	"mochaExplorer.autoload": true,
+	"mochaExplorer.require": "source-map-support/register",
+	// workaround to make mocha test explorer work. Remove when fixed in server.ts
+	"mochaExplorer.env": {
+		"LANGUAGE_SERVER_MODE": "TEST"
+	}
+}

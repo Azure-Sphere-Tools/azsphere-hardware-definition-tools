@@ -1,0 +1,5 @@
+node_modules/**
+vscode-extension/node_modules/**
+vscode-extension/dist/**
+server/node_modules/**
+server/dist/**

@@ -1,0 +1,26 @@
+{
+"Metadata": {
+    "Type": "Azure Sphere Hardware Definition",
+    "Version": 1
+  },
+  "Description": {
+    "Name": "HW Definition file with one duplicate mapping"
+  },
+  "Peripherals": [
+    {
+      "Name": "SAMPLE_BUTTON_1",
+      "Type": "Gpio",
+      "Mapping": "USER_BUTTON_A"
+    },
+    {
+      "Name": "SAMPLE_BUTTON_2",
+      "Type": "Gpio",
+      "Mapping": "USER_BUTTON_A"
+    },
+    {
+      "Name": "SAMPLE_BUTTON_3",
+      "Type": "Gpio",
+      "Mapping": "USER_BUTTON_B"
+    }
+  ]
+}

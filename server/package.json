@@ -1,0 +1,31 @@
+{
+	"name": "azsphere-hardware-definition-language-server",
+	"description": "Azure Sphere Hardware Definition language server in node.",
+	"version": "1.0.0",
+	"author": "UCL IXN",
+	"license": "MIT",
+	"engines": {
+		"node": "*"
+	},
+	"dependencies": {
+		"jsonc-parser": "^3.0.0",
+		"vscode-languageserver": "^7.0.0",
+		"vscode-languageserver-textdocument": "^1.0.1",
+		"vscode-uri": "^3.0.2"
+	},
+	"files": [
+		"/dist"
+	],
+	"scripts": {},
+	"comments": {
+		"files": [
+			"This property is used to determine which files are included in the published/packed language server package.",
+			"Any resources required for the language server to run must be included in the 'files' property."
+		]
+	},
+	"devDependencies": {
+		"@types/mock-fs": "^4.13.0",
+		"mock-fs": "^5.0.0",
+		"typescript": "^4.3.2"
+	}
+}

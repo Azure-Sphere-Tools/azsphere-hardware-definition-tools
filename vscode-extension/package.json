@@ -1,0 +1,61 @@
+{
+	"name": "azsphere-hardware-definition-tools",
+	"displayName": "Azure Sphere Hardware Definition Tools",
+	"description": "VSCode extension for Azure Sphere Hardware Definition support",
+	"author": "UCL IXN",
+	"contributors": [
+		"Jiachen Weng",
+		"Tsung-Hai Tsai",
+		"Denoy Hossain",
+		"Dorin Botan",
+		"Omar Beyhum"
+	],
+	"publisher": "ucl-ixn",
+	"license": "MIT",
+	"version": "1.0.0",
+	"categories": [],
+	"keywords": [],
+	"engines": {
+		"vscode": "^1.52.0"
+	},
+	"activationEvents": [
+		"onLanguage:json"
+	],
+	"main": "./dist/extension",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "Azure Sphere Tools",
+			"properties": {
+				"AzureSphere.SdkPath": {
+					"scope": "window",
+					"type": "string",
+					"description": "Path to the Azure Sphere SDK directory."
+				},
+				"azureSphereToolsLanguageServer.trace.server": {
+					"scope": "window",
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "off",
+					"description": "Traces the communication between VS Code and the language server."
+				}
+			}
+		}
+	},
+	"scripts": {
+		"build": "tsc -b",
+		"vscode:prepublish": "sh ./prepublish.sh"
+	},
+	"dependencies": {
+		"vscode-languageclient": "^7.0.0"
+	},
+	"devDependencies": {
+		"@types/vscode": "^1.52.0",
+		"vscode-test": "^1.3.0",
+		"typescript": "^4.3.2"
+	}
+}
