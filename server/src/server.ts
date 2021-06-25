@@ -21,7 +21,7 @@ import {
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import * as jsonc from 'jsonc-parser';
-import { findDuplicateMappings, findDuplicateNames, findUnknownImports } from './validator';
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports } from './validator';
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
 import { URI } from 'vscode-uri';
 import * as fs from 'fs';
@@ -142,7 +142,7 @@ documents.onDidOpen(async change => {
 	const settings = await getDocumentSettings(textDocument.uri);
 	const text = textDocument.getText();
 
-	const hwDefinition = tryParseHardwareDefinitionFile(textDocument, settings.SdkPath);
+	const hwDefinition = tryParseHardwareDefinitionFile(textDocument.getText(), textDocument.uri, settings.SdkPath);
 	if (!hwDefinition) {
 		return;
 	}
@@ -187,13 +187,13 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	const settings = await getDocumentSettings(textDocument.uri);
 	const text = textDocument.getText();
 
-	const hwDefinition = tryParseHardwareDefinitionFile(textDocument, settings.SdkPath);
+	const hwDefinition = tryParseHardwareDefinitionFile(textDocument.getText(), textDocument.uri, settings.SdkPath);
 	if (!hwDefinition) {
 		return;
 	}
 
 	const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinition, text, textDocument, hasDiagnosticRelatedInformationCapability);
-	const duplicateNamesDiagnostics: Diagnostic[] = findDuplicateNames(hwDefinition);
+	const duplicateNamesDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinition, hasDiagnosticRelatedInformationCapability);
 	for (const duplicateNameDiagnostic of duplicateNamesDiagnostics) {
 		diagnostics.push(duplicateNameDiagnostic);
 	}
@@ -205,8 +205,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
-function tryParseHardwareDefinitionFile(hwDefinitionFile: TextDocument, sdkPath: string): HardwareDefinition | undefined {
-	const hwDefinitionFileText = hwDefinitionFile.getText();
+function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefinitionFileUri: string, sdkPath: string): HardwareDefinition | undefined {
 	try {
 		const parseErrors: jsonc.ParseError[] = [];
 
@@ -238,12 +237,16 @@ function tryParseHardwareDefinitionFile(hwDefinitionFile: TextDocument, sdkPath:
 			for (const { Path } of Imports) {
 
 				if (typeof Path == "string") {
-					const hwDefinitionFilePath = URI.parse(path.dirname(hwDefinitionFile.uri)).fsPath;
+					const hwDefinitionFilePath = URI.parse(path.dirname(hwDefinitionFileUri)).fsPath;
 					const fullPathToImportedFile = findFullPath(Path, hwDefinitionFilePath, sdkPath);
 					if (fullPathToImportedFile) {
-						const importedHwDefFile = documents.get(fullPathToImportedFile);
-						if (importedHwDefFile) {
-							const importedHwDefinition = tryParseHardwareDefinitionFile(importedHwDefFile, sdkPath);
+						const importedHwDefFileUri = URI.file(fullPathToImportedFile).toString();
+						let importedHwDefFileText = documents.get(importedHwDefFileUri)?.getText();
+						if(!importedHwDefFileText) {
+							importedHwDefFileText = fs.readFileSync(fullPathToImportedFile, {encoding: 'utf8'}); 
+						}
+						if (importedHwDefFileText) {
+							const importedHwDefinition = tryParseHardwareDefinitionFile(importedHwDefFileText, importedHwDefFileUri, sdkPath);
 							if (importedHwDefinition) {
 								validImports.push(importedHwDefinition);
 							}
@@ -279,11 +282,11 @@ function tryParseHardwareDefinitionFile(hwDefinitionFile: TextDocument, sdkPath:
 					const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ['Peripherals', i]);
 					const start = mappingAsJsonNode?.offset;
 					const end = start + mappingAsJsonNode?.length;
-					pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, Comment, toRange(hwDefinitionFile, start, end)));
+					pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, Comment, toRange(hwDefinitionFileText, start, end)));
 				}
 			}
 		}
-		return new HardwareDefinition($schema, pinMappings, validImports, unknownImports);
+		return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports);
 
 	} catch (error) {
 		connection.console.log('Cannot parse Hardware Definition file as JSON');

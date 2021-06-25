@@ -10,28 +10,65 @@ import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 
 const EXTENSION_SOURCE = 'az sphere';
 
-export function findDuplicateNames(hwDefinition: HardwareDefinition): Diagnostic[] {
-	const duplicateNameDiagnostics: Diagnostic[] = [];
-	const reservedNames: Map<string, PinMapping> = new Map();
+interface ReservedPinMapping {
+	pinMapping: PinMapping,
+	hardwareDefinitionUri: string
+}
+/**
+ * Checks that the given Hardware Definition and its imports:
+ * - Don't have pin mappings with duplicate names
+ * - Don't have pin mappings which map to target mappings that don't exist
+ * @param hwDefinition The Hardware Definition to validate
+ * @param includeRelatedInfo If the client IDE supports adding diagnostic related information
+ * @returns Diagnostics with the Hardware Definition's underlying issues
+ */
+export function validateNamesAndMappings(hwDefinition: HardwareDefinition, includeRelatedInfo: boolean): Diagnostic[] {
+	const warningDiagnostics: Diagnostic[] = [];
+	const reservedNames: Map<string, ReservedPinMapping> = new Map();
 	for (const importedHwDefinition of hwDefinition.imports) {
 		recursiveFindDuplicateNames(importedHwDefinition, reservedNames);
 	}
 	for (const mapping of hwDefinition.pinMappings) {
-		if (reservedNames.has(mapping.name)) {
-			duplicateNameDiagnostics.push({
+		const existingMapping = reservedNames.get(mapping.name);
+		if (existingMapping) {
+			const diagnostic: Diagnostic = {
 				message: `${mapping.name} is already used by another pin mapping`,
 				range: mapping.range,
 				severity: DiagnosticSeverity.Warning,
 				source: EXTENSION_SOURCE
-			});
+			};
+			if (includeRelatedInfo) {
+				diagnostic.relatedInformation = [
+					{
+						location: {
+							uri: existingMapping.hardwareDefinitionUri,
+							range: existingMapping.pinMapping.range
+						},
+						message: `Duplicate peripheral mapping declared`
+					}
+				];
+			}
+			warningDiagnostics.push(diagnostic);
 		} else {
-			reservedNames.set(mapping.name, mapping);
+			if(!mapping.isRootMapping()) {
+				const mappedTo = <string>mapping.mapping;
+				if (!reservedNames.has(mappedTo)) {
+					const diagnostic: Diagnostic = {
+						message: `Mapping ${mappedTo} is invalid. There is no imported pin mapping with that name.`,
+						range: mapping.range,
+						severity: DiagnosticSeverity.Warning,
+						source: EXTENSION_SOURCE
+					};
+					warningDiagnostics.push(diagnostic);
+				}
+			}
+			reservedNames.set(mapping.name, {pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri});
 		}
 	}
-	return duplicateNameDiagnostics;
+	return warningDiagnostics;
 }
 
-function recursiveFindDuplicateNames(hwDefinition: HardwareDefinition, reservedNames: Map<string, PinMapping>): void {
+function recursiveFindDuplicateNames(hwDefinition: HardwareDefinition, reservedNames: Map<string, ReservedPinMapping>): void {
 	for (const importedHwDefinition of hwDefinition.imports) {
 		recursiveFindDuplicateNames(importedHwDefinition, reservedNames);
 	}
@@ -39,7 +76,7 @@ function recursiveFindDuplicateNames(hwDefinition: HardwareDefinition, reservedN
 		if (reservedNames.has(mapping.name)) {
 			continue;
 		}
-		reservedNames.set(mapping.name, mapping);
+		reservedNames.set(mapping.name, {pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri});
 	}
 }
 
@@ -74,7 +111,7 @@ export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: st
 			}
 			const diagnostic: Diagnostic = {
 				severity: DiagnosticSeverity.Warning,
-				range: toRange(textDocument, mapStart, mapEnd),
+				range: toRange(textDocument.getText(), mapStart, mapEnd),
 				message: `"${mappedTo}" is already mapped`,
 				source: EXTENSION_SOURCE
 			};
@@ -83,7 +120,7 @@ export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: st
 					{
 						location: {
 							uri: textDocument.uri,
-							range: toRange(textDocument, prevStart, prevEnd)
+							range: toRange(textDocument.getText(), prevStart, prevEnd)
 						},
 						message: `Duplicate peripheral mapping declared`
 					}
@@ -102,7 +139,7 @@ export function findUnknownImports(hwDefinition: HardwareDefinition, textDocumen
 	for (const unknownImport of hwDefinition.unknownImports) {
 		diagnostics.push({
 			severity: DiagnosticSeverity.Warning,
-			range: toRange(textDocument, unknownImport.start, unknownImport.end),
+			range: toRange(textDocument.getText(), unknownImport.start, unknownImport.end),
 			message: `Cannot find imported file '${unknownImport.fileName}' under ${unknownImport.hwDefinitionFilePath} or ${unknownImport.sdkPath}`,
 			source: EXTENSION_SOURCE
 		});
