@@ -1,7 +1,10 @@
+import { TextDocument, Range } from 'vscode-languageserver-textdocument';
+
 export class HardwareDefinition {
 	constructor(
 		public schema: string | undefined,
 		public pinMappings: PinMapping[] = [],
+		public imports: HardwareDefinition[] = [],
 		public unknownImports: UnknownImport[] = []
 	){}
 }
@@ -13,7 +16,8 @@ export class PinMapping {
 		public type: string, 
 		public mapping: string | undefined, 
 		public appManifestValue: number | string | undefined,
-		public comment: string | undefined
+		public comment: string | undefined,
+		public range: Range
 	){}
 
 	/**
@@ -35,4 +39,11 @@ export class PinMapping {
 	hwDefinitionFilePath: string,
 	start: number,
 	end: number
+}
+
+export function toRange(textDocument: TextDocument, start: number, end: number): Range {
+	return {
+		start: textDocument.positionAt(start),
+		end: textDocument.positionAt(end)
+	};
 }

@@ -6,7 +6,42 @@ import {
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { HardwareDefinition } from './hardwareDefinition';
+import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
+
+const EXTENSION_SOURCE = 'az sphere';
+
+export function findDuplicateNames(hwDefinition: HardwareDefinition): Diagnostic[] {
+	const duplicateNameDiagnostics: Diagnostic[] = [];
+	const reservedNames: Map<string, PinMapping> = new Map();
+	for (const importedHwDefinition of hwDefinition.imports) {
+		recursiveFindDuplicateNames(importedHwDefinition, reservedNames);
+	}
+	for (const mapping of hwDefinition.pinMappings) {
+		if (reservedNames.has(mapping.name)) {
+			duplicateNameDiagnostics.push({
+				message: `${mapping.name} is already used by another pin mapping`,
+				range: mapping.range,
+				severity: DiagnosticSeverity.Warning,
+				source: EXTENSION_SOURCE
+			});
+		} else {
+			reservedNames.set(mapping.name, mapping);
+		}
+	}
+	return duplicateNameDiagnostics;
+}
+
+function recursiveFindDuplicateNames(hwDefinition: HardwareDefinition, reservedNames: Map<string, PinMapping>): void {
+	for (const importedHwDefinition of hwDefinition.imports) {
+		recursiveFindDuplicateNames(importedHwDefinition, reservedNames);
+	}
+	for (const mapping of hwDefinition.pinMappings) {
+		if (reservedNames.has(mapping.name)) {
+			continue;
+		}
+		reservedNames.set(mapping.name, mapping);
+	}
+}
 
 export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: string, textDocument: TextDocument, includeRelatedInfo: boolean): Diagnostic[] {
 	const nodes: Map<string, [integer, integer, integer]> = new Map();
@@ -41,7 +76,7 @@ export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: st
 				severity: DiagnosticSeverity.Warning,
 				range: toRange(textDocument, mapStart, mapEnd),
 				message: `"${mappedTo}" is already mapped`,
-				source: 'az sphere'
+				source: EXTENSION_SOURCE
 			};
 			if (includeRelatedInfo) {
 				diagnostic.relatedInformation = [
@@ -69,15 +104,8 @@ export function findUnknownImports(hwDefinition: HardwareDefinition, textDocumen
 			severity: DiagnosticSeverity.Warning,
 			range: toRange(textDocument, unknownImport.start, unknownImport.end),
 			message: `Cannot find imported file '${unknownImport.fileName}' under ${unknownImport.hwDefinitionFilePath} or ${unknownImport.sdkPath}`,
-			source: 'az sphere'
+			source: EXTENSION_SOURCE
 		});
 	}
 	return diagnostics;
-}
-
-function toRange(textDocument: TextDocument, prevStart: number, prevEnd: number): Range {
-	return {
-		start: textDocument.positionAt(prevStart),
-		end: textDocument.positionAt(prevEnd)
-	};
 }
