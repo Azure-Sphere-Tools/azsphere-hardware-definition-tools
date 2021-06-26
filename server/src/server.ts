@@ -205,7 +205,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
-function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefinitionFileUri: string, sdkPath: string): HardwareDefinition | undefined {
+export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefinitionFileUri: string, sdkPath: string): HardwareDefinition | undefined {
 	try {
 		const parseErrors: jsonc.ParseError[] = [];
 
@@ -265,18 +265,13 @@ function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefiniti
 			}
 		}
 
-		/**
-			 * Peripherals: [
-			 * {Name: x, Mapping: y}
-			 * ]
-		*/
 		const pinMappings: PinMapping[] = [];
 
 		if (Array.isArray(Peripherals)) {
 			for (let i = 0; i < Peripherals.length; i++) {
 
 				const { Name, Type, Mapping, AppManifestValue, Comment } = Peripherals[i];
-				const hasMappingOrAppManifestValue = typeof Mapping == "string" || AppManifestValue;
+				const hasMappingOrAppManifestValue = typeof Mapping == "string" || typeof AppManifestValue == "string" || typeof AppManifestValue == "number";
 				const isPinMapping = typeof Name == "string" && typeof Type == "string" && hasMappingOrAppManifestValue;
 				if (isPinMapping) {
 					const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ['Peripherals', i]);
@@ -297,7 +292,7 @@ function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefiniti
 /**
  * 
  * @param relativeImportPath The relative path to the imported hw definition file (e.g. 'mt3620.json')
- * @param hwDefinitionFileUri The full path to the hw definition file which declared the import
+ * @param hwDefinitionFilePath The full path to the hw definition file which declared the import
  * @param sdkPath The path to the azure sphere sdk
  * @returns Full path to the imported hw definition file if it exists, otherwise undefined
  */
