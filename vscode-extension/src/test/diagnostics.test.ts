@@ -7,7 +7,10 @@ suite('Should get diagnostics', () => {
 
 	test('Diagnoses uppercase texts', async () => {
 		await testDiagnostics(docUri, [
-			{ message: '"USER_BUTTON_A" is already mapped', range: toRange(17, 6, 17, 32), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' }
+			{ message: '"USER_BUTTON_A" is already mapped', range: toRange(17, 6, 17, 32), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' },
+			{ message: 'Mapping USER_BUTTON_A is invalid. There is no imported pin mapping with that name.', range: toRange(9, 4, 13, 5), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' },
+			{ message: 'Mapping USER_BUTTON_A is invalid. There is no imported pin mapping with that name.', range: toRange(14, 4, 18, 5), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' },
+			{ message: 'Mapping USER_BUTTON_B is invalid. There is no imported pin mapping with that name.', range: toRange(19, 4, 23, 5), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' }
 		]);
 	});
 });
