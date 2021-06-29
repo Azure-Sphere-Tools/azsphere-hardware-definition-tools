@@ -1,62 +1,21 @@
 {
-  "name": "azsphere-hardware-definition-tools",
-  "displayName": "Azure Sphere Hardware Definition Tools",
-  "description": "VSCode extension for Azure Sphere Hardware Definition support",
-  "author": "UCL IXN",
-  "contributors": [
-    "Jiachen Weng",
-    "Tsung-Hai Tsai",
-    "Denoy Hossain",
-    "Dorin Botan",
-    "Omar Beyhum"
-  ],
-  "publisher": "ucl-ixn",
-  "license": "MIT",
-  "version": "1.0.0",
-  "categories": [],
-  "keywords": [],
-  "engines": {
-    "vscode": "^1.52.0"
-  },
-  "activationEvents": [
-    "onLanguage:json",
-    "onLanguage:plaintext"
-  ],
-  "main": "./dist/extension",
-  "contributes": {
-    "configuration": {
-      "type": "object",
-      "title": "Azure Sphere Tools",
-      "properties": {
-        "AzureSphere.SdkPath": {
-          "scope": "window",
-          "type": "string",
-          "description": "Path to the Azure Sphere SDK directory."
-        },
-        "azureSphereToolsLanguageServer.trace.server": {
-          "scope": "window",
-          "type": "string",
-          "enum": [
-            "off",
-            "messages",
-            "verbose"
-          ],
-          "default": "off",
-          "description": "Traces the communication between VS Code and the language server."
-        }
-      }
-    }
-  },
-  "scripts": {
-    "build": "tsc -b",
-    "vscode:prepublish": "sh ./prepublish.sh"
-  },
-  "dependencies": {
-    "vscode-languageclient": "^7.0.0"
-  },
-  "devDependencies": {
-    "@types/vscode": "^1.52.0",
-    "vscode-test": "^1.3.0",
-    "typescript": "^4.3.2"
-  }
+	"name": "azsphere-hardware-definition-root",
+	"description": "Root package.json which defines common dev tools for the vscode extension and language server projects",
+	"version": "1.0.0",
+	"scripts": {
+		"build": "tsc -b --clean && tsc -b",
+		"watch": "tsc -b -w",
+		"postinstall": "cd vscode-extension && npm install && cd ../server && npm install && cd ..",
+		"test": "sh ./scripts/e2e.sh"
+	},
+	"devDependencies": {
+		"@types/mocha": "^8.2.2",
+		"@types/node": "^12.12.0",
+		"@typescript-eslint/eslint-plugin": "^4.23.0",
+		"@typescript-eslint/parser": "^4.23.0",
+		"eslint": "^7.26.0",
+		"mocha": "^8.3.2",
+		"typescript": "^4.3.2",
+		"source-map-support": "^0.5.19"
+	}
 }
