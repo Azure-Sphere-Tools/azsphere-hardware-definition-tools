@@ -39,9 +39,9 @@ const HW_DEFINITION_SCHEMA_URL =
 const runningTests = process.env.LANGUAGE_SERVER_MODE == "TEST";
 const connection = runningTests
   ? createConnection(
-      new IPCMessageReader(process),
-      new IPCMessageWriter(process)
-    )
+    new IPCMessageReader(process),
+    new IPCMessageWriter(process)
+  )
   : createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager.
@@ -328,7 +328,7 @@ function tryParseHardwareDefinitionFile(
             // TODO add nodes to pin mappings?
             connection.console.info(
               "Importing hardware definition file from " +
-                fullPathToImportedFile
+              fullPathToImportedFile
             );
           } else {
             unknownImports.push({
