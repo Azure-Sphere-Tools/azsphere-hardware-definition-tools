@@ -8,6 +8,9 @@ on:
     branches: [master]
   pull_request:
     branches: [master]
+  push:
+    tags:
+      - "*"
 
 jobs:
   build:
@@ -37,3 +40,9 @@ jobs:
       - run: npm test
         env:
           DISPLAY: ":99.0" # Only necessary for linux tests
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "vscode-extension/*.vsix"
+          bodyFile: "README.md"
+          tag: "1.0.0"
+          token: ${{ secrets.VSCE_TOKEN }}
