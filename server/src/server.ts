@@ -1,38 +1,33 @@
 import {
-  createConnection,
-  TextDocuments,
-  Diagnostic,
-  ProposedFeatures,
-  InitializeParams,
-  DidChangeConfigurationNotification,
-  CompletionItem,
-  CompletionItemKind,
-  TextDocumentPositionParams,
-  TextDocumentSyncKind,
-  InitializeResult,
-  MessageType,
-  ShowMessageRequest,
-  ShowMessageRequestParams,
-  TextDocumentEdit,
-  TextEdit,
-  IPCMessageReader,
-  IPCMessageWriter,
-} from "vscode-languageserver/node";
+	createConnection,
+	TextDocuments,
+	Diagnostic,
+	ProposedFeatures,
+	InitializeParams,
+	DidChangeConfigurationNotification,
+	CompletionItem,
+	CompletionItemKind,
+	TextDocumentPositionParams,
+	TextDocumentSyncKind,
+	InitializeResult,
+	MessageType,
+	ShowMessageRequest,
+	ShowMessageRequestParams,
+	TextDocumentEdit,
+	TextEdit,
+	IPCMessageReader,
+	IPCMessageWriter
+} from 'vscode-languageserver/node';
 
-import { TextDocument } from "vscode-languageserver-textdocument";
-import * as jsonc from "jsonc-parser";
-import { findDuplicateMappings, findUnknownImports } from "./validator";
-import {
-  HardwareDefinition,
-  PinMapping,
-  UnknownImport,
-} from "./hardwareDefinition";
-import { URI } from "vscode-uri";
-import * as fs from "fs";
-import * as path from "path";
+import { TextDocument } from 'vscode-languageserver-textdocument';
+import * as jsonc from 'jsonc-parser';
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports } from './validator';
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
+import { URI } from 'vscode-uri';
+import * as fs from 'fs';
+import * as path from 'path';
 
-const HW_DEFINITION_SCHEMA_URL =
-  "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
+const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
 // temporary hack to run unit tests with mocha instead of always calling 'createConnection(ProposedFeatures.all)'
 // when fixed, remove IPCMessageReader/Writer from server.ts and LANGUAGE_SERVER_MODE from .vscode/settings.json
@@ -226,6 +221,7 @@ documents.onDidOpen(async (change) => {
       }
     });
   }
+
 });
 // Only keep settings for open documents
 documents.onDidClose((e) => {
@@ -239,140 +235,116 @@ documents.onDidChangeContent((change) => {
 });
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-  const settings = await getDocumentSettings(textDocument.uri);
-  const text = textDocument.getText();
 
-  const hwDefinition = tryParseHardwareDefinitionFile(
-    text,
-    textDocument.uri,
-    settings.SdkPath
-  );
-  if (!hwDefinition) {
-    return;
-  }
+	const settings = await getDocumentSettings(textDocument.uri);
+	const text = textDocument.getText();
 
-  const diagnostics: Diagnostic[] = findDuplicateMappings(
-    hwDefinition,
-    text,
-    textDocument,
-    hasDiagnosticRelatedInformationCapability
-  );
+	const hwDefinition = tryParseHardwareDefinitionFile(textDocument.getText(), textDocument.uri, settings.SdkPath);
+	if (!hwDefinition) {
+		return;
+	}
 
-  for (const importDiagnostic of findUnknownImports(
-    hwDefinition,
-    textDocument
-  )) {
-    diagnostics.push(importDiagnostic);
-  }
+	const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinition, text, textDocument, hasDiagnosticRelatedInformationCapability);
+	const duplicateNamesDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinition, hasDiagnosticRelatedInformationCapability);
+	for (const duplicateNameDiagnostic of duplicateNamesDiagnostics) {
+		diagnostics.push(duplicateNameDiagnostic);
+	}
+	for (const importDiagnostic of findUnknownImports(hwDefinition, textDocument)) {
+		diagnostics.push(importDiagnostic);
+	}
 
-  // Send the computed diagnostics to VSCode.
-  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+	// Send the computed diagnostics to VSCode.
+	connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
-function tryParseHardwareDefinitionFile(
-  hwDefinitionFileText: string,
-  hwDefinitionFileUri: string,
-  sdkPath: string
-): HardwareDefinition | undefined {
-  try {
-    const parseErrors: jsonc.ParseError[] = [];
+export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefinitionFileUri: string, sdkPath: string): HardwareDefinition | undefined {
+	try {
+		const parseErrors: jsonc.ParseError[] = [];
 
-    const hwDefinitionFileRootNode = jsonc.parseTree(
-      hwDefinitionFileText,
-      parseErrors
-    );
+		const hwDefinitionFileRootNode = jsonc.parseTree(hwDefinitionFileText, parseErrors);
+		
 
-    if (parseErrors.length > 0) {
-      connection.console.warn("Encountered errors while parsing json file: ");
-      parseErrors.forEach((e) =>
-        connection.console.warn(
-          `${e.offset} to ${e.offset + e.length}: ${jsonc.printParseErrorCode(
-            e.error
-          )}`
-        )
-      );
-    }
-    if (!hwDefinitionFileRootNode) {
-      return;
-    }
+		if (parseErrors.length > 0) {
+			connection.console.warn("Encountered errors while parsing json file: ");
+			parseErrors.forEach(e => connection.console.warn(`${e.offset} to ${e.offset + e.length}: ${jsonc.printParseErrorCode(e.error)}`));
+		}
+		if (!hwDefinitionFileRootNode) {
+			return;
+		}
 
-    const { Metadata, Imports, Peripherals, $schema } = jsonc.getNodeValue(
-      hwDefinitionFileRootNode
-    );
+		const { Metadata, Imports, Peripherals, $schema } = jsonc.getNodeValue(hwDefinitionFileRootNode);
+		const fileTypeFromMetadata = Metadata?.Type;
+		if (fileTypeFromMetadata != "Azure Sphere Hardware Definition") {
+			connection.console.log('File is not a Hardware Definition');
+			return;
+		}
 
-    const fileTypeFromMetadata = Metadata?.Type;
-    if (fileTypeFromMetadata != "Azure Sphere Hardware Definition") {
-      connection.console.log("File is not a Hardware Definition");
-      return;
-    }
+		const unknownImports: UnknownImport[] = [];
+		const validImports: HardwareDefinition[] = [];
+		if (Array.isArray(Imports)) {
+			const importsNode = jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Imports"]) as jsonc.Node;
+			const importsNodeStart = importsNode.offset;
+			const importsNodeEnd = importsNodeStart + importsNode.length;
 
-    const unknownImports: UnknownImport[] = [];
-    if (Array.isArray(Imports)) {
-      const importsNode = jsonc.findNodeAtLocation(hwDefinitionFileRootNode, [
-        "Imports",
-      ]) as jsonc.Node;
-      const importsNodeStart = importsNode.offset;
-      const importsNodeEnd = importsNodeStart + importsNode.length;
+			for (const { Path } of Imports) {
 
-      for (const { Path } of Imports) {
-        if (typeof Path == "string") {
-          const hwDefinitionFilePath = URI.parse(
-            path.dirname(hwDefinitionFileUri)
-          ).fsPath;
-          const fullPathToImportedFile = findFullPath(
-            Path,
-            hwDefinitionFilePath,
-            sdkPath
-          );
-          if (fullPathToImportedFile) {
-            // TODO add nodes to pin mappings?
-            connection.console.info(
-              "Importing hardware definition file from " +
-              fullPathToImportedFile
-            );
-          } else {
-            unknownImports.push({
-              fileName: Path,
-              hwDefinitionFilePath: hwDefinitionFilePath,
-              sdkPath: sdkPath,
-              start: importsNodeStart,
-              end: importsNodeEnd,
-            });
-          }
-        }
-      }
-    }
+				if (typeof Path == "string") {
+					const hwDefinitionFilePath = URI.parse(path.dirname(hwDefinitionFileUri)).fsPath;
+					const fullPathToImportedFile = findFullPath(Path, hwDefinitionFilePath, sdkPath);
+					if (fullPathToImportedFile) {
+						const importedHwDefFileUri = URI.file(fullPathToImportedFile).toString();
+						let importedHwDefFileText = documents.get(importedHwDefFileUri)?.getText();
+						if(!importedHwDefFileText) {
+							importedHwDefFileText = fs.readFileSync(fullPathToImportedFile, {encoding: 'utf8'}); 
+						}
+						if (importedHwDefFileText) {
+							const importedHwDefinition = tryParseHardwareDefinitionFile(importedHwDefFileText, importedHwDefFileUri, sdkPath);
+							if (importedHwDefinition) {
+								validImports.push(importedHwDefinition);
+							}
+						}
+					} else {
+						unknownImports.push({
+							fileName: Path,
+							hwDefinitionFilePath: hwDefinitionFilePath,
+							sdkPath: sdkPath,
+							start: importsNodeStart,
+							end: importsNodeEnd
+						});
+					}
+				}
 
-    const pinMappings: PinMapping[] = [];
+			}
+		}
 
-    if (Array.isArray(Peripherals)) {
-      for (const potentialMapping of Peripherals) {
-        const { Name, Type, Mapping, AppManifestValue, Comment } =
-          potentialMapping;
-        const hasMappingOrAppManifestValue =
-          typeof Mapping == "string" || AppManifestValue;
-        const isPinMapping =
-          typeof Name == "string" &&
-          typeof Type == "string" &&
-          hasMappingOrAppManifestValue;
-        if (isPinMapping) {
-          pinMappings.push(
-            new PinMapping(Name, Type, Mapping, AppManifestValue, Comment)
-          );
-        }
-      }
-    }
-    return new HardwareDefinition($schema, pinMappings, unknownImports);
-  } catch (error) {
-    connection.console.log("Cannot parse Hardware Definition file as JSON");
-    return;
-  }
+		const pinMappings: PinMapping[] = [];
+
+		if (Array.isArray(Peripherals)) {
+			for (let i = 0; i < Peripherals.length; i++) {
+
+				const { Name, Type, Mapping, AppManifestValue, Comment } = Peripherals[i];
+				const hasMappingOrAppManifestValue = typeof Mapping == "string" || typeof AppManifestValue == "string" || typeof AppManifestValue == "number";
+				const isPinMapping = typeof Name == "string" && typeof Type == "string" && hasMappingOrAppManifestValue;
+				if (isPinMapping) {
+					const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ['Peripherals', i]);
+					const start = mappingAsJsonNode?.offset;
+					const end = start + mappingAsJsonNode?.length;
+					pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, Comment, toRange(hwDefinitionFileText, start, end)));
+				}
+			}
+		}
+		return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports);
+
+	} catch (error) {
+		connection.console.log('Cannot parse Hardware Definition file as JSON');
+		return;
+	}
 }
 
 /**
  *
  * @param relativeImportPath The relative path to the imported hw definition file (e.g. 'mt3620.json')
- * @param hwDefinitionFileUri The full path to the hw definition file which declared the import
+ * @param hwDefinitionFilePath The full path to the hw definition file which declared the import
  * @param sdkPath The path to the azure sphere sdk
  * @returns Full path to the imported hw definition file if it exists, otherwise undefined
  */
