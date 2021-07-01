@@ -7,19 +7,19 @@ export class HardwareDefinition {
 		public pinMappings: PinMapping[] = [],
 		public imports: HardwareDefinition[] = [],
 		public unknownImports: UnknownImport[] = []
-	){}
+	) { }
 }
 
 export class PinMapping {
-	
+
 	constructor(
-		public name: string, 
-		public type: string, 
-		public mapping: string | undefined, 
+		public name: string,
+		public type: string,
+		public mapping: string | undefined,
 		public appManifestValue: number | string | undefined,
 		public comment: string | undefined,
 		public range: Range
-	){}
+	) { }
 
 	/**
 	 * 
@@ -34,7 +34,7 @@ export class PinMapping {
 /**
  * An imported file which could not be found under the Azure Sphere SDK path or the importing hardware definition file's path
  */
- export interface UnknownImport {
+export interface UnknownImport {
 	fileName: string,
 	sdkPath: string,
 	hwDefinitionFilePath: string,
@@ -43,7 +43,7 @@ export class PinMapping {
 }
 
 export function toRange(text: string, start: number, end: number): Range {
-	
+
 	return {
 		start: toPosition(text, start),
 		end: toPosition(text, end)

@@ -177,10 +177,10 @@ suite('findFullPath', () => {
 });
 
 suite("CMAKELists Infer", () => {
-  test("Azuresphere Target Hardware Definition specified in CMakeLists", () => {
-    mockfs({
-      my_application: {
-        "CMakeLists.txt": `
+	test("Azuresphere Target Hardware Definition specified in CMakeLists", () => {
+		mockfs({
+			my_application: {
+				"CMakeLists.txt": `
 			cmake_minimum_required (VERSION 3.10)
 			
 			project (Blink C)
@@ -200,24 +200,24 @@ suite("CMAKELists Infer", () => {
 			azsphere_target_add_image_package(\${PROJECT_NAME})
 			
 			message("LOOK HERE \${TARGET_DIRECTORY}")`,
-      },
-      "my_application/HardwareDefinitions/template_appliance.json":
-        "file_content",
-    });
-    const CMAKEListsPath = "my_application/CMakeLists.txt";
+			},
+			"my_application/HardwareDefinitions/template_appliance.json":
+				"file_content",
+		});
+		const CMAKEListsPath = "my_application/CMakeLists.txt";
 
-    const fullPath: string | undefined = parseCommandsParams(
-      path.resolve(CMAKEListsPath)
-    );
+		const fullPath: string | undefined = parseCommandsParams(
+			path.resolve(CMAKEListsPath)
+		);
 
-    const expectedPath =
-      "my_application/HardwareDefinitions/template_appliance.json";
-    if (fullPath) {
-      assert.strictEqual(path.resolve(fullPath), path.resolve(expectedPath));
-    } else {
-      assert.fail(`Path was undefined`);
-    }
-  });
+		const expectedPath =
+			"my_application/HardwareDefinitions/template_appliance.json";
+		if (fullPath) {
+			assert.strictEqual(path.resolve(fullPath), path.resolve(expectedPath));
+		} else {
+			assert.fail(`Path was undefined`);
+		}
+	});
 });
 
 function asURI(hwDefFilePath: string): string {

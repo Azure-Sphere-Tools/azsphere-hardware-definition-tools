@@ -33,9 +33,8 @@ export function activate(context: ExtensionContext) {
   }
 
   console.log(
-    `Extension running in ${
-      ExtensionMode[context.extensionMode]
-    } mode. Running language server from ${serverModule}`
+    `Extension running in ${ExtensionMode[context.extensionMode]} mode. 
+    Running language server from ${serverModule}`
   );
   // The debug options for the server
   // --inspect=16009: runs the server in Node's Inspector mode so VS Code can attach to the server for debugging

@@ -11,7 +11,7 @@ import { tryParseHardwareDefinitionFile } from '../server';
 import { validateNamesAndMappings } from '../validator';
 
 suite('validateNamesAndMappings', () => {
-	
+
 	// unmock the file system after each test
 	teardown(mockfs.restore);
 

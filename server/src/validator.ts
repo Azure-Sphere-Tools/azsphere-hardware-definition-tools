@@ -50,7 +50,7 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 			}
 			warningDiagnostics.push(diagnostic);
 		} else {
-			if(!mapping.isRootMapping()) {
+			if (!mapping.isRootMapping()) {
 				const mappedTo = <string>mapping.mapping;
 				if (!reservedNames.has(mappedTo)) {
 					const diagnostic: Diagnostic = {
@@ -62,7 +62,7 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 					warningDiagnostics.push(diagnostic);
 				}
 			}
-			reservedNames.set(mapping.name, {pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri});
+			reservedNames.set(mapping.name, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
 		}
 	}
 	return warningDiagnostics;
@@ -76,7 +76,7 @@ function recursiveFindDuplicateNames(hwDefinition: HardwareDefinition, reservedN
 		if (reservedNames.has(mapping.name)) {
 			continue;
 		}
-		reservedNames.set(mapping.name, {pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri});
+		reservedNames.set(mapping.name, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
 	}
 }
 
