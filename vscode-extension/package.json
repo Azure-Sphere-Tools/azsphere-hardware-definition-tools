@@ -19,7 +19,9 @@
 		"vscode": "^1.52.0"
 	},
 	"activationEvents": [
-		"onLanguage:json"
+		"onLanguage:json",
+		"onLanguage:plaintext",
+		"onLanguage:cmake"
 	],
 	"main": "./dist/extension",
 	"contributes": {
