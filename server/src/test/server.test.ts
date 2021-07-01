@@ -174,6 +174,7 @@ suite('findFullPath', () => {
 		}
 
 	});
+});
 
 suite("CMAKELists Infer", () => {
   test("Azuresphere Target Hardware Definition specified in CMakeLists", () => {
