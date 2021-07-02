@@ -3,7 +3,7 @@
     <Metadata>
         <Identity Id="AZSphereHardwareDefinitionTools.3e845786-b668-47a0-972e-599dc5b19a74" Version="1.0" Language="en-US" Publisher="Omar Beyhum" />
         <DisplayName>AZSphereHardwareDefinitionTools</DisplayName>
-        <Description>Empty VSIX Project.</Description>
+        <Description>Azure Sphere Hardware Definition Tools Extension.</Description>
     </Metadata>
     <Installation>
         <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[16.0, 17.0)" />

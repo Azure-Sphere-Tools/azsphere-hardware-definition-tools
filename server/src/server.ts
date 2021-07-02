@@ -16,7 +16,9 @@ import {
   TextDocumentEdit,
   TextEdit,
   IPCMessageReader,
-  IPCMessageWriter
+  IPCMessageWriter,
+  ShowMessageNotification,
+  ShowMessageParams
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -163,11 +165,11 @@ documents.onDidOpen(async (change) => {
     );
 
     if (hwDefinitionPath) {
-      const msg: ShowMessageRequestParams = {
+      const msg: ShowMessageParams = {
         message: `Hardware Definition found in the target specified in CMakeLists - ${hwDefinitionPath}`,
         type: MessageType.Info,
       };
-      connection.sendRequest(ShowMessageRequest.type, msg);
+      connection.sendNotification(ShowMessageNotification.type, msg);
     }
     return;
   }

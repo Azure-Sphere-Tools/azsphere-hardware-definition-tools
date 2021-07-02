@@ -4,27 +4,34 @@ using System.ComponentModel.Composition;
 
 namespace AZSphereHardwareDefinitionTools
 {
-    public class HardwareDefinitionLanguageContent
-    {
-        [Export]
-        [Name("json")]
-        [BaseDefinition(CodeRemoteContentDefinition.CodeRemoteContentTypeName)]
-        internal static ContentTypeDefinition HardwareDefinitionContentType;
+  /// <summary>
+  /// Defines the type of files (content type) that the extension is interested in analyzing.
+  /// Each content type is assigned a name and associated with a file extension.
+  /// </summary>
+  public class HardwareDefinitionLanguageContent
+  {
+    public const string HARDWARE_DEFINITION = "hardwaredefinition";
+    public const string CMAKELISTS = "cmakelists";
 
-        [Export]
-        [FileExtension(".json")]
-        [ContentType("json")]
-        internal static FileExtensionToContentTypeDefinition HardwareDefinitionFileExtension;
+    [Export]
+    [Name(HARDWARE_DEFINITION)]
+    [BaseDefinition(CodeRemoteContentDefinition.CodeRemoteContentTypeName)]
+    internal static ContentTypeDefinition HardwareDefinitionContentType;
+
+    [Export]
+    [FileExtension(".json")]
+    [ContentType(HARDWARE_DEFINITION)]
+    internal static FileExtensionToContentTypeDefinition HardwareDefinitionFileExtension;
 
 
-        [Export]
-        [Name("cmake")]
-        [BaseDefinition(CodeRemoteContentDefinition.CodeRemoteContentTypeName)]
-        internal static ContentTypeDefinition CMakeListsContentType;
+    [Export]
+    [Name(CMAKELISTS)]
+    [BaseDefinition(CodeRemoteContentDefinition.CodeRemoteContentTypeName)]
+    internal static ContentTypeDefinition CMakeListsContentType;
 
-        [Export]
-        [FileExtension("CMakeLists.txt")]
-        [ContentType("cmake")]
-        internal static FileExtensionToContentTypeDefinition CMakeListsFileExtension;
-    }
+    [Export]
+    [FileExtension("CMakeLists.txt")]
+    [ContentType("cmakelists")]
+    internal static FileExtensionToContentTypeDefinition CMakeListsFileExtension;
+  }
 }
