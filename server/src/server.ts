@@ -21,7 +21,7 @@ import {
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import * as jsonc from 'jsonc-parser';
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports } from './validator';
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
 import { URI } from 'vscode-uri';
 import * as fs from 'fs';
@@ -246,6 +246,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
   const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinition, text, textDocument, hasDiagnosticRelatedInformationCapability);
   const duplicateNamesDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinition, hasDiagnosticRelatedInformationCapability);
+  const pinBlockDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, hasDiagnosticRelatedInformationCapability);
   for (const duplicateNameDiagnostic of duplicateNamesDiagnostics) {
     diagnostics.push(duplicateNameDiagnostic);
   }

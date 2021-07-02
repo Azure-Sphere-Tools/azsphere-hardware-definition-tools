@@ -7,6 +7,7 @@ import {
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
+import * as pinBlock from './mt3620_controllers.json';
 
 const EXTENSION_SOURCE = 'az sphere';
 
@@ -145,4 +146,54 @@ export function findUnknownImports(hwDefinition: HardwareDefinition, textDocumen
 		});
 	}
 	return diagnostics;
+}
+
+export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelatedInfo: boolean) : Diagnostic[]{
+	const warningDiagnostics: Diagnostic[] = [];
+	const countMap: Map<string, number> = new Map();
+	const keyList:string[] = [];
+	for(const key in pinBlock){
+		keyList.push(key);
+	}
+
+	// const json = JSON.parse(pinBlock.toString());
+	// console.log(json);
+
+	for(const mapping of hwDefinition.pinMappings){
+		if(hwDefinition.imports.length == 0){
+			continue;
+		}
+
+		let temptHWDefinition = hwDefinition;
+		const applicationName = mapping.name;
+		let mappingTo = mapping.mapping;
+		let appManifestValue = '';
+		// find appManifestValue and set the used pin by transfering the import file
+		while(temptHWDefinition.imports.length != 0){
+			// query all import path
+			for(const importedHwDefinition of temptHWDefinition.imports){
+				const importMapping = importedHwDefinition.pinMappings;
+				// query all mapping in the import json file
+				for(const temptMapping of importMapping){
+					if(temptMapping.name == mappingTo){
+						mappingTo = temptMapping.mapping;
+						if(mappingTo == undefined){
+							appManifestValue = temptMapping.appManifestValue as string;
+							// if it is allowed, set pin to 1 that express it has been used
+
+							if(keyList.indexOf(appManifestValue) != -1){
+								console.log(appManifestValue);
+								// console.log(pinBlock[appManifestValue]);
+							}
+							countMap.set(temptMapping.name,1);
+						}
+						temptHWDefinition = importedHwDefinition;
+					}
+				}
+			}
+		}
+		console.log(appManifestValue);
+		// console.log(countMap);
+	}
+	return warningDiagnostics;
 }
