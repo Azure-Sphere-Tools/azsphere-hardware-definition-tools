@@ -20,16 +20,16 @@ import {
   ShowMessageParams,
 } from "vscode-languageserver/node";
 
-import { TextDocument } from "vscode-languageserver-textdocument";
-import * as jsonc from "jsonc-parser";
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports } from "./validator";
-import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
 import { pinMappingCompletionItemsAtPosition } from "./suggestions";
-import { URI } from "vscode-uri";
-import * as fs from "fs";
-import * as path from "path";
+import { TextDocument } from 'vscode-languageserver-textdocument';
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
+import { URI } from 'vscode-uri';
+import * as jsonc from 'jsonc-parser';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -237,6 +237,7 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
   const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinition, text, textDocument, hasDiagnosticRelatedInformationCapability);
   const duplicateNamesDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinition, hasDiagnosticRelatedInformationCapability);
+  const pinBlockDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, hasDiagnosticRelatedInformationCapability);
   for (const duplicateNameDiagnostic of duplicateNamesDiagnostics) {
     diagnostics.push(duplicateNameDiagnostic);
   }
