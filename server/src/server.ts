@@ -331,7 +331,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
           const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ['Peripherals', i]);
           const start = mappingAsJsonNode?.offset;
           const end = start + mappingAsJsonNode?.length;
-          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, Comment, toRange(hwDefinitionFileText, start, end)));
+          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment));
         }
       }
     }

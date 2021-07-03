@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -17,6 +16,9 @@ namespace AZSphereHardwareDefinitionTools
   [Export(typeof(ILanguageClient))]
   public class HardwareDefinitionLanguageClient : ILanguageClient
   {
+
+    private const string EXTENSION_DIRECTORY = "visualstudio-extension";
+
     public string Name => "AZ Sphere Hardware Definition Tools";
 
     public IEnumerable<string> ConfigurationSections => new[] { "AzureSphere" };
@@ -36,7 +38,7 @@ namespace AZSphereHardwareDefinitionTools
 
       ProcessStartInfo info = new ProcessStartInfo();
       info.FileName = "node";
-      info.Arguments = languageServerArgs();
+      info.Arguments = LanguageServerArgs();
       info.RedirectStandardInput = true;
       info.RedirectStandardOutput = true;
       info.UseShellExecute = false;
@@ -53,16 +55,20 @@ namespace AZSphereHardwareDefinitionTools
       return null;
     }
 
-    private static string languageServerArgs()
+    private static string LanguageServerArgs()
     {
 #if DEBUG
-            string workingDirectory = Environment.CurrentDirectory;
-            string extensionDirectory = Directory.GetParent(workingDirectory).Parent.FullName;
-            var languageServerEntrypoint = Path.GetFullPath(Path.Combine(extensionDirectory, "..", "..", "server", "dist", "server.js"));
+      // set entrypoint to language server source code in debug mode to enable language server breakpoints/debugging when running it from Visual Studio
+      var languageServerEntrypoint = PathToLanguageServerSourceCode();
 #else
       string extensionDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
       var languageServerEntrypoint = Path.Combine(extensionDirectory, "EmbeddedLanguageServer", "node_modules", "azsphere-hardware-definition-language-server", "dist", "server.js");
 #endif
+
+      if (!File.Exists(languageServerEntrypoint))
+      {
+        throw new ArgumentException($"Language server entrypoint does not exist in path {languageServerEntrypoint}");
+      }
       var debugArgs = "--nolazy --inspect=16009";
       return $"{debugArgs} \"{languageServerEntrypoint}\" --stdio --clientProcessId={Process.GetCurrentProcess().Id}";
     }
@@ -80,6 +86,23 @@ namespace AZSphereHardwareDefinitionTools
     public Task OnServerInitializedAsync()
     {
       return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Finds the path to the source code of the language server
+    /// </summary>
+    /// <returns></returns>
+    private static string PathToLanguageServerSourceCode()
+    {
+      string extensionDirectory = ExtensionPath(); 
+      return Path.GetFullPath(Path.Combine(extensionDirectory, "..", "server", "dist", "server.js"));
+    }
+
+    public static string ExtensionPath()
+    {
+      string workingDirectory = Path.GetFullPath(Environment.CurrentDirectory);
+      string extensionDirectory = workingDirectory.Substring(0, workingDirectory.LastIndexOf(EXTENSION_DIRECTORY) + EXTENSION_DIRECTORY.Length);
+      return extensionDirectory;
     }
   }
 }

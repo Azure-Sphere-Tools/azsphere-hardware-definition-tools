@@ -9,6 +9,6 @@ LANGUAGE_SERVER_MODE=TEST ./node_modules/mocha/bin/mocha --ui tdd --color --time
 
 # Run e2e tests
 export CODE_TESTS_PATH="$(pwd)/vscode-extension/dist/test"
-export CODE_TESTS_WORKSPACE="$(pwd)/vscode-extension/testFixture"
+export CODE_TESTS_WORKSPACE="$(pwd)/testFixture"
 
 node "$(pwd)/vscode-extension/dist/test/runTestsInVsCode"

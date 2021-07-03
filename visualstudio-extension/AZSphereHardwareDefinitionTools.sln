@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.31410.357
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AZSphereHardwareDefinitionTools", "AZSphereHardwareDefinitionTools\AZSphereHardwareDefinitionTools.csproj", "{4112249D-03E8-491E-81AE-C544A6535544}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AZSphereHardwareDefinitionTools.Tests", "AZSphereHardwareDefinitionTools.Tests\AZSphereHardwareDefinitionTools.Tests.csproj", "{3DC84548-A265-41B0-A05F-6BAD67C957B6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{4112249D-03E8-491E-81AE-C544A6535544}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4112249D-03E8-491E-81AE-C544A6535544}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{4112249D-03E8-491E-81AE-C544A6535544}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3DC84548-A265-41B0-A05F-6BAD67C957B6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DC84548-A265-41B0-A05F-6BAD67C957B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DC84548-A265-41B0-A05F-6BAD67C957B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DC84548-A265-41B0-A05F-6BAD67C957B6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

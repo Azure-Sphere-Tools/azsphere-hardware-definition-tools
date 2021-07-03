@@ -164,7 +164,8 @@ export function findUnknownImports(hwDefinition: HardwareDefinition, textDocumen
  * @param relatedInfoUri The uri of the file containing the related information
  */
 function addRelatedInfoAsDiagnosticMessage(diagnostic: Diagnostic, relatedInfoPosition: Position, hwDefinitionUri: string, relatedInfoUri: string) {
-	diagnostic.message += ` (line ${relatedInfoPosition.line + 1}, char ${relatedInfoPosition.character}`;
+	// line and char are incremented by 1 since we start counting lines from 1 in text files (not 0)
+	diagnostic.message += ` (line ${relatedInfoPosition.line + 1}, char ${relatedInfoPosition.character + 1}`;
 	if (hwDefinitionUri != relatedInfoUri) {
 		// mention the related info's file uri if it wasn't defined in the current hw definition file  
 		diagnostic.message += ` in ${URI.file(relatedInfoUri).fsPath}`;

@@ -10,7 +10,7 @@ namespace AZSphereHardwareDefinitionTools
   /// </summary>
   public class HardwareDefinitionLanguageContent
   {
-    public const string HARDWARE_DEFINITION = "hardwaredefinition";
+    public const string HARDWARE_DEFINITION = "json";
     public const string CMAKELISTS = "cmakelists";
 
     [Export]
