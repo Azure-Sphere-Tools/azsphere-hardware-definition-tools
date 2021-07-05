@@ -43,6 +43,10 @@ jobs:
 
   build-visualstudio:
     runs-on: windows-latest
+    concurrency:
+      # ensure the visual studio build runs only 1 at a time per branch, since it's expensive
+      group: build-visualstudio-${{ github.ref }} 
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js ${{ matrix.node-version }}
