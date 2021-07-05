@@ -21,25 +21,20 @@ import {
   ShowMessageParams
 } from 'vscode-languageserver/node';
 
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import * as jsonc from 'jsonc-parser';
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports } from './validator';
-import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
-import { URI } from 'vscode-uri';
-import * as fs from 'fs';
-import * as path from 'path';
+import { TextDocument } from "vscode-languageserver-textdocument";
+import * as jsonc from "jsonc-parser";
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, getValidPinMappings } from "./validator";
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
+import { URI } from "vscode-uri";
+import * as fs from "fs";
+import * as path from "path";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
 // temporary hack to run unit tests with mocha instead of always calling 'createConnection(ProposedFeatures.all)'
 // when fixed, remove IPCMessageReader/Writer from server.ts and LANGUAGE_SERVER_MODE from .vscode/settings.json
 const runningTests = process.env.LANGUAGE_SERVER_MODE == "TEST";
-const connection = runningTests
-  ? createConnection(
-    new IPCMessageReader(process),
-    new IPCMessageWriter(process)
-  )
-  : createConnection(ProposedFeatures.all);
+const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -53,12 +48,8 @@ connection.onInitialize((params: InitializeParams) => {
 
   // Does the client support the `workspace/configuration` request?
   // If not, we fall back using global settings.
-  hasConfigurationCapability = !!(
-    capabilities.workspace && !!capabilities.workspace.configuration
-  );
-  hasWorkspaceFolderCapability = !!(
-    capabilities.workspace && !!capabilities.workspace.workspaceFolders
-  );
+  hasConfigurationCapability = !!(capabilities.workspace && !!capabilities.workspace.configuration);
+  hasWorkspaceFolderCapability = !!(capabilities.workspace && !!capabilities.workspace.workspaceFolders);
   hasDiagnosticRelatedInformationCapability = !!(
     capabilities.textDocument &&
     capabilities.textDocument.publishDiagnostics &&
@@ -87,10 +78,7 @@ connection.onInitialize((params: InitializeParams) => {
 connection.onInitialized(() => {
   if (hasConfigurationCapability) {
     // Register for all configuration changes.
-    connection.client.register(
-      DidChangeConfigurationNotification.type,
-      undefined
-    );
+    connection.client.register(DidChangeConfigurationNotification.type, undefined);
   }
   if (hasWorkspaceFolderCapability) {
     connection.workspace.onDidChangeWorkspaceFolders((_event) => {
@@ -104,10 +92,7 @@ interface ExtensionSettings {
   SdkPath: string;
 }
 const defaultSettings: ExtensionSettings = {
-  SdkPath:
-    process.platform == "linux"
-      ? "/opt/azurespheresdk"
-      : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
+  SdkPath: process.platform == "linux" ? "/opt/azurespheresdk" : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
 };
 
 function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
@@ -160,9 +145,7 @@ documents.onDidOpen(async (change) => {
   const text = textDocument.getText();
 
   if (textDocument.uri.endsWith("CMakeLists.txt")) {
-    const hwDefinitionPath = parseCommandsParams(
-      URI.parse(textDocument.uri).fsPath
-    );
+    const hwDefinitionPath = parseCommandsParams(URI.parse(textDocument.uri).fsPath);
 
     if (hwDefinitionPath) {
       const msg: ShowMessageParams = {
@@ -174,11 +157,7 @@ documents.onDidOpen(async (change) => {
     return;
   }
 
-  const hwDefinition = tryParseHardwareDefinitionFile(
-    text,
-    textDocument.uri,
-    settings.SdkPath
-  );
+  const hwDefinition = tryParseHardwareDefinitionFile(text, textDocument.uri, settings.SdkPath);
 
   if (!hwDefinition) {
     return;
@@ -186,44 +165,28 @@ documents.onDidOpen(async (change) => {
 
   if (!hwDefinition.schema) {
     connection.console.log("Can suggest adding json schema");
-    const fileName = textDocument.uri.substring(
-      textDocument.uri.lastIndexOf("/") + 1
-    );
+    const fileName = textDocument.uri.substring(textDocument.uri.lastIndexOf("/") + 1);
     const msg: ShowMessageRequestParams = {
       message: `${fileName} detected as Hardware Definition file. Add a json schema for type hints?`,
       type: MessageType.Info,
       actions: [{ title: "Yes" }, { title: "No" }],
     };
-    const addJsonSchemaRequest = connection.sendRequest(
-      ShowMessageRequest.type,
-      msg
-    );
+    const addJsonSchemaRequest = connection.sendRequest(ShowMessageRequest.type, msg);
     addJsonSchemaRequest.then((resp) => {
       if (resp?.title == "Yes") {
-        connection.console.log(
-          `Client accepted to add json schema for autocompletion on file ${fileName}`
-        );
-        const positionToInsertSchemaNode = textDocument.positionAt(
-          text.indexOf(`"Metadata"`)
-        );
+        connection.console.log(`Client accepted to add json schema for autocompletion on file ${fileName}`);
+        const positionToInsertSchemaNode = textDocument.positionAt(text.indexOf(`"Metadata"`));
 
         connection.workspace.applyEdit({
           documentChanges: [
-            TextDocumentEdit.create(
-              { uri: textDocument.uri, version: textDocument.version },
-              [
-                TextEdit.insert(
-                  positionToInsertSchemaNode,
-                  `"$schema": "${HW_DEFINITION_SCHEMA_URL}",\n`
-                ),
-              ]
-            ),
+            TextDocumentEdit.create({ uri: textDocument.uri, version: textDocument.version }, [
+              TextEdit.insert(positionToInsertSchemaNode, `"$schema": "${HW_DEFINITION_SCHEMA_URL}",\n`),
+            ]),
           ],
         });
       }
     });
   }
-
 });
 // Only keep settings for open documents
 documents.onDidClose((e) => {
@@ -237,7 +200,6 @@ documents.onDidChangeContent((change) => {
 });
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
-
   const settings = await getDocumentSettings(textDocument.uri);
   const text = textDocument.getText();
 
@@ -265,10 +227,9 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
 
     const hwDefinitionFileRootNode = jsonc.parseTree(hwDefinitionFileText, parseErrors);
 
-
     if (parseErrors.length > 0) {
       connection.console.warn("Encountered errors while parsing json file: ");
-      parseErrors.forEach(e => connection.console.warn(`${e.offset} to ${e.offset + e.length}: ${jsonc.printParseErrorCode(e.error)}`));
+      parseErrors.forEach((e) => connection.console.warn(`${e.offset} to ${e.offset + e.length}: ${jsonc.printParseErrorCode(e.error)}`));
     }
     if (!hwDefinitionFileRootNode) {
       return;
@@ -277,7 +238,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
     const { Metadata, Imports, Peripherals, $schema } = jsonc.getNodeValue(hwDefinitionFileRootNode);
     const fileTypeFromMetadata = Metadata?.Type;
     if (fileTypeFromMetadata != "Azure Sphere Hardware Definition") {
-      connection.console.log('File is not a Hardware Definition');
+      connection.console.log("File is not a Hardware Definition");
       return;
     }
 
@@ -289,7 +250,6 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
       const importsNodeEnd = importsNodeStart + importsNode.length;
 
       for (const { Path } of Imports) {
-
         if (typeof Path == "string") {
           const hwDefinitionFilePath = URI.parse(path.dirname(hwDefinitionFileUri)).fsPath;
           const fullPathToImportedFile = findFullPath(Path, hwDefinitionFilePath, sdkPath);
@@ -297,7 +257,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
             const importedHwDefFileUri = URI.file(fullPathToImportedFile).toString();
             let importedHwDefFileText = documents.get(importedHwDefFileUri)?.getText();
             if (!importedHwDefFileText) {
-              importedHwDefFileText = fs.readFileSync(fullPathToImportedFile, { encoding: 'utf8' });
+              importedHwDefFileText = fs.readFileSync(fullPathToImportedFile, { encoding: "utf8" });
             }
             if (importedHwDefFileText) {
               const importedHwDefinition = tryParseHardwareDefinitionFile(importedHwDefFileText, importedHwDefFileUri, sdkPath);
@@ -311,11 +271,10 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
               hwDefinitionFilePath: hwDefinitionFilePath,
               sdkPath: sdkPath,
               start: importsNodeStart,
-              end: importsNodeEnd
+              end: importsNodeEnd,
             });
           }
         }
-
       }
     }
 
@@ -323,12 +282,11 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
 
     if (Array.isArray(Peripherals)) {
       for (let i = 0; i < Peripherals.length; i++) {
-
         const { Name, Type, Mapping, AppManifestValue, Comment } = Peripherals[i];
         const hasMappingOrAppManifestValue = typeof Mapping == "string" || typeof AppManifestValue == "string" || typeof AppManifestValue == "number";
         const isPinMapping = typeof Name == "string" && typeof Type == "string" && hasMappingOrAppManifestValue;
         if (isPinMapping) {
-          const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ['Peripherals', i]);
+          const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
           const start = mappingAsJsonNode?.offset;
           const end = start + mappingAsJsonNode?.length;
           pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment));
@@ -336,9 +294,8 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
       }
     }
     return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports);
-
   } catch (error) {
-    connection.console.log('Cannot parse Hardware Definition file as JSON');
+    connection.console.log("Cannot parse Hardware Definition file as JSON");
     return;
   }
 }
@@ -350,20 +307,9 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
  * @param sdkPath The path to the azure sphere sdk
  * @returns Full path to the imported hw definition file if it exists, otherwise undefined
  */
-export function findFullPath(
-  relativeImportPath: string,
-  hwDefinitionFilePath: string,
-  sdkPath: string
-): string | undefined {
-  const pathFromHwDefinitionFile = path.join(
-    hwDefinitionFilePath,
-    relativeImportPath
-  );
-  const pathFromSdk = path.join(
-    sdkPath,
-    "HardwareDefinitions",
-    relativeImportPath
-  );
+export function findFullPath(relativeImportPath: string, hwDefinitionFilePath: string, sdkPath: string): string | undefined {
+  const pathFromHwDefinitionFile = path.join(hwDefinitionFilePath, relativeImportPath);
+  const pathFromSdk = path.join(sdkPath, "HardwareDefinitions", relativeImportPath);
   if (fs.existsSync(pathFromHwDefinitionFile)) {
     return pathFromHwDefinitionFile;
   } else if (fs.existsSync(pathFromSdk)) {
@@ -373,67 +319,62 @@ export function findFullPath(
   }
 }
 
-export function parseCommandsParams(
-  CMakeListsPath: string
-): string | undefined {
+export function parseCommandsParams(CMakeListsPath: string): string | undefined {
   const text: string = fs.readFileSync(CMakeListsPath).toString();
 
   try {
-    const match: RegExpExecArray | null =
-      /TARGET_DIRECTORY "(.*)" TARGET_DEFINITION "(.*)"/g.exec(text);
+    const match: RegExpExecArray | null = /TARGET_DIRECTORY "(.*)" TARGET_DEFINITION "(.*)"/g.exec(text);
 
     if (!match) return;
 
     if (match[1].length && match[2].length) {
       const [dir, file]: string[] = [match[1], match[2]];
 
-      const pathFromHwDefinitionFile: string = path.join(
-        path.dirname(CMakeListsPath),
-        dir,
-        file
-      );
+      const pathFromHwDefinitionFile: string = path.join(path.dirname(CMakeListsPath), dir, file);
 
       if (fs.existsSync(pathFromHwDefinitionFile)) {
         return pathFromHwDefinitionFile;
       } else {
-        connection.console.log(
-          `[CMAkeLists] Azuresphere Target Hardware Definition not found in the target specified in CMakeLists - ${pathFromHwDefinitionFile}`
-        );
+        connection.console.log(`[CMAkeLists] Azuresphere Target Hardware Definition not found in the target specified in CMakeLists - ${pathFromHwDefinitionFile}`);
       }
     } else {
-      connection.console.log(
-        `[CMAkeLists] TARGET_DIRECTORY and/or TARGET_DEFINITION in CMakeLists are empty.`
-      );
+      connection.console.log(`[CMAkeLists] TARGET_DIRECTORY and/or TARGET_DEFINITION in CMakeLists are empty.`);
     }
   } catch (err) {
-    connection.console.log(
-      `[CMAkeLists] - Cannot parse CMAkeLists command's parameters. ${err}`
-    );
+    connection.console.log(`[CMAkeLists] - Cannot parse CMAkeLists command's parameters. ${err}`);
   }
 }
 
 // This handler provides the initial list of the completion items.
-connection.onCompletion(
-  (_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-    // The pass parameter contains the position of the text document in
-    // which code complete got requested. For the example we ignore this
-    // info and always provide the same completion items.
-    return [
-      {
-        label: '"TypeScript"',
-        kind: CompletionItemKind.Value,
-        data: 1,
-        preselect: true,
-      },
-      {
-        label: '"JavaScript"',
-        kind: CompletionItemKind.Value,
-        data: 2,
-        preselect: true,
-      },
-    ];
+connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
+  // The pass parameter contains the position of the text document in
+  // which code complete got requested. For the example we ignore this
+  // info and always provide the same completion items.
+
+  const validPinMappings: CompletionItem[] = [];
+  const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
+  let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
+  if (!hwDefFileText) {
+    hwDefFileText = fs.readFileSync(URI.file(hwDefinitionFileUri).fsPath, { encoding: "utf8" });
   }
-);
+
+  const sdkPath = (await getDocumentSettings(hwDefinitionFileUri)).SdkPath;
+
+  const hwDefinition = tryParseHardwareDefinitionFile(hwDefFileText, hwDefinitionFileUri, sdkPath);
+  if (!hwDefinition) {
+    return [];
+  }
+
+  for (const validPinMapping of getValidPinMappings(hwDefinition)) {
+    validPinMappings.push({
+      label: `"${validPinMapping}"`,
+      kind: CompletionItemKind.Value,
+      preselect: true,
+    });
+  }
+
+  return validPinMappings;
+});
 
 // This handler resolves additional information for the item selected in
 // the completion list.
