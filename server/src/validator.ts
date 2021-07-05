@@ -7,7 +7,6 @@ import {
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
-import * as pinBlock from './mt3620_controllers.json';
 
 const EXTENSION_SOURCE = 'az sphere';
 
@@ -151,13 +150,104 @@ export function findUnknownImports(hwDefinition: HardwareDefinition, textDocumen
 export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelatedInfo: boolean) : Diagnostic[]{
 	const warningDiagnostics: Diagnostic[] = [];
 	const countMap: Map<string, number> = new Map();
-	const keyList:string[] = [];
-	for(const key in pinBlock){
-		keyList.push(key);
-	}
+	// create the pinBlock using Map
+	// type information = {value: number; pin: string};
+	let pinArray = [];
+	const pinBlock: Map<string, Map<string, string[]>> = new Map();
 
-	// const json = JSON.parse(pinBlock.toString());
-	// console.log(json);
+	// create "PWM-CONTROLLER-0"
+	pinArray = ["MT3620_GPIO0", "MT3620_GPIO1", "MT3620_GPIO2", "MT3620_GPIO3"];
+	const pwm0PinBlock: Map<string, string[]> = new Map();
+	pwm0PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_PWM_CONTROLLER0"];
+	pwm0PinBlock.set("pwm", pinArray);
+	pinBlock.set("PWM-CONTROLLER-0", pwm0PinBlock);
+
+	// create "PWM-CONTROLLER-1"
+	pinArray = ["MT3620_GPIO4", "MT3620_GPIO5", "MT3620_GPIO6", "MT3620_GPIO7"];
+	const pwm1PinBlock: Map<string, string[]> = new Map();
+	pwm1PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_PWM_CONTROLLER1"];
+	pwm1PinBlock.set("pwm", pinArray);
+	pinBlock.set("PWM-CONTROLLER-1", pwm1PinBlock);
+
+	// // create "PWM-CONTROLLER-2"
+	// // pinArray = ["MT3620_GPIO4", "MT3620_GPIO5", "MT3620_GPIO6", "MT3620_GPIO7"];
+	// // temptPinBlock.set("gpio", pinArray);
+	// // pinArray = ["MT3620_PWM_CONTROLLER1"];
+	// // temptPinBlock.set("pwm", pinArray);
+	// // pinBlock.set("PWM-CONTROLLER-1", temptPinBlock);
+
+	// create "ISU0"
+	pinArray = ["MT3620_GPIO26", "MT3620_GPIO27", "MT3620_GPIO28", "MT3620_GPIO29", "MT3620_GPIO30"];
+	const isu0PinBlock: Map<string, string[]> = new Map();
+	isu0PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_ISU0_I2C"];
+	isu0PinBlock.set("i2cmaster", pinArray);
+	pinArray = ["MT3620_ISU0_SPI"];
+	isu0PinBlock.set("spimaster", pinArray);
+	pinArray = ["MT3620_ISU0_UART"];
+	isu0PinBlock.set("uart", pinArray);
+	pinBlock.set("ISU0", isu0PinBlock);
+
+	// create "ISU1"
+	pinArray = ["MT3620_GPIO31", "MT3620_GPIO32", "MT3620_GPIO33", "MT3620_GPIO34", "MT3620_GPIO35"];
+	const isu1PinBlock: Map<string, string[]> = new Map();
+	isu1PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_ISU1_I2C"];
+	isu1PinBlock.set("i2cmaster", pinArray);
+	pinArray = ["MT3620_ISU1_SPI"];
+	isu1PinBlock.set("spimaster", pinArray);
+	pinArray = ["MT3620_ISU1_UART"];
+	isu1PinBlock.set("uart", pinArray);
+	pinBlock.set("ISU1", isu1PinBlock);
+
+	// create "ISU2"
+	pinArray = ["MT3620_GPIO35", "MT3620_GPIO36", "MT3620_GPIO37", "MT3620_GPIO38", "MT3620_GPIO39"];
+	const isu2PinBlock: Map<string, string[]> = new Map();
+	isu2PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_ISU2_I2C"];
+	isu2PinBlock.set("i2cmaster", pinArray);
+	pinArray = ["MT3620_ISU2_SPI"];
+	isu2PinBlock.set("spimaster", pinArray);
+	pinArray = ["MT3620_ISU2_UART"];
+	isu2PinBlock.set("uart", pinArray);
+	pinBlock.set("ISU2", isu2PinBlock);
+	
+	// create "ADC-CONTROLLER-0"
+	pinArray = ["MT3620_GPIO41", "MT3620_GPIO42", "MT3620_GPIO43", "MT3620_GPIO44", "MT3620_GPIO45", "MT3620_GPIO46", "MT3620_GPIO47", "MT3620_GPIO48"];
+	const adc0PinBlock: Map<string, string[]> = new Map();
+	adc0PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_ADC_CONTROLLER0"];
+	adc0PinBlock.set("int", pinArray);
+	pinBlock.set("ADC-CONTROLLER-0", adc0PinBlock);
+
+	// create "ISU3"
+	pinArray = ["MT3620_GPIO66", "MT3620_GPIO67", "MT3620_GPIO68", "MT3620_GPIO69", "MT3620_GPIO70"];
+	const isu3PinBlock: Map<string, string[]> = new Map();
+	isu3PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_ISU3_I2C"];
+	isu3PinBlock.set("i2cmaster", pinArray);
+	pinArray = ["MT3620_ISU3_SPI"];
+	isu3PinBlock.set("spimaster", pinArray);
+	pinArray = ["MT3620_ISU3_UART"];
+	isu3PinBlock.set("uart", pinArray);
+	pinBlock.set("ISU3", isu3PinBlock);
+
+	// create "ISU4"
+	pinArray = ["MT3620_GPIO71", "MT3620_GPIO72", "MT3620_GPIO73", "MT3620_GPIO74", "MT3620_GPIO75"];
+	const isu4PinBlock: Map<string, string[]> = new Map();
+	isu4PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_ISU4_I2C"];
+	isu4PinBlock.set("i2cmaster", pinArray);
+	pinArray = ["MT3620_ISU4_SPI"];
+	isu4PinBlock.set("spimaster", pinArray);
+	pinArray = ["MT3620_ISU4_UART"];
+	isu4PinBlock.set("uart", pinArray);
+	pinBlock.set("ISU4", isu4PinBlock);
+
+	console.log(pinBlock);
+
 
 	for(const mapping of hwDefinition.pinMappings){
 		if(hwDefinition.imports.length == 0){
@@ -181,10 +271,10 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 							appManifestValue = temptMapping.appManifestValue as string;
 							// if it is allowed, set pin to 1 that express it has been used
 
-							if(keyList.indexOf(appManifestValue) != -1){
-								console.log(appManifestValue);
-								// console.log(pinBlock[appManifestValue]);
-							}
+							// if(keyList.indexOf(appManifestValue) != -1){
+							// 	console.log(appManifestValue);
+							// 	// console.log(pinBlock[appManifestValue.toString()]);
+							// }
 							countMap.set(temptMapping.name,1);
 						}
 						temptHWDefinition = importedHwDefinition;
@@ -192,7 +282,7 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 				}
 			}
 		}
-		console.log(appManifestValue);
+		// console.log(appManifestValue);
 		// console.log(countMap);
 	}
 	return warningDiagnostics;
