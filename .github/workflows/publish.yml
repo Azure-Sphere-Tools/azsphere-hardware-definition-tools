@@ -30,8 +30,8 @@ jobs:
       - run: npm test
         env:
           DISPLAY: ":99.0" # Only necessary for linux tests
-      - run: cd vscode-extension
-      - run: yes | vsce package
+      - run: npm install -g vsce
+      - run: (cd vscode-extension && yes | vsce package)
       - uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
