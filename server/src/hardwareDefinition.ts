@@ -50,6 +50,23 @@ export function toRange(text: string, start: number, end: number): Range {
 	};
 }
 
+export function isInsideRange(position: Position, range: Range) {
+	if (position.line == range.start.line) {
+		if (position.character >= range.start.character && position.character < range.end.character) {
+			return true;
+		}
+	}
+	if (position.line > range.start.line) {
+			if (position.line == range.end.line && position.character < range.end.character) {
+				return true;
+			}
+			if (position.line < range.end.line) {
+				return true;
+			}
+	}
+	return false;
+}
+
 
 /*
 * Based off of https://github.com/microsoft/vscode-languageserver-node

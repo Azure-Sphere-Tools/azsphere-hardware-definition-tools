@@ -24,7 +24,7 @@ import {
 import { TextDocument } from "vscode-languageserver-textdocument";
 import * as jsonc from "jsonc-parser";
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, getValidPinMappings } from "./validator";
-import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
+import { HardwareDefinition, PinMapping, UnknownImport, toRange, isInsideRange } from "./hardwareDefinition";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
@@ -365,6 +365,16 @@ connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams)
     return [];
   }
 
+  let cursorIsInsidePinMapping = false;
+  for (const pinMapping of hwDefinition.pinMappings) {
+    if (isInsideRange(textDocumentPosition.position, pinMapping.range)) {
+      cursorIsInsidePinMapping = true;
+      break;
+    }
+  }
+  if(!cursorIsInsidePinMapping) {
+    return [];
+  }
   for (const validPinMapping of getValidPinMappings(hwDefinition)) {
     validPinMappings.push({
       label: `"${validPinMapping}"`,

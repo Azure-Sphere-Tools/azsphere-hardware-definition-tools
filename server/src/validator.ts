@@ -15,8 +15,11 @@ interface ReservedPinMapping {
   hardwareDefinitionUri: string;
 }
 export function getValidPinMappings(hwDefinition: HardwareDefinition): string[] {
+  let allPinMappings: PinMapping[] = [];
   const validPinMappings: string[] = [];
-  const allPinMappings = hwDefinition.pinMappings;
+  for (const imported of hwDefinition.imports) {
+    allPinMappings = allPinMappings.concat(imported.pinMappings);
+  }
   const invalidPinMappings = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
