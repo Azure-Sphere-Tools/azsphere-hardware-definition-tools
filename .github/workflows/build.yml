@@ -9,8 +9,11 @@ on:
   pull_request:
     branches: [master]
 
+env:
+  VS_EXTENSION_SOLUTION_DIR: visualstudio-extension
+
 jobs:
-  build:
+  build-vscode:
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -37,3 +40,30 @@ jobs:
       - run: npm test
         env:
           DISPLAY: ":99.0" # Only necessary for linux tests
+
+  build-visualstudio:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install language server dependencies
+        run: npm ci
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+        with: 
+          vs-version: '[16.0, ]'
+      - name: Install Visual Studio extension dependencies
+        working-directory: ${{env.GITHUB_WORKSPACE}}/${{env.VS_EXTENSION_SOLUTION_DIR}}
+        run: nuget restore .
+        shell: powershell
+      - name: Build
+        working-directory: ${{env.GITHUB_WORKSPACE}}/${{env.VS_EXTENSION_SOLUTION_DIR}}
+        run: msbuild . /p:configuration=Release /nowarn:MSB3277
+        shell: powershell
+      - name: Test
+        working-directory: ${{env.GITHUB_WORKSPACE}}/${{env.VS_EXTENSION_SOLUTION_DIR}}
+        run: msbuild ./AZSphereHardwareDefinitionTools.Tests /t:Test /p:configuration=Release /nowarn:MSB3277
+        shell: powershell

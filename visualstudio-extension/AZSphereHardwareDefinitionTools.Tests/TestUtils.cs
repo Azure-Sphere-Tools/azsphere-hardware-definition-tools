@@ -39,12 +39,38 @@ namespace AZSphereHardwareDefinitionTools.Tests
       return Path.Combine(HardwareDefinitionLanguageClient.ExtensionPath(), "..", "testFixture", filename);
     }
 
+    /// <summary>
+    /// Sleeps for the specified milliseconds on a separate thread 
+    /// </summary>
+    /// <param name="mill"></param>
+    /// <returns></returns>
     public static async Task SleepAsync(int mill)
     {
-      await Task.Yield();
+      await Task.Yield(); // call yield to make sure we don't run the sleep on the UI thread
       await Task.Run(() => System.Threading.Thread.Sleep(mill)).ConfigureAwait(false);
     }
 
+    public static async Task<ServiceProvider> GetServiceProviderAsync()
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      return ServiceProvider.GlobalProvider;
+    }
+
+    public static async Task<DTE> GetDTEAsync()
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      var dte = ServiceProvider.GlobalProvider.GetService(typeof(DTE)) as DTE;
+      Assumes.Present(dte);
+      return dte;
+    }
+
+    /// <summary>
+    /// Retrieves the entries in the Error List table which contains the diagnostics sent by the language server.
+    /// Note that the Error List can contain messages/warnings/errors from different sources, not just the language server (e.g. compilation errors)
+    /// </summary>
+    /// <param name="dte"></param>
+    /// <param name="serviceProvider"></param>
+    /// <returns></returns>
     public static async Task<IList<ITableEntryHandle>> GetErrorsAsync(DTE dte, ServiceProvider serviceProvider)
     {
       await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();

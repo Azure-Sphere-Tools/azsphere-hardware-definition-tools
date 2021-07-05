@@ -19,10 +19,8 @@ namespace AZSphereHardwareDefinitionTools.Tests
     {
       await TestUtils.LoadExtensionAsync();
 
-      var serviceProvider = ServiceProvider.GlobalProvider;
-
-      var dte = serviceProvider.GetService(typeof(DTE)) as DTE;
-      Assumes.Present(dte);
+      var serviceProvider = await TestUtils.GetServiceProviderAsync();
+      var dte = await TestUtils.GetDTEAsync();
 
       await TestUtils.OpenTestFixtureFileAsync(dte, "diagnostics.json");
 
