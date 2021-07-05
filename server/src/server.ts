@@ -6,7 +6,6 @@ import {
   InitializeParams,
   DidChangeConfigurationNotification,
   CompletionItem,
-  CompletionItemKind,
   TextDocumentPositionParams,
   TextDocumentSyncKind,
   InitializeResult,
@@ -27,6 +26,7 @@ import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports } f
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
+import { pinMappingCompletionItemsAtPosition } from "./suggestions";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
@@ -311,7 +311,15 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
           const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
           const start = mappingAsJsonNode?.offset;
           const end = start + mappingAsJsonNode?.length;
-          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment));
+          const pinMapping = new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment);
+
+          const mappingPropertyNode = jsonc.findNodeAtLocation(mappingAsJsonNode, ["Mapping"]);
+          if (mappingPropertyNode) {
+            const mappingPropertyStart = mappingPropertyNode.offset;
+            const mappingPropertyEnd = mappingPropertyStart + mappingPropertyNode.length; 
+            pinMapping.mappingPropertyRange = toRange(hwDefinitionFileText, mappingPropertyStart, mappingPropertyEnd);
+          }
+          pinMappings.push(pinMapping);
         }
       }
     }
@@ -349,38 +357,23 @@ const setSettingPath = (ide: string | undefined) => {
   }
 };
 
-// This handler provides the initial list of the completion items.
-connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-  // The pass parameter contains the position of the text document in
-  // which code complete got requested. For the example we ignore this
-  // info and always provide the same completion items.
-  return [
-    {
-      label: '"TypeScript"',
-      kind: CompletionItemKind.Value,
-      data: 1,
-      preselect: true,
-    },
-    {
-      label: '"JavaScript"',
-      kind: CompletionItemKind.Value,
-      data: 2,
-      preselect: true,
-    },
-  ];
-});
+connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
 
-// This handler resolves additional information for the item selected in
-// the completion list.
-connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-  if (item.data === 1) {
-    item.detail = "TypeScript details";
-    item.documentation = "TypeScript documentation";
-  } else if (item.data === 2) {
-    item.detail = "JavaScript details";
-    item.documentation = "JavaScript documentation";
+  const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
+  let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
+  if (!hwDefFileText) {
+    hwDefFileText = fs.readFileSync(URI.file(hwDefinitionFileUri).fsPath, { encoding: "utf8" });
   }
-  return item;
+
+  const sdkPath = (await getDocumentSettings(hwDefinitionFileUri)).SdkPath;
+
+  const hwDefinition = tryParseHardwareDefinitionFile(hwDefFileText, hwDefinitionFileUri, sdkPath);
+  if (!hwDefinition) {
+    return [];
+  }
+
+  const caretPosition = textDocumentPosition.position;
+  return pinMappingCompletionItemsAtPosition(hwDefinition, caretPosition);
 });
 
 // Make the text document manager listen on the connection

@@ -5,7 +5,7 @@ import { getDocUri, activate } from './helper';
 suite('Should get diagnostics', () => {
 	const docUri = getDocUri('diagnostics.json');
 
-	test('Diagnoses uppercase texts', async () => {
+	test('Diagnoses duplicate and non-existent mappings', async () => {
 		await testDiagnostics(docUri, [
 			{ message: '"USER_BUTTON_A" is already mapped', range: toRange(18, 6, 18, 32), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' },
 			{ message: 'Mapping USER_BUTTON_A is invalid. There is no imported pin mapping with that name.', range: toRange(10, 4, 14, 5), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' },

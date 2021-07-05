@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+  "Metadata": {
+    "Type": "Azure Sphere Hardware Definition",
+    "Version": 1
+  },
+  "Imports": [
+    {"Path": "odm.json"}
+  ],
+  "Peripherals": [
+    {"Name": "MY_GPIO0", "Type": "Gpio", "Mapping": "ODM_GPIO0" },
+    {"Name": "MY_GPIO1", "Type": "Gpio", "Mapping": "" },
+    {"Name": "MY_PWM0", "Type": "Pwm", "Mapping": "" }
+        
+  ]
+}
