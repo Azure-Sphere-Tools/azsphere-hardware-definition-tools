@@ -1,0 +1,41 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      max-parallel: 3
+      matrix:
+        os: [ubuntu-latest]
+        node-version: [14.x]
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Start xvfb
+        run: |
+          /usr/bin/Xvfb :99 -screen 0 1024x768x24 > /dev/null 2>&1 &
+          echo ">>> Started xvfb"
+        shell: bash
+      - run: npm run build --if-present
+      - run: npm test
+        env:
+          DISPLAY: ":99.0" # Only necessary for linux tests
+      - run: cd vscode-extension
+      - run: yes | vsce package
+      - uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "vscode-extension/*.vsix"
+          bodyFile: "README.md"
+          tag: "1.0.0"
+          token: ${{ secrets.GITHUB_TOKEN }}
