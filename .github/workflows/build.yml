@@ -56,14 +56,14 @@ jobs:
         with: 
           vs-version: '[16.0, ]'
       - name: Install Visual Studio extension dependencies
-        working-directory: ${{env.GITHUB_WORKSPACE}}/${{env.VS_EXTENSION_SOLUTION_DIR}}
-        run: nuget restore .
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: nuget restore ./${{env.VS_EXTENSION_SOLUTION_DIR}}
         shell: powershell
       - name: Build
-        working-directory: ${{env.GITHUB_WORKSPACE}}/${{env.VS_EXTENSION_SOLUTION_DIR}}
-        run: msbuild . /p:configuration=Release /nowarn:MSB3277
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: msbuild ./${{env.VS_EXTENSION_SOLUTION_DIR}} /p:configuration=Release /nowarn:MSB3277
         shell: powershell
       - name: Test
-        working-directory: ${{env.GITHUB_WORKSPACE}}/${{env.VS_EXTENSION_SOLUTION_DIR}}
-        run: msbuild ./AZSphereHardwareDefinitionTools.Tests /t:Test /p:configuration=Release /nowarn:MSB3277
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: msbuild ./${{env.VS_EXTENSION_SOLUTION_DIR}}/AZSphereHardwareDefinitionTools.Tests /p:configuration=Release /t:Test /nowarn:MSB3277
         shell: powershell

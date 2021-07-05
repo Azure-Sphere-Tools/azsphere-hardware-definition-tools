@@ -27,7 +27,7 @@ suite('validateNamesAndMappings', () => {
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 
 		assert.ok(actualDiagnostic.relatedInformation);
-		assert.deepStrictEqual(actualDiagnostic.relatedInformation[0].location, validPin.range);
+		assert.deepStrictEqual(actualDiagnostic.relatedInformation[0].location.range, validPin.range);
 	});
 
 	test('Validate Non-existent Mappings', () => {
