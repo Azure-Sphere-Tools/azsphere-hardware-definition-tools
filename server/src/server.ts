@@ -244,6 +244,9 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
   for (const importDiagnostic of findUnknownImports(hwDefinition, textDocument)) {
     diagnostics.push(importDiagnostic);
   }
+  for (const pinBlockDiagnostic of pinBlockDiagnostics) {
+    diagnostics.push(pinBlockDiagnostic);
+  }
 
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
