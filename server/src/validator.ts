@@ -149,7 +149,7 @@ export function findUnknownImports(hwDefinition: HardwareDefinition, textDocumen
 
 export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelatedInfo: boolean) : Diagnostic[]{
 	const warningDiagnostics: Diagnostic[] = [];
-	const countMap: Map<string, number> = new Map();
+	const countMap: string[] = [];
 	// create the pinBlock using Map
 	// type information = {value: number; pin: string};
 	let pinArray = [];
@@ -171,12 +171,13 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 	pwm1PinBlock.set("pwm", pinArray);
 	pinBlock.set("PWM-CONTROLLER-1", pwm1PinBlock);
 
-	// // create "PWM-CONTROLLER-2"
-	// // pinArray = ["MT3620_GPIO4", "MT3620_GPIO5", "MT3620_GPIO6", "MT3620_GPIO7"];
-	// // temptPinBlock.set("gpio", pinArray);
-	// // pinArray = ["MT3620_PWM_CONTROLLER1"];
-	// // temptPinBlock.set("pwm", pinArray);
-	// // pinBlock.set("PWM-CONTROLLER-1", temptPinBlock);
+	// create "PWM-CONTROLLER-2"
+	pinArray = ["MT3620_GPIO8", "MT3620_GPIO9", "MT3620_GPIO10", "MT3620_GPIO11"];
+	const pwm2PinBlock: Map<string, string[]> = new Map();
+	pwm2PinBlock.set("gpio", pinArray);
+	pinArray = ["MT3620_PWM_CONTROLLER2"];
+	pwm2PinBlock.set("pwm", pinArray);
+	pinBlock.set("PWM-CONTROLLER-2", pwm2PinBlock);
 
 	// create "ISU0"
 	pinArray = ["MT3620_GPIO26", "MT3620_GPIO27", "MT3620_GPIO28", "MT3620_GPIO29", "MT3620_GPIO30"];
@@ -246,9 +247,7 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 	isu4PinBlock.set("uart", pinArray);
 	pinBlock.set("ISU4", isu4PinBlock);
 
-	console.log(pinBlock);
-
-
+	// find the conflict
 	for(const mapping of hwDefinition.pinMappings){
 		if(hwDefinition.imports.length == 0){
 			continue;
@@ -269,21 +268,62 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 						mappingTo = temptMapping.mapping;
 						if(mappingTo == undefined){
 							appManifestValue = temptMapping.appManifestValue as string;
-							// if it is allowed, set pin to 1 that express it has been used
-
-							// if(keyList.indexOf(appManifestValue) != -1){
-							// 	console.log(appManifestValue);
-							// 	// console.log(pinBlock[appManifestValue.toString()]);
-							// }
-							countMap.set(temptMapping.name,1);
+							// if it is allowed, record the pin that express it has been used
+							if(pinBlock.has(appManifestValue)){
+								const subPinBlock = pinBlock.get(appManifestValue);
+								let determineFactors = 0;
+								const recordBlock = [];
+								if(subPinBlock){
+									for(const [key,value] of subPinBlock){
+										// Skip the own pin
+										if(temptMapping.type.toLowerCase() == key){
+											continue;
+										}
+										// Determine if other PINs are in use
+										for(const pinValue of value){
+											if(countMap.indexOf(pinValue) != -1){
+												determineFactors = 1;
+												recordBlock.push(pinValue);
+											}
+										}
+									}
+								}
+								let blockMessage = "";
+								for(const block of recordBlock){
+									blockMessage += block.toString() + " ";
+								}
+								if(determineFactors == 1){
+									const diagnostic: Diagnostic = {
+										message: `${blockMessage} is already used by another pin mapping`,
+										range: mapping.range,
+										severity: DiagnosticSeverity.Warning,
+										source: EXTENSION_SOURCE
+									};
+									if (includeRelatedInfo) {
+										diagnostic.relatedInformation = [
+											{
+												location: {
+													uri: hwDefinition.uri,
+													range: mapping.range
+												},
+												message: `Confilct Pin Block`
+											}
+										];
+									}
+									warningDiagnostics.push(diagnostic);
+								}else{
+									countMap.push(temptMapping.name);
+								}
+							}else{
+								countMap.push(temptMapping.name);
+							}
 						}
 						temptHWDefinition = importedHwDefinition;
 					}
 				}
 			}
 		}
-		// console.log(appManifestValue);
-		// console.log(countMap);
 	}
+	console.log(countMap);
 	return warningDiagnostics;
 }
