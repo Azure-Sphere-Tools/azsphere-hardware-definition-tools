@@ -294,7 +294,7 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 								}
 								if(determineFactors == 1){
 									const diagnostic: Diagnostic = {
-										message: `${blockMessage} is already used by another pin mapping`,
+										message: `${temptMapping.name} already configured as a Gpio by ${blockMessage} pin mapping`,
 										range: mapping.range,
 										severity: DiagnosticSeverity.Warning,
 										source: EXTENSION_SOURCE
