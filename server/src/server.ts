@@ -50,7 +50,7 @@ connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
 
   // Does the client support the `workspace/configuration` request?
-  // If not, we fall back using global settings.
+  // If not, we fall back using default settings.
   hasConfigurationCapability = !!(
     capabilities.workspace && !!capabilities.workspace.configuration
   );
@@ -66,7 +66,7 @@ connection.onInitialize((params: InitializeParams) => {
   const result: InitializeResult = {
     capabilities: {
       textDocumentSync: TextDocumentSyncKind.Incremental
-    },
+    }
   };
   if (hasWorkspaceFolderCapability) {
     result.capabilities.workspace = {
@@ -97,60 +97,34 @@ connection.onInitialized(() => {
 interface ExtensionSettings {
   SdkPath: string;
 }
-const defaultSettings: ExtensionSettings = {
+
+let defaultSettings: ExtensionSettings = {
   SdkPath:
     process.platform == "linux"
       ? "/opt/azurespheresdk"
       : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
 };
 
-function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
-  if (!settingsToValidate?.SdkPath || settingsToValidate.SdkPath == "") {
-    return { SdkPath: defaultSettings.SdkPath };
-  }
-  return settingsToValidate;
-}
-
-// The global settings, used when the `workspace/configuration` request is not supported by the client.
-// Please note that this is not the case when using this server with the vscode client but could happen with other clients.
-let globalSettings: ExtensionSettings = defaultSettings;
-
-// Cache the settings of all open documents
-const documentSettings: Map<string, Thenable<ExtensionSettings>> = new Map();
-
 connection.onDidChangeConfiguration((change) => {
-  if (hasConfigurationCapability) {
-    // Reset all cached document settings
-    documentSettings.clear();
-  } else {
-    globalSettings = toExtensionSettings(change.settings.AzureSphere);
+  if (!hasConfigurationCapability) {
+    defaultSettings = { SdkPath: change.settings.AzureSphere || defaultSettings.SdkPath };
   }
 
   // Revalidate all open text documents
   documents.all().forEach(validateTextDocument);
 });
 
-function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
+function getMachineSettings(): Thenable<ExtensionSettings> {
   if (!hasConfigurationCapability) {
-    return Promise.resolve(globalSettings);
+    return Promise.resolve(defaultSettings);
   }
-  let result = documentSettings.get(resource);
-  if (!result) {
-    result = connection.workspace
-      .getConfiguration({
-        scopeUri: resource,
-        section: "AzureSphere",
-      })
-      .then((azSphereSettings) => toExtensionSettings(azSphereSettings));
 
-    documentSettings.set(resource, result);
-  }
-  return result;
+  return connection.workspace.getConfiguration({ section: "AzureSphere" });
 }
 
 documents.onDidOpen(async (change) => {
   const textDocument = change.document;
-  const settings = await getDocumentSettings(textDocument.uri);
+  const settings = await getMachineSettings();
   const text = textDocument.getText();
 
   if (textDocument.uri.endsWith("CMakeLists.txt")) {
@@ -217,11 +191,6 @@ documents.onDidOpen(async (change) => {
       }
     });
   }
-
-});
-// Only keep settings for open documents
-documents.onDidClose((e) => {
-  documentSettings.delete(e.document.uri);
 });
 
 // The content of a text document has changed. This event is emitted
@@ -232,7 +201,7 @@ documents.onDidChangeContent((change) => {
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
-  const settings = await getDocumentSettings(textDocument.uri);
+  const settings = await getMachineSettings();
   const text = textDocument.getText();
 
   const hwDefinition = tryParseHardwareDefinitionFile(textDocument.getText(), textDocument.uri, settings.SdkPath);

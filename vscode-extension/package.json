@@ -29,11 +29,6 @@
 			"type": "object",
 			"title": "Azure Sphere Tools",
 			"properties": {
-				"AzureSphere.SdkPath": {
-					"scope": "window",
-					"type": "string",
-					"description": "Path to the Azure Sphere SDK directory."
-				},
 				"azureSphereToolsLanguageServer.trace.server": {
 					"scope": "window",
 					"type": "string",
