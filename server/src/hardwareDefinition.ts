@@ -12,6 +12,11 @@ export class HardwareDefinition {
 
 export class PinMapping {
 
+	/**
+	 * Range of the "Mapping" property value in the pin mapping
+	 */
+	mappingPropertyRange: Range | undefined;
+
 	constructor(
 		public name: string,
 		public type: string,

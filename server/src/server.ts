@@ -23,7 +23,7 @@ import {
 
 import { TextDocument } from "vscode-languageserver-textdocument";
 import * as jsonc from "jsonc-parser";
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, getValidPinMappings } from "./validator";
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, getPinMappingSuggestions } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange, isInsideRange } from "./hardwareDefinition";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
@@ -289,7 +289,15 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
           const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
           const start = mappingAsJsonNode?.offset;
           const end = start + mappingAsJsonNode?.length;
-          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment));
+          const pinMapping = new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment);
+
+          const mappingPropertyNode = jsonc.findNodeAtLocation(mappingAsJsonNode, ["Mapping"]);
+          if (mappingPropertyNode) {
+            const mappingPropertyStart = mappingPropertyNode.offset;
+            const mappingPropertyEnd = mappingPropertyStart + mappingPropertyNode.length; 
+            pinMapping.mappingPropertyRange = toRange(hwDefinitionFileText, mappingPropertyStart, mappingPropertyEnd);
+          }
+          pinMappings.push(pinMapping);
         }
       }
     }
@@ -366,20 +374,26 @@ connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams)
   }
 
   let cursorIsInsidePinMapping = false;
+  let pinMappingToComplete = undefined;
   for (const pinMapping of hwDefinition.pinMappings) {
-    if (isInsideRange(textDocumentPosition.position, pinMapping.range)) {
+    if (pinMapping.mappingPropertyRange && isInsideRange(textDocumentPosition.position, pinMapping.mappingPropertyRange)) {
       cursorIsInsidePinMapping = true;
+      pinMappingToComplete = pinMapping;
       break;
     }
   }
-  if(!cursorIsInsidePinMapping) {
+  if(!cursorIsInsidePinMapping || !pinMappingToComplete?.mappingPropertyRange) {
     return [];
   }
-  for (const validPinMapping of getValidPinMappings(hwDefinition)) {
+  for (const validPinMapping of getPinMappingSuggestions(hwDefinition, pinMappingToComplete.type)) {
     validPinMappings.push({
       label: `"${validPinMapping}"`,
       kind: CompletionItemKind.Value,
       preselect: true,
+      textEdit: {
+        range: pinMappingToComplete.mappingPropertyRange,
+        newText: `"${validPinMapping}"`
+      }
     });
   }
 

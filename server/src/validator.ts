@@ -14,16 +14,16 @@ interface ReservedPinMapping {
   pinMapping: PinMapping;
   hardwareDefinitionUri: string;
 }
-export function getValidPinMappings(hwDefinition: HardwareDefinition): string[] {
+export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinType: string): string[] {
   let allPinMappings: PinMapping[] = [];
   const validPinMappings: string[] = [];
   for (const imported of hwDefinition.imports) {
     allPinMappings = allPinMappings.concat(imported.pinMappings);
   }
-  const invalidPinMappings = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => diagnostic.data));
+  const invalidPinMappings: Set<PinMapping> = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
-    if (!invalidPinMappings.has(pinMapping.name)) {
+    if (!invalidPinMappings.has(pinMapping) && pinMapping.type == pinType) {
       validPinMappings.push(pinMapping.name);
     }
   }
@@ -52,7 +52,7 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
         range: mapping.range,
         severity: DiagnosticSeverity.Warning,
         source: EXTENSION_SOURCE,
-        data: mapping.name,
+        data: mapping,
       };
       if (includeRelatedInfo) {
         diagnostic.relatedInformation = [
@@ -79,7 +79,7 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
             range: mapping.range,
             severity: DiagnosticSeverity.Warning,
             source: EXTENSION_SOURCE,
-            data: mapping.name,
+            data: mapping,
           };
           warningDiagnostics.push(diagnostic);
         }
