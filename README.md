@@ -1,31 +1,35 @@
-# Azure Sphere Hardware Tools extension Proof of Concept
-
-Proof of Concept based on sample code from https://code.visualstudio.com/api/language-extensions/language-server-extension-guide
+# Azure Sphere Hardware Definition Tools
 
 ## Functionality
 
-This Language Server works for json files. It has the following language features:
-- Diagnostics regenerated on each file change or configuration change
+This projects includes a Language Server, VS Code extension, and Visual Studio extension to validate hardware definition files. It has the following features:
+- Diagnostics generated on pin mapping conflicts in hardware definition files
 - Json Schema suggestion for hardware definition files
 
-It also includes an End-to-End test.
 
 ## Structure
 
 ```
 .
+|
+├── server // Language Server
+│   └── src
+│       └── server.ts // Language Server entry point
+│
 ├── vscode-extension // The VS Code extension and its manifest
 │   ├── src
 │   │   ├── test // End to End tests for VS Code Extension / Server
 │   │   └── extension.ts // VS Code Extension entry point
-|   ├── embedded-language-server // Packaged version of the language server which is embedded in extension on publish 
-├── package.json // Shared compilation and testing tools for typescript projects
-└── server // Language Server
-    └── src
-        └── server.ts // Language Server entry point
+|   ├── embedded-language-server // Packaged version of the language server which is embedded in extension on publish
+│   │
+├── visualstudio-extension // The Visual Studio extension solution (includes extension and test projects)
+│   ├── AZSphereHardwareDefinitionTools // The Visual Studio extension project
+│   │   ├── HardwareDefinitionLanguageClient // Visual Studio Extension entry point
+|   |   └── EmbeddedLanguageServer // Packaged version of the language server which is embedded in extension on publish
+└── package.json // Shared compilation and testing tools for typescript projects
 ```
 
-## Running the Sample
+## Running the VS Code Extension
 
 - Run `npm install` in this folder. This installs all necessary npm modules in both the vscode-extension and server folder
 - Open VS Code on this folder.

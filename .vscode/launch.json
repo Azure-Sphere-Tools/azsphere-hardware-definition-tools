@@ -30,7 +30,7 @@
 			"args": [
 				"--extensionDevelopmentPath=${workspaceRoot}/vscode-extension",
 				"--extensionTestsPath=${workspaceRoot}/vscode-extension/dist/test/index",
-				"${workspaceRoot}/vscode-extension/testFixture"
+				"${workspaceRoot}/testFixture"
 			],
 			"outFiles": ["${workspaceRoot}/vscode-extension/dist/test/**/*.js"],
 			"preLaunchTask": "npm: watch"

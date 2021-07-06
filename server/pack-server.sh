@@ -1,7 +1,7 @@
 #/bin/sh
 
 # This script packs the compiled language server into a tarball under 'packed/language-server.tar.gz'
-# so that it can be easily referenced as a dependency in the vscode/visualstudio extensions
+# so that it can be easily referenced as a dependency in the vscode extension
 
 
 # Exit and fail if any commands fail

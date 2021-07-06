@@ -16,7 +16,9 @@ import {
   TextDocumentEdit,
   TextEdit,
   IPCMessageReader,
-  IPCMessageWriter
+  IPCMessageWriter,
+  ShowMessageNotification,
+  ShowMessageParams
 } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
@@ -163,11 +165,11 @@ documents.onDidOpen(async (change) => {
     );
 
     if (hwDefinitionPath) {
-      const msg: ShowMessageRequestParams = {
+      const msg: ShowMessageParams = {
         message: `Hardware Definition found in the target specified in CMakeLists - ${hwDefinitionPath}`,
         type: MessageType.Info,
       };
-      connection.sendRequest(ShowMessageRequest.type, msg);
+      connection.sendNotification(ShowMessageNotification.type, msg);
     }
     return;
   }
@@ -329,7 +331,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
           const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ['Peripherals', i]);
           const start = mappingAsJsonNode?.offset;
           const end = start + mappingAsJsonNode?.length;
-          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, Comment, toRange(hwDefinitionFileText, start, end)));
+          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment));
         }
       }
     }
