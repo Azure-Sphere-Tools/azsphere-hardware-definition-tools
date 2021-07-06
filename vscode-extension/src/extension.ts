@@ -58,11 +58,7 @@ export function activate(context: ExtensionContext) {
       { scheme: "file", language: "json" },
       { scheme: "file", language: "plaintext" },
       { scheme: "file", language: "cmake" }
-    ],
-    synchronize: {
-      // Notify the server about file changes to '.clientrc files contained in the workspace
-      fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
-    },
+    ]
   };
 
   // Create the language client and start the client.
