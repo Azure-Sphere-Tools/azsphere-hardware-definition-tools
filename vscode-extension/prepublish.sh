@@ -1,11 +1,21 @@
 #/bin/sh
 
+# Exit and fail if any commands fail
+set -e
+
+SCRIPT_DIR="$(dirname $(readlink -f $0))"
+
 echo "Compiling typescript files"
-(cd .. && npm run build)
+cd $SCRIPT_DIR
+cd .. && npm run build
 
 echo "Embedding language server into extension"
-(cd embedded-language-server && npm ci --production)
+cd $SCRIPT_DIR
+cd embedded-language-server
+# need to run preinstall manually because of bug with npm ci
+npm run preinstall && npm ci --production
 
+cd $SCRIPT_DIR
 ALERT_START="\033[33m"
 ALERT_END="\033[0m"
 echo -e "${ALERT_START}NOTE:${ALERT_END}"
