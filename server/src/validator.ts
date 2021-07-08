@@ -20,10 +20,11 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
   for (const imported of hwDefinition.imports) {
     allPinMappings = allPinMappings.concat(imported.pinMappings);
   }
+  const usedPinNames = new Set(hwDefinition.pinMappings.map(p => p.mapping));
   const invalidPinMappings: Set<PinMapping> = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
-    if (!invalidPinMappings.has(pinMapping) && pinMapping.type == pinType) {
+    if (!invalidPinMappings.has(pinMapping) && pinMapping.type == pinType && !usedPinNames.has(pinMapping.name)) {
       validPinMappings.push(pinMapping.name);
     }
   }

@@ -3,13 +3,17 @@ import * as assert from 'assert';
 import { getDocUri, activate } from './helper';
 
 suite('Should do completion', () => {
-	const docUri = getDocUri('completion.json');
+	const docUri = getDocUri('completion/completion.json');
 
-	test('Completes JS/TS in txt file', async () => {
-		await testCompletion(docUri, new vscode.Position(0, 0), {
+	test('Completes Available Mappings of same type', async () => {
+		await testCompletion(docUri, new vscode.Position(10, 53), {
 			items: [
-				{ label: '"JavaScript"', kind: vscode.CompletionItemKind.Value },
-				{ label: '"TypeScript"', kind: vscode.CompletionItemKind.Value }
+				{ label: '"ODM_GPIO1"', kind: vscode.CompletionItemKind.Value }
+			]
+		});
+		await testCompletion(docUri, new vscode.Position(12, 51), {
+			items: [
+				{ label: '"ODM_PWM0"', kind: vscode.CompletionItemKind.Value },
 			]
 		});
 	});
@@ -29,7 +33,7 @@ async function testCompletion(
 		position
 	)) as vscode.CompletionList;
 
-	assert.ok(actualCompletionList.items.length >= 2);
+	assert.ok(actualCompletionList.items.length >= expectedCompletionList.items.length);
 	expectedCompletionList.items.forEach((expectedItem, i) => {
 		const actualItem = actualCompletionList.items[i];
 		assert.equal(actualItem.label, expectedItem.label);
