@@ -17,6 +17,8 @@ import {
   TextEdit,
   IPCMessageReader,
   IPCMessageWriter,
+  ShowMessageNotification,
+  ShowMessageParams,
 } from "vscode-languageserver/node";
 
 import { TextDocument } from "vscode-languageserver-textdocument";
@@ -28,7 +30,6 @@ import { parseCommandsParams } from "./cMakeLists";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
-import { settings } from "cluster";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -155,11 +156,11 @@ documents.onDidOpen(async (change) => {
     const hwDefinitionPath = parseCommandsParams(URI.parse(textDocument.uri).fsPath);
 
     if (hwDefinitionPath) {
-      const msg: ShowMessageRequestParams = {
+      const msg: ShowMessageParams = {
         message: `Hardware Definition found in the target specified in CMakeLists - ${hwDefinitionPath}`,
         type: MessageType.Info,
       };
-      connection.sendRequest(ShowMessageRequest.type, msg);
+      connection.sendNotification(ShowMessageNotification.type, msg);
     }
     return;
   }
@@ -324,7 +325,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
           const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
           const start = mappingAsJsonNode?.offset;
           const end = start + mappingAsJsonNode?.length;
-          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, Comment, toRange(hwDefinitionFileText, start, end)));
+          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment));
         }
       }
     }
