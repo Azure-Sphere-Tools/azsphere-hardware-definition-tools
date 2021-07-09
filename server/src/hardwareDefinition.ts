@@ -11,7 +11,6 @@ export class HardwareDefinition {
 }
 
 export class PinMapping {
-
 	constructor(
 		public name: string,
 		public type: string,
