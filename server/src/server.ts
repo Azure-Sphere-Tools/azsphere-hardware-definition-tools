@@ -41,13 +41,14 @@ export const connection = runningTests ? createConnection(new IPCMessageReader(p
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 
-export let ide: { name: string; version?: string | undefined };
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
 // settings.json path
 let settingsPath: string;
+
+export let ide: { name: string; version?: string | undefined };
 
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
@@ -219,18 +220,11 @@ documents.onDidClose((e) => {
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent((change) => {
   const textDocument = change.document;
-  if (textDocument.uri.endsWith("CMakeLists.txt")) {
-    validateTextDocument(textDocument);
-    return;
-  }
+
+  validateTextDocument(textDocument);
 
   if (textDocument.uri.endsWith("app_manifest.json")) {
     addAppManifestPathsToSettings(textDocument.uri, "");
-    return;
-  }
-
-  if (textDocument.uri.includes("settings.json")) {
-    connection.console.log(settingsPath);
     return;
   }
 });

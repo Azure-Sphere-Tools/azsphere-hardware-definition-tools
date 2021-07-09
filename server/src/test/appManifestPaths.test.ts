@@ -26,7 +26,7 @@ suite("addAppManifestPathsToSettings", async () => {
     }`,
   };
 
-  beforeEach(() => {
+  setup(() => {
     teardown(mockfs.restore);
     mockfs(obj);
   });
@@ -42,7 +42,7 @@ suite("addAppManifestPathsToSettings", async () => {
     }
   });
 
-  test("Missing partnerApplications", async () => {
+  test("Missing partnerApplications", () => {
     const [initialSettings, settings] = getSettings();
 
     delete settings["AzureSphere.partnerApplications"];
@@ -56,7 +56,7 @@ suite("addAppManifestPathsToSettings", async () => {
     }
   });
 
-  test("Missing app_manifest ComponentId item", async () => {
+  test("Missing app_manifest ComponentId item", () => {
     const [initialSettings, settings] = getSettings();
 
     // remove componentId entry
@@ -71,7 +71,7 @@ suite("addAppManifestPathsToSettings", async () => {
     }
   });
 
-  test("Missing app_manifest ComponentId path", async () => {
+  test("Missing app_manifest ComponentId path", () => {
     const [initialSettings, settings] = getSettings();
 
     // remove componentId entry
@@ -86,7 +86,7 @@ suite("addAppManifestPathsToSettings", async () => {
     }
   });
 
-  test("Missing an AllowedApplicationConnections ComponentId key", async () => {
+  test("Missing an AllowedApplicationConnections ComponentId key", () => {
     const [initialSettings, settings] = getSettings();
 
     // remove AllowedApplicationConnections key
