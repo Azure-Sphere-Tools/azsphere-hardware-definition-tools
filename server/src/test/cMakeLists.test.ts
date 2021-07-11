@@ -1,7 +1,6 @@
 import { parseCommandsParams } from "../cMakeLists";
 import * as assert from "assert";
 import * as mockfs from "mock-fs";
-import { URI } from "vscode-uri";
 import * as path from "path";
 
 suite("CMakeLists Infer", () => {
@@ -43,7 +42,3 @@ suite("CMakeLists Infer", () => {
     }
   });
 });
-
-function asURI(hwDefFilePath: string): string {
-  return URI.file(path.resolve(hwDefFilePath)).toString();
-}
