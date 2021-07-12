@@ -1,5 +1,6 @@
 {
-"Metadata": {
+  "$schema": "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+  "Metadata": {
     "Type": "Azure Sphere Hardware Definition",
     "Version": 1
   },

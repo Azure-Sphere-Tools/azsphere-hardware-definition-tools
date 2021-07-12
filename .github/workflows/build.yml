@@ -1,6 +1,3 @@
-# This workflow will do a clean install of node dependencies, build the source code and run tests across different versions of node
-# For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
-
 name: Build and Test
 
 on:
@@ -9,8 +6,11 @@ on:
   pull_request:
     branches: [master]
 
+env:
+  VS_EXTENSION_SOLUTION_DIR: visualstudio-extension
+
 jobs:
-  build:
+  build-vscode:
     runs-on: ${{ matrix.os }}
 
     strategy:
@@ -37,3 +37,34 @@ jobs:
       - run: npm test
         env:
           DISPLAY: ":99.0" # Only necessary for linux tests
+
+  build-visualstudio:
+    runs-on: windows-latest
+    concurrency:
+      # ensure the visual studio build runs only 1 at a time per branch, since it's expensive
+      group: build-visualstudio-${{ github.ref }} 
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install language server dependencies
+        run: npm ci
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+        with: 
+          vs-version: '[16.0, ]'
+      - name: Install Visual Studio extension dependencies
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: nuget restore ./${{env.VS_EXTENSION_SOLUTION_DIR}}
+        shell: powershell
+      - name: Build
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: msbuild ./${{env.VS_EXTENSION_SOLUTION_DIR}} /p:configuration=Release /nowarn:MSB3277
+        shell: powershell
+      - name: Test
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: msbuild ./${{env.VS_EXTENSION_SOLUTION_DIR}}/AZSphereHardwareDefinitionTools.Tests /p:configuration=Release /t:Test /nowarn:MSB3277
+        shell: powershell

@@ -16,8 +16,8 @@ export class PinMapping {
 		public type: string,
 		public mapping: string | undefined,
 		public appManifestValue: number | string | undefined,
-		public comment: string | undefined,
-		public range: Range
+		public range: Range,
+		public comment: string | undefined = undefined,
 	) { }
 
 	/**
