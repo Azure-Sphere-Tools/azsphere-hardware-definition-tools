@@ -17,8 +17,5 @@
 		"mocha": "^8.3.2",
 		"typescript": "^4.3.2",
 		"source-map-support": "^0.5.19"
-	},
-	"dependencies": {
-		"vscode": "^1.1.37"
 	}
 }
