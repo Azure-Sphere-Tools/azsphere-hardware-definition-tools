@@ -169,12 +169,6 @@ documents.onDidOpen(async (change) => {
     return;
   }
 
-  // Detect settings.json
-  if (textDocument.uri.endsWith("settings.json") && settingsPath !== URI.parse(textDocument.uri).fsPath) {
-    settingsPath = URI.parse(textDocument.uri).fsPath;
-    return;
-  }
-
   if (textDocument.uri.endsWith(".txt")) {
     const hwDefinition = tryParseHardwareDefinitionFile(text, textDocument.uri, settings.SdkPath);
 
