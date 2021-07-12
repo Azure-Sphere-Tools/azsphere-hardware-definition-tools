@@ -42,7 +42,7 @@ jobs:
     runs-on: windows-latest
     concurrency:
       # ensure the visual studio build runs only 1 at a time per branch, since it's expensive
-      group: build-visualstudio-${{ github.ref }} 
+      group: build-visualstudio-${{ github.ref }}
       cancel-in-progress: true
     steps:
       - uses: actions/checkout@v2
@@ -54,8 +54,8 @@ jobs:
         run: npm ci
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1
-        with: 
-          vs-version: '[16.0, ]'
+        with:
+          vs-version: "[16.0, ]"
       - name: Install Visual Studio extension dependencies
         working-directory: ${{env.GITHUB_WORKSPACE}}
         run: nuget restore ./${{env.VS_EXTENSION_SOLUTION_DIR}}
