@@ -45,8 +45,7 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
-// settings.json path
-let settingsPath: string;
+export let ide: { name: string; version?: string | undefined };
 
 export let ide: { name: string; version?: string | undefined };
 
@@ -169,12 +168,6 @@ documents.onDidOpen(async (change) => {
   // Detect partner applications based on their appmanifests
   if (textDocument.uri.endsWith("app_manifest.json")) {
     addAppManifestPathsToSettings(textDocument.uri, "");
-    return;
-  }
-
-  // Detect settings.json
-  if (textDocument.uri.endsWith("settings.json") && settingsPath !== URI.parse(textDocument.uri).fsPath) {
-    settingsPath = URI.parse(textDocument.uri).fsPath;
     return;
   }
 
