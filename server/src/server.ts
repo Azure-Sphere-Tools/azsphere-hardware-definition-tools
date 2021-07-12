@@ -45,9 +45,6 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
-// settings.json path
-let settingsPath: string;
-
 export let ide: { name: string; version?: string | undefined };
 
 connection.onInitialize((params: InitializeParams) => {
