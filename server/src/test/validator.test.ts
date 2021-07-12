@@ -1,30 +1,9 @@
 import { Diagnostic } from "vscode-languageserver/node";
 
 import * as assert from "assert";
-import * as path from "path";
-import { URI } from "vscode-uri";
-import { validateNamesAndMappings, getPinMappingSuggestions } from "../validator";
+import { validateNamesAndMappings } from "../validator";
 import { HardwareDefinition, PinMapping } from "../hardwareDefinition";
-import { Range } from "vscode-languageserver-textdocument";
-
-suite("getPinMappingSuggestions", () => {
-  test("Get Pin Mapping Suggestions", () => {
-    const gpioPin1 = new PinMapping("GPIO0", "Gpio", undefined, 0, range(0, 0, 0, 5));
-    const gpioPin2 = new PinMapping("GPIO1", "Gpio", undefined, 1, range(1, 0, 1, 5));
-    const pinWithDifferentType = new PinMapping("PWM0", "Pwm", undefined, 28, range(2, 0, 2, 5));
-    const importedhwDefFilePath = "my_app/importedHardwareDef.json";
-    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin1, gpioPin2, pinWithDifferentType]);
-
-    const hwDefFilePath = "my_app/hardwareDef.json";
-    const validPin = new PinMapping("LED", "Gpio", "GPIO1", undefined, range(0, 0, 0, 5));
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin], [importedhwDefinitionFile]);
-
-    const validPinMappings = getPinMappingSuggestions(hwDefinitionFile, "Gpio");
-
-    assert.strictEqual(validPinMappings.length, 1);
-    assert.strictEqual(validPinMappings[0], "GPIO0");
-  });
-});
+import { anyRange, asURI, range } from "./testUtils";
 
 suite("validateNamesAndMappings", () => {
   test("Validate Duplicate Names", () => {
@@ -85,19 +64,3 @@ suite("validateNamesAndMappings", () => {
     assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
   });
 });
-
-function asURI(hwDefFilePath: string): string {
-  return URI.file(path.resolve(hwDefFilePath)).toString();
-}
-
-function range(startLine: number, startChar: number, endLine: number, endChar: number): Range {
-  return { start: { line: startLine, character: startChar }, end: { line: endLine, character: endChar } };
-}
-
-/**
- * Returns a Range with arbitrary values.
- * Useful for when we need to provide a Range that we don't care about
- */
-function anyRange(): Range {
-  return { start: { line: 0, character: 0 }, end: { line: 0, character: 27 } };
-}

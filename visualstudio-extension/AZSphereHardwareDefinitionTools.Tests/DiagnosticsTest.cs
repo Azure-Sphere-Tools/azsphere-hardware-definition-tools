@@ -10,16 +10,29 @@ using Task = System.Threading.Tasks.Task;
 
 namespace AZSphereHardwareDefinitionTools.Tests
 {
+  // All integration test classes should be part of the SequentialIntegrationTests collection
+  // to prevent them from running in parallel
+  [Collection("SequentialIntegrationTests")]
   [VsTestSettings(Version = "2019")]
-  public class DiagnosticsTest
+  public class DiagnosticsTest : IAsyncLifetime
   {
-
-    [VsFact]
-    public async Task GeneratesDiagnostics()
+    // Open/close solution before/after each test to prevent them from affecting each other
+    public async Task InitializeAsync()
     {
       await TestUtils.LoadExtensionAsync();
 
       await TestUtils.OpenSolutionAsync("TestSolution.sln.test");
+
+    }
+
+    async Task IAsyncLifetime.DisposeAsync()
+    {
+      await TestUtils.CloseSolutionAsync();
+    }
+
+    [VsFact]
+    public async Task GeneratesDiagnostics()
+    {
 
       var serviceProvider = await TestUtils.GetServiceProviderAsync();
       var dte = await TestUtils.GetDTEAsync();

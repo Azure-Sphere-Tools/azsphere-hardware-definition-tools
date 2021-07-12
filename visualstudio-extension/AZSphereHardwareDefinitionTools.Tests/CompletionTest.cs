@@ -5,24 +5,34 @@ using Microsoft.VisualStudio.Shell;
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Xunit;
 using Task = System.Threading.Tasks.Task;
 
 namespace AZSphereHardwareDefinitionTools.Tests
 {
+  [Collection("SequentialIntegrationTests")]
   [VsTestSettings(Version = "2019")]
-  public class CompletionTest
+  public class CompletionTest : IAsyncLifetime
   {
-    [VsFact]
-    public async Task CompletesAvailableMappingsOfSameType()
-    {
 
+    public async Task InitializeAsync()
+    {
       await TestUtils.LoadExtensionAsync();
 
       await TestUtils.OpenSolutionAsync("TestSolution.sln.test");
 
-      await TestUtils.OpenTestFixtureFileAsync("completion/completion.json");
+    }
 
+    async Task IAsyncLifetime.DisposeAsync()
+    {
+      await TestUtils.CloseSolutionAsync();
+    }
+
+    [VsFact]
+    public async Task CompletesAvailableMappingsOfSameType()
+    {
+      await TestUtils.OpenTestFixtureFileAsync("completion/completion.json");
       await TestUtils.MoveCaretAsync(10, 53);
       var gpioCompletionItems = await TestUtils.TriggerCompletionAsync();
       Assert.Single(gpioCompletionItems);
@@ -37,6 +47,5 @@ namespace AZSphereHardwareDefinitionTools.Tests
       Assert.Equal("\"ODM_PWM0\"", pwmCompletionItems.First().InsertText);
 
     }
-
   }
 }

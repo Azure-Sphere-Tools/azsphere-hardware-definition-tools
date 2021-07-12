@@ -79,6 +79,19 @@ namespace AZSphereHardwareDefinitionTools.Tests
 
     }
 
+    /// <summary>
+    /// Closes the active Solution - usually needed after running an e2e to prevent it from affecting others
+    /// </summary>
+    /// <returns></returns>
+    public static async Task<bool> CloseSolutionAsync()
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      var solutionService = await VS.Services.GetSolutionAsync();
+      var resultCode = solutionService.CloseSolutionElement((uint)__VSSLNCLOSEOPTIONS.SLNCLOSEOPT_DeleteProject, null, 0);
+      return resultCode == Microsoft.VisualStudio.VSConstants.S_OK;
+
+    }
+
     public static async Task<bool> MoveCaretAsync(int line, int character)
     {
       await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();

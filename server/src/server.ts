@@ -6,7 +6,6 @@ import {
   InitializeParams,
   DidChangeConfigurationNotification,
   CompletionItem,
-  CompletionItemKind,
   TextDocumentPositionParams,
   TextDocumentSyncKind,
   InitializeResult,
@@ -23,8 +22,9 @@ import {
 
 import { TextDocument } from "vscode-languageserver-textdocument";
 import * as jsonc from "jsonc-parser";
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, getPinMappingSuggestions } from "./validator";
-import { HardwareDefinition, PinMapping, UnknownImport, toRange, isInsideRange } from "./hardwareDefinition";
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports } from "./validator";
+import { pinMappingCompletionItemsAtPosition } from "./suggestions";
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
@@ -355,7 +355,6 @@ export function parseCommandsParams(CMakeListsPath: string): string | undefined 
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
 
-  const validPinMappings: CompletionItem[] = [];
   const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
   let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
   if (!hwDefFileText) {
@@ -369,44 +368,8 @@ connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams)
     return [];
   }
 
-  let cursorIsInsidePinMapping = false;
-  let pinMappingToComplete = undefined;
-  for (const pinMapping of hwDefinition.pinMappings) {
-    if (pinMapping.mappingPropertyRange && isInsideRange(textDocumentPosition.position, pinMapping.mappingPropertyRange)) {
-      cursorIsInsidePinMapping = true;
-      pinMappingToComplete = pinMapping;
-      break;
-    }
-  }
-  if(!cursorIsInsidePinMapping || !pinMappingToComplete?.mappingPropertyRange) {
-    return [];
-  }
-  for (const validPinMapping of getPinMappingSuggestions(hwDefinition, pinMappingToComplete.type)) {
-    validPinMappings.push({
-      label: `"${validPinMapping}"`,
-      kind: CompletionItemKind.Value,
-      preselect: true,
-      textEdit: {
-        range: pinMappingToComplete.mappingPropertyRange,
-        newText: `"${validPinMapping}"`
-      }
-    });
-  }
-
-  return validPinMappings;
-});
-
-// This handler resolves additional information for the item selected in
-// the completion list.
-connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-  if (item.data === 1) {
-    item.detail = "TypeScript details";
-    item.documentation = "TypeScript documentation";
-  } else if (item.data === 2) {
-    item.detail = "JavaScript details";
-    item.documentation = "JavaScript documentation";
-  }
-  return item;
+  const caretPosition = textDocumentPosition.position;
+  return pinMappingCompletionItemsAtPosition(hwDefinition, caretPosition);
 });
 
 // Make the text document manager listen on the connection
