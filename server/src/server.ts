@@ -45,14 +45,13 @@ let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 
-export let ide: { name: string; version?: string | undefined };
-
-export let ide: { name: string; version?: string | undefined };
+let settingsPath: string;
 
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
 
-  if (params.clientInfo) ide = params.clientInfo;
+  // Set setting.json path
+  setSettingPath(params.clientInfo?.name);
 
   // Does the client support the `workspace/configuration` request?
   // If not, we fall back using global settings.
@@ -166,8 +165,8 @@ documents.onDidOpen(async (change) => {
   }
 
   // Detect partner applications based on their appmanifests
-  if (textDocument.uri.endsWith("app_manifest.json")) {
-    addAppManifestPathsToSettings(textDocument.uri, "");
+  if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
+    addAppManifestPathsToSettings(textDocument.uri, settingsPath);
     return;
   }
 
@@ -216,8 +215,8 @@ documents.onDidChangeContent((change) => {
 
   validateTextDocument(textDocument);
 
-  if (textDocument.uri.endsWith("app_manifest.json")) {
-    addAppManifestPathsToSettings(textDocument.uri, "");
+  if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
+    addAppManifestPathsToSettings(textDocument.uri, settingsPath);
     return;
   }
 });
@@ -341,6 +340,14 @@ export function findFullPath(relativeImportPath: string, hwDefinitionFilePath: s
     return;
   }
 }
+
+const setSettingPath = (ide: string | undefined) => {
+  if (ide && ide.includes("Visual Studio Code")) {
+    settingsPath = ".vscode/settings.json";
+  } else {
+    settingsPath = ".vs/VSWorkspaceSettings.json";
+  }
+};
 
 // This handler provides the initial list of the completion items.
 connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
