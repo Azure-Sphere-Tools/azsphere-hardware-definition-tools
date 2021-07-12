@@ -1,12 +1,8 @@
-import {
-	Diagnostic,
-	DiagnosticSeverity,
-	integer,
-} from 'vscode-languageserver/node';
+import { Diagnostic, DiagnosticSeverity, integer } from "vscode-languageserver/node";
 
-import { Position, TextDocument } from 'vscode-languageserver-textdocument';
-import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
-import { URI } from 'vscode-uri';
+import { Position, TextDocument } from "vscode-languageserver-textdocument";
+import { HardwareDefinition, PinMapping, toRange } from "./hardwareDefinition";
+import { URI } from "vscode-uri";
 
 const EXTENSION_SOURCE = "az sphere";
 
@@ -20,7 +16,7 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
   for (const imported of hwDefinition.imports) {
     allPinMappings = allPinMappings.concat(imported.pinMappings);
   }
-  const usedPinNames = new Set(hwDefinition.pinMappings.map(p => p.mapping));
+  const usedPinNames = new Set(hwDefinition.pinMappings.map((p) => p.mapping));
   const invalidPinMappings: Set<PinMapping> = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
@@ -66,10 +62,10 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
           },
         ];
       } else {
-				const relatedInfoPosition = existingMapping.pinMapping.range.start;
-				const relatedInfoUri = existingMapping.hardwareDefinitionUri;
-				addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, relatedInfoUri, hwDefinition.uri);
-			}
+        const relatedInfoPosition = existingMapping.pinMapping.range.start;
+        const relatedInfoUri = existingMapping.hardwareDefinitionUri;
+        addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, relatedInfoUri, hwDefinition.uri);
+      }
       warningDiagnostics.push(diagnostic);
     } else {
       if (!mapping.isRootMapping()) {
@@ -147,9 +143,9 @@ export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: st
           },
         ];
       } else {
-				const relatedInfoPosition = toRange(textDocument.getText(), prevStart, prevEnd).start;
-				addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, textDocument.uri, hwDefinition.uri);
-			}
+        const relatedInfoPosition = toRange(textDocument.getText(), prevStart, prevEnd).start;
+        addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, textDocument.uri, hwDefinition.uri);
+      }
       diagnostics.push(diagnostic);
     } else {
       nodes.set(mappedTo, [mapStart, mapEnd, 0]);
@@ -172,20 +168,20 @@ export function findUnknownImports(hwDefinition: HardwareDefinition, textDocumen
 }
 
 /**
- * 
+ *
  * @param diagnostic Adds a diagnostic's related information directly in its message under the form (line x, char y)
  * - useful for IDEs that don't support a diagnostic's 'relatedInformation' property.
- * If the related information is in a different file than the diagnostic, "in {filepath}" is appended to the message 
+ * If the related information is in a different file than the diagnostic, "in {filepath}" is appended to the message
  * @param relatedInfoPosition The position in the document that the related information would appear
- * @param hwDefinitionUri The uri of the hardware definition file where the diagnostic will appear 
+ * @param hwDefinitionUri The uri of the hardware definition file where the diagnostic will appear
  * @param relatedInfoUri The uri of the file containing the related information
  */
 function addRelatedInfoAsDiagnosticMessage(diagnostic: Diagnostic, relatedInfoPosition: Position, hwDefinitionUri: string, relatedInfoUri: string) {
-	// line and char are incremented by 1 since we start counting lines from 1 in text files (not 0)
-	diagnostic.message += ` (line ${relatedInfoPosition.line + 1}, char ${relatedInfoPosition.character + 1}`;
-	if (hwDefinitionUri != relatedInfoUri) {
-		// mention the related info's file uri if it wasn't defined in the current hw definition file  
-		diagnostic.message += ` in ${URI.file(relatedInfoUri).fsPath}`;
-	}
-	diagnostic.message += ')';
+  // line and char are incremented by 1 since we start counting lines from 1 in text files (not 0)
+  diagnostic.message += ` (line ${relatedInfoPosition.line + 1}, char ${relatedInfoPosition.character + 1}`;
+  if (hwDefinitionUri != relatedInfoUri) {
+    // mention the related info's file uri if it wasn't defined in the current hw definition file
+    diagnostic.message += ` in ${URI.file(relatedInfoUri).fsPath}`;
+  }
+  diagnostic.message += ")";
 }
