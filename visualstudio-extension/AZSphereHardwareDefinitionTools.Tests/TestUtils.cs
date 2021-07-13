@@ -143,6 +143,12 @@ namespace AZSphereHardwareDefinitionTools.Tests
       System.Windows.Forms.SendKeys.Send("{ESC}");
     }
 
+    public static async Task ReloadCurrentDocumentAsync()
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      (await VS.Documents.GetCurrentDocumentAsync()).Reload();
+    }
+
     /// <summary>
     /// Retrieves the entries in the Error List table which contains the diagnostics sent by the language server.
     /// Note that the Error List can contain messages/warnings/errors from different sources, not just the language server (e.g. compilation errors)

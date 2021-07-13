@@ -38,8 +38,8 @@ namespace AZSphereHardwareDefinitionTools.Tests
       Assert.Single(gpioCompletionItems);
       Assert.Equal("\"ODM_GPIO1\"", gpioCompletionItems.First().InsertText);
 
-      // Press escape to dismiss previous completion suggestions
-      await TestUtils.PressEscapeAsync();
+      // Reload document to dismiss previous completion suggestions
+      await TestUtils.ReloadCurrentDocumentAsync();
 
       await TestUtils.MoveCaretAsync(12, 51);
       var pwmCompletionItems = await TestUtils.TriggerCompletionAsync();
