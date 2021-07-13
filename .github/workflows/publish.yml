@@ -3,22 +3,19 @@ name: Publish
 on:
   workflow_dispatch:
 
+env:
+  NODE_VERSION: "14.x"
+  VS_EXTENSION_SOLUTION_DIR: visualstudio-extension
+
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      max-parallel: 3
-      matrix:
-        os: [ubuntu-latest]
-        node-version: [14.x]
-
+  publish-vscode:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Use Node.js ${{ env.NODE_VERSION }}
         uses: actions/setup-node@v1
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: ${{ env.NODE_VERSION }}
       - name: Install dependencies
         run: npm ci
       - name: Start xvfb
@@ -36,6 +33,39 @@ jobs:
         with:
           allowUpdates: true
           artifacts: "vscode-extension/*.vsix"
+          bodyFile: "README.md"
+          tag: "1.0.0"
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-visualstudio:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Use Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v1
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install language server dependencies
+        run: npm ci
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v1
+        with:
+          vs-version: "[16.0, ]"
+      - name: Install Visual Studio extension dependencies
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: nuget restore ./${{env.VS_EXTENSION_SOLUTION_DIR}}
+        shell: powershell
+      - name: Build
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: msbuild ./${{env.VS_EXTENSION_SOLUTION_DIR}} /p:configuration=Release /nowarn:MSB3277
+        shell: powershell
+      - name: Rename vsix package
+        working-directory: ${{env.GITHUB_WORKSPACE}}
+        run: mv ${{env.VS_EXTENSION_SOLUTION_DIR}}/AZSphereHardwareDefinitionTools/bin/Release/AZSphereHardwareDefinitionTools.vsix VisualStudio-AZSphereHardwareDefinitionTools.vsix 
+      - uses: ncipollo/release-action@v1
+        with:
+          allowUpdates: true
+          artifacts: "VisualStudio-AZSphereHardwareDefinitionTools.vsix"
           bodyFile: "README.md"
           tag: "1.0.0"
           token: ${{ secrets.GITHUB_TOKEN }}
