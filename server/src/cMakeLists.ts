@@ -1,8 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
-import { connection } from "./server";
 
-export function parseCommandsParams(CMakeListsPath: string): string | undefined {
+export function parseCommandsParams(CMakeListsPath: string, log = console.log): string | undefined {
   const text: string = fs.readFileSync(CMakeListsPath).toString();
 
   try {
@@ -18,12 +17,12 @@ export function parseCommandsParams(CMakeListsPath: string): string | undefined 
       if (fs.existsSync(pathFromHwDefinitionFile)) {
         return pathFromHwDefinitionFile;
       } else {
-        connection.console.log(`[Parse CMakeLists] Azuresphere Target Hardware Definition not found in the target specified in CMakeLists - ${pathFromHwDefinitionFile}`);
+        log(`[Parse CMakeLists] Azuresphere Target Hardware Definition not found in the target specified in CMakeLists - ${pathFromHwDefinitionFile}`);
       }
     } else {
-      connection.console.log(`[Parse CMakeLists] TARGET_DIRECTORY and/or TARGET_DEFINITION in CMakeLists are empty.`);
+      log(`[Parse CMakeLists] TARGET_DIRECTORY and/or TARGET_DEFINITION in CMakeLists are empty.`);
     }
   } catch (err) {
-    connection.console.log(`[Parse CMakeLists] - Cannot parse CMAkeLists command's parameters. ${err}`);
+    log(`[Parse CMakeLists] - Cannot parse CMAkeLists command's parameters. ${err}`);
   }
 }

@@ -36,7 +36,8 @@ const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere
 // temporary hack to run unit tests with mocha instead of always calling 'createConnection(ProposedFeatures.all)'
 // when fixed, remove IPCMessageReader/Writer from server.ts and LANGUAGE_SERVER_MODE from .vscode/settings.json
 const runningTests = process.env.LANGUAGE_SERVER_MODE == "TEST";
-export const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
+// avoid referencing connection in other files/modules as it is expensive to create and can prevent tests from running in parallel
+const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -152,7 +153,7 @@ documents.onDidOpen(async (change) => {
   const text = textDocument.getText();
 
   if (textDocument.uri.endsWith("CMakeLists.txt")) {
-    const hwDefinitionPath = parseCommandsParams(URI.parse(textDocument.uri).fsPath);
+    const hwDefinitionPath = parseCommandsParams(URI.parse(textDocument.uri).fsPath, connection.console.log);
 
     if (hwDefinitionPath) {
       const msg: ShowMessageParams = {
@@ -164,13 +165,7 @@ documents.onDidOpen(async (change) => {
     return;
   }
 
-  // Detect partner applications based on their appmanifests
-  if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
-    addAppManifestPathsToSettings(textDocument.uri, settingsPath);
-    return;
-  }
-
-  if (textDocument.uri.endsWith(".txt")) {
+  if (textDocument.uri.endsWith(".json")) {
     const hwDefinition = tryParseHardwareDefinitionFile(text, textDocument.uri, settings.SdkPath);
 
     if (!hwDefinition) {
@@ -210,14 +205,24 @@ documents.onDidClose((e) => {
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent((change) => {
+documents.onDidChangeContent(async (change) => {
   const textDocument = change.document;
 
-  validateTextDocument(textDocument);
-
   if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
-    addAppManifestPathsToSettings(textDocument.uri, settingsPath);
-    return;
+    const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
+    const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
+    if (detectedPartnerApplications.length > 0) {
+      const msg: ShowMessageParams = {
+        message: `Partner applications ${detectedPartnerApplications.join(", ")} detected, please open their app_manifest.json`,
+        type: MessageType.Warning,
+      };
+      connection.sendNotification(ShowMessageNotification.type, msg);
+      return;
+    }
+  }
+
+  if (textDocument.uri.endsWith(".json")) {
+    await validateTextDocument(textDocument);
   }
 });
 
@@ -316,7 +321,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
           const mappingPropertyNode = jsonc.findNodeAtLocation(mappingAsJsonNode, ["Mapping"]);
           if (mappingPropertyNode) {
             const mappingPropertyStart = mappingPropertyNode.offset;
-            const mappingPropertyEnd = mappingPropertyStart + mappingPropertyNode.length; 
+            const mappingPropertyEnd = mappingPropertyStart + mappingPropertyNode.length;
             pinMapping.mappingPropertyRange = toRange(hwDefinitionFileText, mappingPropertyStart, mappingPropertyEnd);
           }
           pinMappings.push(pinMapping);

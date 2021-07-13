@@ -1,12 +1,9 @@
-import { readFile } from "fs/promises";
+import { readFile, writeFile, appendFile } from "fs/promises";
 import * as fs from "fs";
 import { URI } from "vscode-uri";
 import * as jsonc from "jsonc-parser";
 
-import { MessageType, ShowMessageRequest, ShowMessageRequestParams } from "vscode-languageserver/node";
-import { connection } from "./server";
-
-export const addAppManifestPathsToSettings = async (uri: string, settingsPath: string) => {
+export const addAppManifestPathsToSettings = async (uri: string, settingsPath: string, logError = console.error): Promise<string[]> => {
   if (uri && settingsPath) {
     const app_manifestPath = URI.parse(uri).fsPath;
     const {
@@ -15,12 +12,16 @@ export const addAppManifestPathsToSettings = async (uri: string, settingsPath: s
     } = jsonc.parse(await readFile(app_manifestPath, "utf8"));
 
     if (ComponentId && Array.isArray(AllowedApplicationConnections) && AllowedApplicationConnections.length) {
-      const msg: ShowMessageRequestParams = {
-        message: `Partner applications ${AllowedApplicationConnections.join(", ")} detected, please open their app_manifest.json`,
-        type: MessageType.Warning,
-      };
-      connection.sendRequest(ShowMessageRequest.type, msg);
+      const detectedPartnerApplicationIds = AllowedApplicationConnections.map(id => String(id));
 
+      if (!fs.existsSync(settingsPath)) {
+        try {
+          await appendFile(settingsPath, "{}", { flag: "wx" });
+        } catch (e) {
+          logError(e);
+          return [];
+        }
+      }
       const settingsTxt = await readFile(settingsPath, "utf8");
       const settings = jsonc.parse(settingsTxt);
       let applications: Record<string, unknown> = {};
@@ -40,15 +41,14 @@ export const addAppManifestPathsToSettings = async (uri: string, settingsPath: s
       }
 
       const edits = jsonc.modify(settingsTxt, ["AzureSphere.partnerApplications"], applications, { formattingOptions: { insertSpaces: true } });
-      writeToJson(settingsPath, settingsTxt, edits);
+      try {
+        await writeFile(settingsPath, jsonc.applyEdits(settingsTxt, edits));
+      } catch (e) {
+        logError(e);
+        return [];
+      }
+      return detectedPartnerApplicationIds;
     }
-    return;
   }
-};
-
-export const writeToJson = (path: string, text: string, edits: jsonc.Edit[]): void => {
-  fs.writeFile(path, jsonc.applyEdits(text, edits), (err) => {
-    if (err) throw err;
-  });
-  return;
+  return [];
 };
