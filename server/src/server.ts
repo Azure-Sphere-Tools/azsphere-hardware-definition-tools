@@ -381,6 +381,13 @@ connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams)
   return pinMappingCompletionItemsAtPosition(hwDefinition, caretPosition);
 });
 
+// This handler resolves additional information for the item selected in
+// the completion list.
+// Clients always expect this event to be handled, even if no additional info is available.
+connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
+  return item;
+});
+
 // Make the text document manager listen on the connection
 // for open, change and close text document events
 documents.listen(connection);
