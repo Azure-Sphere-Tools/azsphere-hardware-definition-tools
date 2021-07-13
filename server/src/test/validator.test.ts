@@ -112,7 +112,7 @@ suite('validatePinBlock', () => {
 		if (hwDefinition) {
 			const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, false);
 			const actualDiagnostic = warningDiagnostics[0];
-			assert.strictEqual(actualDiagnostic.message, pins[1].mapping + ' already configured as a Gpio by ' + pins[0].mapping + ' pin mapping');
+			assert.strictEqual(actualDiagnostic.message, pins[1].name + ' configured as Gpio by ' + pins[0].name);
 			assert.strictEqual(actualDiagnostic.range.start.line, 6);
 			assert.strictEqual(actualDiagnostic.range.start.character, 6);
 			assert.strictEqual(actualDiagnostic.range.end.line, 6);
