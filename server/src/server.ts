@@ -6,7 +6,6 @@ import {
   InitializeParams,
   DidChangeConfigurationNotification,
   CompletionItem,
-  CompletionItemKind,
   TextDocumentPositionParams,
   TextDocumentSyncKind,
   InitializeResult,
@@ -27,6 +26,7 @@ import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports } f
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
+import { pinMappingCompletionItemsAtPosition } from "./suggestions";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
@@ -36,7 +36,8 @@ const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere
 // temporary hack to run unit tests with mocha instead of always calling 'createConnection(ProposedFeatures.all)'
 // when fixed, remove IPCMessageReader/Writer from server.ts and LANGUAGE_SERVER_MODE from .vscode/settings.json
 const runningTests = process.env.LANGUAGE_SERVER_MODE == "TEST";
-export const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
+// avoid referencing connection in other files/modules as it is expensive to create and can prevent tests from running in parallel
+const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -152,7 +153,7 @@ documents.onDidOpen(async (change) => {
   const text = textDocument.getText();
 
   if (textDocument.uri.endsWith("CMakeLists.txt")) {
-    const hwDefinitionPath = parseCommandsParams(URI.parse(textDocument.uri).fsPath);
+    const hwDefinitionPath = parseCommandsParams(URI.parse(textDocument.uri).fsPath, connection.console.log);
 
     if (hwDefinitionPath) {
       const msg: ShowMessageParams = {
@@ -164,13 +165,7 @@ documents.onDidOpen(async (change) => {
     return;
   }
 
-  // Detect partner applications based on their appmanifests
-  if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
-    addAppManifestPathsToSettings(textDocument.uri, settingsPath);
-    return;
-  }
-
-  if (textDocument.uri.endsWith(".txt")) {
+  if (textDocument.uri.endsWith(".json")) {
     const hwDefinition = tryParseHardwareDefinitionFile(text, textDocument.uri, settings.SdkPath);
 
     if (!hwDefinition) {
@@ -210,14 +205,24 @@ documents.onDidClose((e) => {
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent((change) => {
+documents.onDidChangeContent(async (change) => {
   const textDocument = change.document;
 
-  validateTextDocument(textDocument);
-
   if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
-    addAppManifestPathsToSettings(textDocument.uri, settingsPath);
-    return;
+    const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
+    const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
+    if (detectedPartnerApplications.length > 0) {
+      const msg: ShowMessageParams = {
+        message: `Partner applications ${detectedPartnerApplications.join(", ")} detected, please open their app_manifest.json`,
+        type: MessageType.Warning,
+      };
+      connection.sendNotification(ShowMessageNotification.type, msg);
+      return;
+    }
+  }
+
+  if (textDocument.uri.endsWith(".json")) {
+    await validateTextDocument(textDocument);
   }
 });
 
@@ -311,7 +316,15 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
           const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
           const start = mappingAsJsonNode?.offset;
           const end = start + mappingAsJsonNode?.length;
-          pinMappings.push(new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment));
+          const pinMapping = new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment);
+
+          const mappingPropertyNode = jsonc.findNodeAtLocation(mappingAsJsonNode, ["Mapping"]);
+          if (mappingPropertyNode) {
+            const mappingPropertyStart = mappingPropertyNode.offset;
+            const mappingPropertyEnd = mappingPropertyStart + mappingPropertyNode.length;
+            pinMapping.mappingPropertyRange = toRange(hwDefinitionFileText, mappingPropertyStart, mappingPropertyEnd);
+          }
+          pinMappings.push(pinMapping);
         }
       }
     }
@@ -349,37 +362,29 @@ const setSettingPath = (ide: string | undefined) => {
   }
 };
 
-// This handler provides the initial list of the completion items.
-connection.onCompletion((_textDocumentPosition: TextDocumentPositionParams): CompletionItem[] => {
-  // The pass parameter contains the position of the text document in
-  // which code complete got requested. For the example we ignore this
-  // info and always provide the same completion items.
-  return [
-    {
-      label: '"TypeScript"',
-      kind: CompletionItemKind.Value,
-      data: 1,
-      preselect: true,
-    },
-    {
-      label: '"JavaScript"',
-      kind: CompletionItemKind.Value,
-      data: 2,
-      preselect: true,
-    },
-  ];
+connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
+
+  const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
+  let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
+  if (!hwDefFileText) {
+    hwDefFileText = fs.readFileSync(URI.file(hwDefinitionFileUri).fsPath, { encoding: "utf8" });
+  }
+
+  const sdkPath = (await getDocumentSettings(hwDefinitionFileUri)).SdkPath;
+
+  const hwDefinition = tryParseHardwareDefinitionFile(hwDefFileText, hwDefinitionFileUri, sdkPath);
+  if (!hwDefinition) {
+    return [];
+  }
+
+  const caretPosition = textDocumentPosition.position;
+  return pinMappingCompletionItemsAtPosition(hwDefinition, caretPosition);
 });
 
 // This handler resolves additional information for the item selected in
 // the completion list.
+// Clients always expect this event to be handled, even if no additional info is available.
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
-  if (item.data === 1) {
-    item.detail = "TypeScript details";
-    item.documentation = "TypeScript documentation";
-  } else if (item.data === 2) {
-    item.detail = "JavaScript details";
-    item.documentation = "JavaScript documentation";
-  }
   return item;
 });
 

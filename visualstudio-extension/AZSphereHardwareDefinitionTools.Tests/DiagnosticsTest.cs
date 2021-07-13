@@ -10,27 +10,40 @@ using Task = System.Threading.Tasks.Task;
 
 namespace AZSphereHardwareDefinitionTools.Tests
 {
+  // All integration test classes should be part of the SequentialIntegrationTests collection
+  // to prevent them from running in parallel
+  [Collection("SequentialIntegrationTests")]
   [VsTestSettings(Version = "2019")]
-  public class DiagnosticsTest
+  public class DiagnosticsTest : IAsyncLifetime
   {
-
-    [VsFact]
-    public async Task GeneratesDiagnosticsAsync()
+    // Open/close solution before/after each test to prevent them from affecting each other
+    public async Task InitializeAsync()
     {
       await TestUtils.LoadExtensionAsync();
+
+      await TestUtils.OpenSolutionAsync("TestSolution.sln.test");
+
+    }
+
+    async Task IAsyncLifetime.DisposeAsync()
+    {
+      await TestUtils.CloseSolutionAsync();
+    }
+
+    [VsFact]
+    public async Task GeneratesDiagnostics()
+    {
 
       var serviceProvider = await TestUtils.GetServiceProviderAsync();
       var dte = await TestUtils.GetDTEAsync();
 
-      await TestUtils.OpenTestFixtureFileAsync(dte, "diagnostics.json");
-
+      await TestUtils.OpenTestFixtureFileAsync("diagnostics.json");
       int expectedDiagnosticsCount = 4;
       int maxAttempts = 5;
       int attempts = 0;
       var errors = await TestUtils.GetErrorsAsync(dte, serviceProvider);
       while (errors.Count < expectedDiagnosticsCount || attempts < maxAttempts)
       {
-        await TestUtils.SleepAsync(2000);
         errors = await TestUtils.GetErrorsAsync(dte, serviceProvider);
         attempts++;
       }
@@ -47,7 +60,6 @@ namespace AZSphereHardwareDefinitionTools.Tests
       {
         Assert.Contains(errors, e => e.GetText().Contains(expectedMessage));
       }
-
     }
   }
 }

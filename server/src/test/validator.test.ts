@@ -1,13 +1,9 @@
-import {
-	Diagnostic,
-} from 'vscode-languageserver/node';
+import { Diagnostic } from 'vscode-languageserver/node';
 
 import * as assert from 'assert';
-import * as path from 'path';
-import { URI } from 'vscode-uri';
 import { validateNamesAndMappings } from '../validator';
 import { HardwareDefinition, PinMapping } from '../hardwareDefinition';
-import { Range } from 'vscode-languageserver-textdocument';
+import { anyRange, asURI, range } from "./testUtils";
 
 suite('validateNamesAndMappings', () => {
 
@@ -70,19 +66,3 @@ suite('validateNamesAndMappings', () => {
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
 	}); 
 });
-
-function asURI(hwDefFilePath: string): string {
-	return URI.file(path.resolve(hwDefFilePath)).toString();
-}
-
-function range(startLine: number, startChar: number, endLine: number, endChar: number): Range {
-	return { start: { line: startLine, character: startChar }, end: { line: endLine, character: endChar } };
-}
-
-/**
- * Returns a Range with arbitrary values.
- * Useful for when we need to provide a Range that we don't care about
- */
-function anyRange(): Range {
-	return { start: { line: 0, character: 0 }, end: { line: 0, character: 27 } };
-}

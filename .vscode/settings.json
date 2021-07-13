@@ -1,7 +1,8 @@
 {
 	"tslint.enable": true,
 	"typescript.tsc.autoDetect": "off",
-	"typescript.preferences.quoteStyle": "single",
+	"typescript.preferences.quoteStyle": "double",
+	"javascript.preferences.quoteStyle": "double", 
 	"editor.codeActionsOnSave": {
 		"source.fixAll.eslint": true
 	},

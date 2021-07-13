@@ -1,4 +1,6 @@
-﻿using EnvDTE;
+﻿using Community.VisualStudio.Toolkit;
+using Community.VisualStudio.Toolkit.Shared;
+using EnvDTE;
 using Microsoft;
 using Microsoft.VisualStudio.Shell;
 using Microsoft.VisualStudio.Shell.TableControl;
@@ -11,6 +13,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
+using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
 
 namespace AZSphereHardwareDefinitionTools.Tests
 {
@@ -26,12 +30,11 @@ namespace AZSphereHardwareDefinitionTools.Tests
     }
 
 
-    public static async Task OpenTestFixtureFileAsync(DTE dte, string filename)
+    public static async Task<WindowFrame> OpenTestFixtureFileAsync(string filename)
     {
-      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-      var window = dte.ItemOperations.OpenFile(TestUtils.TestFixtureFile(filename), EnvDTE.Constants.vsViewKindTextView);
-      window.Visible = true;
-      window.Activate();
+      var doc = await VS.Documents.OpenAsync(TestFixtureFile(filename));
+      await doc.ShowAsync();
+      return doc;
     }
 
     public static string TestFixtureFile(string filename)
@@ -62,6 +65,88 @@ namespace AZSphereHardwareDefinitionTools.Tests
       var dte = ServiceProvider.GlobalProvider.GetService(typeof(DTE)) as DTE;
       Assumes.Present(dte);
       return dte;
+    }
+
+    /// <summary>
+    /// Opens a Solution - usually needed before running e2e tests to enable Visual Studio functionalities
+    /// </summary>
+    /// <param name="slnFileName">Relative path to solution file in test fixtures</param>
+    /// <returns></returns>
+    public static async Task OpenSolutionAsync(string slnFileName)
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      (await VS.Services.GetSolutionAsync()).OpenSolutionFile((uint)__VSSLNOPENOPTIONS.SLNOPENOPT_Silent, TestFixtureFile(slnFileName));
+
+    }
+
+    /// <summary>
+    /// Closes the active Solution - usually needed after running an e2e to prevent it from affecting others
+    /// </summary>
+    /// <returns></returns>
+    public static async Task<bool> CloseSolutionAsync()
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      var solutionService = await VS.Services.GetSolutionAsync();
+      var resultCode = solutionService.CloseSolutionElement((uint)__VSSLNCLOSEOPTIONS.SLNCLOSEOPT_DeleteProject, null, 0);
+      return resultCode == Microsoft.VisualStudio.VSConstants.S_OK;
+
+    }
+
+    public static async Task<bool> MoveCaretAsync(int line, int character)
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      var currentView = await VS.Documents.GetCurrentNativeTextViewAsync();
+      var resultCode = currentView.SetCaretPos(line, character);
+      return resultCode == Microsoft.VisualStudio.VSConstants.S_OK;
+    }
+
+    public static async Task<IEnumerable<CompletionItem>> TriggerCompletionAsync(int maxAttempts = 5)
+    {
+      // yield to make sure we don't execute this method on UI thread
+      await Task.Yield();
+      var completionBroker = await VS.GetMefServiceAsync<IAsyncCompletionBroker>();
+      
+      EventHandler<CompletionTriggeredEventArgs> onCompletion = null;
+      var completionFinished = new TaskCompletionSource<IEnumerable<CompletionItem>>();
+      
+      // define an event handler which will set the 'completionFinished' task result when a completion occurs
+      onCompletion = (sender, e) =>
+      {
+        var completionItems = e.CompletionSession.GetComputedItems(System.Threading.CancellationToken.None).Items;
+        completionFinished.SetResult(completionItems);
+        // unsubscribe from the CompletionTriggered event after the event handler has been called once
+        completionBroker.CompletionTriggered -= onCompletion;
+      };
+
+      // subscribe to the CompletionTriggered event
+      completionBroker.CompletionTriggered += onCompletion;
+
+      // trigger completion
+      int attempts = 0;
+      while (!completionFinished.Task.IsCompleted && attempts < maxAttempts)
+      {
+        await SleepAsync(2000);
+        await VS.Commands.ExecuteAsync("Edit.CompleteWord");
+        attempts++;
+      }
+
+      if (attempts == maxAttempts)
+      {
+        return new List<CompletionItem>();
+      }
+      return await completionFinished.Task;
+    }
+
+    public static async Task PressEscapeAsync()
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      System.Windows.Forms.SendKeys.Send("{ESC}");
+    }
+
+    public static async Task ReloadCurrentDocumentAsync()
+    {
+      await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      (await VS.Documents.GetCurrentDocumentAsync()).Reload();
     }
 
     /// <summary>
