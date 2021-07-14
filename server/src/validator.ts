@@ -265,12 +265,10 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 	const warningDiagnostics: Diagnostic[] = [];
 	const controllerSetup: Map<string, PinMapping> = new Map();
 
-	hwDefinition.pinMappings.forEach(pinMapping => {
+	for (const pinMapping of hwDefinition.pinMappings) {
 		const appManifestValue = getAppManifestValue(pinMapping.name, [hwDefinition]);
 
-		if (appManifestValue == undefined) {
-			console.debug('Invalid mapping. This is handled in another place.');
-		} else {
+		if (appManifestValue != undefined) {
 			const controller = getController(pinMapping.type, appManifestValue);
 
 			if (controller == undefined) {
@@ -320,7 +318,7 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 				controllerSetup.set(controller.name, pinMapping);
 			}
 		}
-	});
+	}
 
 	return warningDiagnostics;
 }
