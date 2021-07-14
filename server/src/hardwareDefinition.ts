@@ -58,13 +58,13 @@ export function toRange(text: string, start: number, end: number): Range {
 export function isInsideRange(position: Position, range: Range) {
 	// same line and greater character OR greater line
 	const afterRangeStart =
-		(position.line == range.start.line && position.character > range.start.character)
+		(position.line == range.start.line && position.character >= range.start.character)
 		|| position.line > range.start.line;
 
 	if (afterRangeStart) {
 		// same line and smaller character OR smaller line
 		const beforeRangeEnd =
-			(position.line == range.end.line && position.character < range.end.character)
+			(position.line == range.end.line && position.character <= range.end.character)
 			|| position.line < range.end.line;
 
 		return afterRangeStart && beforeRangeEnd;

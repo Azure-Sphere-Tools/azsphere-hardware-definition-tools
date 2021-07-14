@@ -3,6 +3,7 @@ import { CodeAction, CodeActionParams, DiagnosticSeverity, CodeActionKind, Diagn
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
 
 export const QUICKFIX_DUPLICATE_MSG = 'is already mapped';
+export const QUICKFIX_INVALID_MSG = 'is invalid. There is no imported pin mapping with that name.';
 
 /**
  * find the pin mapping for the warning line
@@ -57,8 +58,23 @@ export function quickfix(hwDefinition: HardwareDefinition, parms: CodeActionPara
         });
         return;
       }
-    });
 
-    console.log(codeActions);
+      if (diag.severity === DiagnosticSeverity.Warning && diag.message.includes(QUICKFIX_INVALID_MSG)) {
+        codeActions.push({
+          title: "Delete the Invalid pin mapping",
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diag],
+          edit: {
+            changes: {
+              [parms.textDocument.uri]: [{
+                range: pinMappingToComplete.mappingPropertyRange,  newText: `""`
+              }]
+            }
+          }
+        });
+        return;
+      }
+
+    });
     return codeActions;
 }
