@@ -245,14 +245,6 @@ function _getController(type: string, appManifestValue: number | string): Contro
 const getController = memoize(_getController);
 
 /**
- * Get the MT3620 Controller a mapping with the given type and appManifestValue is connected to
- *
- * @param type The type of the mapping. (Peripherals.Type)
- * @param appManifestValue AppManifestValue
- * @returns Controller, if mapping with the given type and appManifestValue exists, otherwise undefined
- */
-
-/**
  * Checks that the given Hardware Definition:
  * - Uses valid peripheral types
  * - Doesn't define peripherals with conflicting types
