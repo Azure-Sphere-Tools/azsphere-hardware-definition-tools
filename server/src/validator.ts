@@ -7,7 +7,7 @@ import {
 import { Position, TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 import { URI } from 'vscode-uri';
-import { Controller, CONTROLLERS } from './mt3620_controllers';
+import { Controller, CONTROLLERS } from './mt3620Controllers';
 
 const EXTENSION_SOURCE = 'az sphere';
 
