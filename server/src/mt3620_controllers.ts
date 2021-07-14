@@ -72,7 +72,7 @@ const CONTROLLERS: Controller[] = [
     {
         "name": "UNDEFINED-1",
         "values": {
-            "gpio": [56, 57, 58, 59, 60, 61, 6, 63, 64, 65]
+            "gpio": [56, 57, 58, 59, 60, 61, 62, 63, 64, 65]
         }
     },
     {
