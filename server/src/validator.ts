@@ -267,7 +267,7 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 				const diagnostic: Diagnostic = {
 					message: `${pinMapping.mapping != undefined ? pinMapping.mapping : pinMapping.appManifestValue} cannot be used as ${pinMapping.type}`,
 					range: pinMapping.range,
-					severity: DiagnosticSeverity.Warning,
+					severity: DiagnosticSeverity.Error,
 					source: EXTENSION_SOURCE
 				};
 				if (includeRelatedInfo) {
