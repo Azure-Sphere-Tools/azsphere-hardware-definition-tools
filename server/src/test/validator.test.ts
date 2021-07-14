@@ -69,7 +69,7 @@ suite('validateNamesAndMappings', () => {
 		const expectedMessage = `${baseMessage} (line ${relatedInfoStartLine}, char ${relatedInfoStartChar})`;
 		assert.strictEqual(actualDiagnostic.message, expectedMessage);
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
-	}); 
+	});
 });
 
 suite('validatePinBlock', () => {
@@ -109,16 +109,16 @@ suite('validatePinBlock', () => {
 		const hwDefFilePath = 'my_app/odm.json';
 		const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
 
-		if (hwDefinition) {
-			const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, false);
-			const actualDiagnostic = warningDiagnostics[0];
-			assert.strictEqual(actualDiagnostic.message, pins[1].name + ' configured as Gpio by ' + pins[0].name);
-			assert.strictEqual(actualDiagnostic.range.start.line, 6);
-			assert.strictEqual(actualDiagnostic.range.start.character, 6);
-			assert.strictEqual(actualDiagnostic.range.end.line, 6);
-			assert.strictEqual(actualDiagnostic.range.end.character, 90);
-			assert.strictEqual(actualDiagnostic.severity, 2);
-			assert.strictEqual(actualDiagnostic.source, 'az sphere');
-		}
+		assert(hwDefinition);
+
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, false);
+		const actualDiagnostic = warningDiagnostics[0];
+		assert.strictEqual(actualDiagnostic.message, pins[1].name + ' configured as Gpio by ' + pins[0].name);
+		assert.strictEqual(actualDiagnostic.range.start.line, 6);
+		assert.strictEqual(actualDiagnostic.range.start.character, 6);
+		assert.strictEqual(actualDiagnostic.range.end.line, 6);
+		assert.strictEqual(actualDiagnostic.range.end.character, 90);
+		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 	});
 });
