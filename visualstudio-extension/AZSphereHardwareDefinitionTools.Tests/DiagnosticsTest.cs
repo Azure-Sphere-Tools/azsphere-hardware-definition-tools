@@ -42,8 +42,9 @@ namespace AZSphereHardwareDefinitionTools.Tests
       int maxAttempts = 5;
       int attempts = 0;
       var errors = await TestUtils.GetErrorsAsync(dte, serviceProvider);
-      while (errors.Count < expectedDiagnosticsCount || attempts < maxAttempts)
+      while (errors.Count < expectedDiagnosticsCount && attempts < maxAttempts)
       {
+        await TestUtils.SleepAsync(2000);
         errors = await TestUtils.GetErrorsAsync(dte, serviceProvider);
         attempts++;
       }

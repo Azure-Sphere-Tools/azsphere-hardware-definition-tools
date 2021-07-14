@@ -1,9 +1,14 @@
 import { Diagnostic } from 'vscode-languageserver/node';
 
 import * as assert from 'assert';
-import { validateNamesAndMappings } from '../validator';
 import { HardwareDefinition, PinMapping } from '../hardwareDefinition';
 import { anyRange, asURI, range } from "./testUtils";
+import * as mockfs from 'mock-fs';
+import * as path from 'path';
+import * as fs from 'fs';
+import { URI } from 'vscode-uri';
+import { tryParseHardwareDefinitionFile } from '../server';
+import { validateNamesAndMappings, validatePinBlock } from '../validator';
 
 suite('validateNamesAndMappings', () => {
 
@@ -64,5 +69,56 @@ suite('validateNamesAndMappings', () => {
 		const expectedMessage = `${baseMessage} (line ${relatedInfoStartLine}, char ${relatedInfoStartChar})`;
 		assert.strictEqual(actualDiagnostic.message, expectedMessage);
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
-	}); 
+	});
+});
+
+suite('validatePinBlock', () => {
+
+	// unmock the file system after each test
+	teardown(mockfs.restore);
+
+	test('Validate Conflict Based On Pin Block', () => {
+		const pins = [
+			{ name: 'MY_LED', type: 'Gpio', mapping: 'MT3620_GPIO4' },
+			{ name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: 'MT3620_PWM_CONTROLLER1' }
+		];
+		mockfs({
+			'my_app/odm.json':
+				`
+				{
+					"Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 },
+					"Imports": [ { "Path": "mt3620.json" } ],
+					"Peripherals": [
+						{ "Name": "${pins[0].name}", "Type": "${pins[0].type}", "Mapping": "${pins[0].mapping}" },
+						{ "Name": "${pins[1].name}", "Type": "${pins[1].type}", "Mapping": "${pins[1].mapping}" }
+					]
+				}
+				`,
+			'my_app/mt3620.json':
+				`
+				{
+					"Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 },
+					"Peripherals": [
+						{ "Name": "${pins[0].mapping}", "Type": "${pins[0].type}", "AppManifestValue": 4 },
+						{ "Name": "${pins[1].mapping}", "Type": "${pins[1].type}", "AppManifestValue": "PWM-CONTROLLER-1" }
+					]
+				}
+				`
+		});
+
+		const hwDefFilePath = 'my_app/odm.json';
+		const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
+
+		assert(hwDefinition);
+
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, false);
+		const actualDiagnostic = warningDiagnostics[0];
+		assert.strictEqual(actualDiagnostic.message, pins[1].name + ' configured as Gpio by ' + pins[0].name);
+		assert.strictEqual(actualDiagnostic.range.start.line, 6);
+		assert.strictEqual(actualDiagnostic.range.start.character, 6);
+		assert.strictEqual(actualDiagnostic.range.end.line, 6);
+		assert.strictEqual(actualDiagnostic.range.end.character, 90);
+		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.source, 'az sphere');
+	});
 });
