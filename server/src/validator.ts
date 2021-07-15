@@ -73,8 +73,7 @@ function recursiveFindDuplicateNames(hwDefinition: HardwareDefinition, reservedN
 }
 
 export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: string, textDocument: TextDocument, includeRelatedInfo: boolean): Diagnostic[] {
-	const nodes: Map<string, [integer, integer, integer]> = new Map();
-
+	const nodes: Map<string, [string[], integer, integer, integer]> = new Map();
 
 	const diagnostics: Diagnostic[] = [];
 	for (const mapping of hwDefinition.pinMappings) {
@@ -82,31 +81,56 @@ export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: st
 		if (!mappedTo) {
 			continue;
 		}
-		const mappedToRegex = new RegExp(`"Mapping"\\s*:\\s*"${mappedTo}"`, "g");
+		// const mappedToRegex = new RegExp(`"Mapping"\\s*:\\s*"${mappedTo}"`, "g");
+		const mappedToRegex = new RegExp(`(?<pre>"Name"\\s*:\\s*"(?<name1>[a-zA-Z0-9_.-]*)"[^}]*)?(?<mapping>"Mapping"\\s*:\\s*"${mappedTo}")([^}]*"Name"\\s*:\\s*"(?<name2>[a-zA-Z0-9_.-]*)")?`, "mg");
+		const _mappedToRegex = new RegExp(`(?<pre>"Name"\\s*:\\s*"(?<name1>[a-zA-Z0-9_.-]*)"[^}]*)?(?<mapping>"Mapping"\\s*:\\s*"${mappedTo}")([^}]*"Name"\\s*:\\s*"(?<name2>[a-zA-Z0-9_.-]*)")?`, "mg");
 
 		let matchedPattern = mappedToRegex.exec(text);
-		let mapStart = matchedPattern == null ? 0 : matchedPattern.index;
-		let mapEnd = matchedPattern == null ? mapStart : mapStart + matchedPattern[0].length;
+		let _matchedPattern = _mappedToRegex.exec(text);
+		const mapName = _matchedPattern == null ||
+			_matchedPattern.groups == undefined
+			? []
+			: [_matchedPattern.groups.name1 || _matchedPattern.groups.name2];
+		let mapStart = matchedPattern == null ||
+			matchedPattern.groups == undefined
+			? 0
+			: matchedPattern.index + matchedPattern.groups.pre.length;
+		let mapEnd = matchedPattern == null ||
+			matchedPattern.groups == undefined
+			? mapStart
+			: mapStart + matchedPattern.groups.mapping.length;
+
+		while (_matchedPattern != null) {
+			_matchedPattern = _mappedToRegex.exec(text);
+			if (_matchedPattern != null && _matchedPattern.groups != undefined)
+				mapName.push(_matchedPattern.groups.name1 || _matchedPattern.groups.name2);
+		}
 
 		if (nodes.has(mappedTo)) {
 			const prevMapped = nodes.get(mappedTo);
-			const prevStart = prevMapped == null ? 0 : prevMapped[0];
-			const prevEnd = prevMapped == null ? 0 : prevMapped[1];
-			const numDuplicates = prevMapped == null ? 0 : prevMapped[2] + 1;
-			nodes.set(mappedTo, [mapStart, mapEnd, numDuplicates]);
+			const prevName = prevMapped == null ? [] : prevMapped[0];
+			const prevStart = prevMapped == null ? 0 : prevMapped[1];
+			const prevEnd = prevMapped == null ? 0 : prevMapped[2];
+			const numDuplicates = prevMapped == null ? 0 : prevMapped[3] + 1;
+			nodes.set(mappedTo, [prevName, mapStart, mapEnd, numDuplicates]);
 			for (let i = 0; i < numDuplicates; i++) {
 				matchedPattern = mappedToRegex.exec(text);
 
-				mapStart = matchedPattern == null ? 0 : matchedPattern.index;
-				mapEnd = matchedPattern == null ? mapStart : mapStart + matchedPattern[0].length;
-
+				mapStart = matchedPattern == null ||
+					matchedPattern.groups == undefined
+					? 0
+					: matchedPattern.index + matchedPattern.groups.pre.length;
+				mapEnd = matchedPattern == null ||
+					matchedPattern.groups == undefined
+					? mapStart
+					: mapStart + matchedPattern.groups.mapping.length;
 			}
 			const badMappingRange = toRange(textDocument.getText(), mapStart, mapEnd);
 			const existingMappingRange = toRange(textDocument.getText(), prevStart, prevEnd);
 			const diagnostic: Diagnostic = duplicateMappingWarning(mappedTo, badMappingRange, existingMappingRange, hwDefinition.uri, includeRelatedInfo);
 			diagnostics.push(diagnostic);
 		} else {
-			nodes.set(mappedTo, [mapStart, mapEnd, 0]);
+			nodes.set(mappedTo, [mapName, mapStart, mapEnd, 0]);
 		}
 	}
 	return diagnostics;
