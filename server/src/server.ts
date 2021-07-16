@@ -33,7 +33,6 @@ import * as path from "path";
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
-import { URI } from 'vscode-uri';
 import * as jsonc from 'jsonc-parser';
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";

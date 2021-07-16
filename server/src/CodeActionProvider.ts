@@ -4,6 +4,7 @@ import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinit
 
 export const QUICKFIX_DUPLICATE_MSG = 'is already mapped';
 export const QUICKFIX_INVALID_MSG = 'is invalid. There is no imported pin mapping with that name.';
+export const QUICKFIX_PINBLCOK_MSG = 'configured as';
 
 /**
  * find the pin mapping for the warning line
@@ -75,6 +76,21 @@ export function quickfix(hwDefinition: HardwareDefinition, parms: CodeActionPara
         return;
       }
 
+      if (diag.severity === DiagnosticSeverity.Warning && diag.message.includes(QUICKFIX_PINBLCOK_MSG)) {
+        codeActions.push({
+          title: "Delete the conflict based on the pin block",
+          kind: CodeActionKind.QuickFix,
+          diagnostics: [diag],
+          edit: {
+            changes: {
+              [parms.textDocument.uri]: [{
+                range: pinMappingToComplete.mappingPropertyRange,  newText: `""`
+              }]
+            }
+          }
+        });
+        return;
+      }
     });
     return codeActions;
 }
