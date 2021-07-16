@@ -1,6 +1,7 @@
 ﻿using Microsoft.VisualStudio.LanguageServer.Client;
 using Microsoft.VisualStudio.Threading;
 using Microsoft.VisualStudio.Utilities;
+using StreamJsonRpc;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.Composition;
@@ -15,7 +16,7 @@ namespace AZSphereHardwareDefinitionTools
   [ContentType(HardwareDefinitionLanguageContent.HARDWARE_DEFINITION)]
   [ContentType(HardwareDefinitionLanguageContent.CMAKELISTS)]
   [Export(typeof(ILanguageClient))]
-  public class HardwareDefinitionLanguageClient : ILanguageClient
+  public class HardwareDefinitionLanguageClient : ILanguageClient, ILanguageClientCustomMessage2
   {
 
     private const string EXTENSION_DIRECTORY = "visualstudio-extension";
@@ -30,6 +31,11 @@ namespace AZSphereHardwareDefinitionTools
 
     public event AsyncEventHandler<EventArgs> StartAsync;
     public event AsyncEventHandler<EventArgs> StopAsync;
+
+    public object MiddleLayer => DiagnosticsAdjustmentMiddleLayer.Instance;
+
+    public object CustomMessageTarget => null;
+
 
     public async Task<Connection> ActivateAsync(CancellationToken token)
     {
@@ -88,6 +94,10 @@ namespace AZSphereHardwareDefinitionTools
     {
       return Task.CompletedTask;
     }
+    public Task AttachForCustomMessageAsync(JsonRpc rpc)
+    {
+      return Task.CompletedTask;
+    }
 
     /// <summary>
     /// Finds the path to the source code of the language server
@@ -95,7 +105,7 @@ namespace AZSphereHardwareDefinitionTools
     /// <returns></returns>
     private static string PathToLanguageServerSourceCode()
     {
-      string extensionDirectory = ExtensionPath(); 
+      string extensionDirectory = ExtensionPath();
       return Path.GetFullPath(Path.Combine(extensionDirectory, "..", "server", "dist", "server.js"));
     }
 

@@ -5,7 +5,7 @@
     "Version": 1
   },
   "Imports": [
-    {"Path": "imported.json"}
+    {"Path": "mt3620.json"}
   ],
   "Peripherals": [
     {"Name": "ODM_GPIO0", "Type": "Gpio", "Mapping": "GPIO0" },

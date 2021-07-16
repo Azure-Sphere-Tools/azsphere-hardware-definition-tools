@@ -7,6 +7,7 @@ import {
 import { Position, TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 import { URI } from 'vscode-uri';
+import { Controller, CONTROLLERS } from './mt3620Controllers';
 
 const EXTENSION_SOURCE = 'az sphere';
 
@@ -155,7 +156,6 @@ export function findUnknownImports(hwDefinition: HardwareDefinition, textDocumen
 }
 
 /**
- * 
  * @param diagnostic Adds a diagnostic's related information directly in its message under the form (line x, char y)
  * - useful for IDEs that don't support a diagnostic's 'relatedInformation' property.
  * If the related information is in a different file than the diagnostic, "in {filepath}" is appended to the message 
@@ -171,4 +171,146 @@ function addRelatedInfoAsDiagnosticMessage(diagnostic: Diagnostic, relatedInfoPo
 		diagnostic.message += ` in ${URI.file(relatedInfoUri).fsPath}`;
 	}
 	diagnostic.message += ')';
+}
+
+/**
+ * Memoize function
+ *
+ * @param fn Function to memoize
+ * @returns Memoized function
+ */
+// eslint-disable-next-line @typescript-eslint/ban-types
+function memoize(fn: Function): Function {
+	const cache: Map<string, any> = new Map();
+
+	return (...args: any) => {
+		let toReturn = cache.get(args.join('-'));
+		if (toReturn != undefined) {
+			return toReturn;
+		}
+
+		toReturn = fn(...args);
+		cache.set(args.join('-'), toReturn);
+
+		return toReturn;
+	};
+}
+
+/**
+ * Get AppManifestValue for the mapping with the given name 
+ * from the given list of Hardware Definitions and their imports
+ * 
+ * NOTE: (DOBO) String typed AppManifestValue allows for several ways of defining the same thing.
+ *              F.e "(0)" and 0, perceived to be equal in C, will not be equal in TS.
+ *
+ * @param name The name of the mapping. (Peripherals.Name)
+ * @param hwDefinitions A list of hardware definitions to look in. (Imports)
+ * @returns AppManifestValue if mapping (directly or indirectly) leads to one, otherwise undefined
+ */
+function getAppManifestValue(name: string, hwDefinitions: HardwareDefinition[]): number | string | undefined {
+	let mapping: PinMapping | undefined;
+	let definition: HardwareDefinition | undefined;
+
+	for (definition of hwDefinitions) {
+		mapping = definition.pinMappings.find(_ => _.name == name);
+
+		if (mapping != undefined)
+			break;
+	}
+
+	if (mapping != undefined && definition != undefined) {
+		return (mapping.appManifestValue != undefined)
+			? mapping.appManifestValue
+			: getAppManifestValue(mapping.mapping || "", definition.imports);
+	}
+
+	return undefined;
+}
+
+/**
+ * Get the MT3620 Controller a mapping with the given type and appManifestValue is connected to
+ *
+ * @param type The type of the mapping. (Peripherals.Type)
+ * @param appManifestValue AppManifestValue
+ * @returns Controller, if mapping with the given type and appManifestValue exists, otherwise undefined
+ */
+function _getController(type: string, appManifestValue: number | string): Controller | undefined {
+	type = type.toLowerCase();
+
+	return CONTROLLERS.find(controller =>
+		controller.values[type] != undefined && controller.values[type].includes(appManifestValue)
+	);
+}
+
+const getController = memoize(_getController);
+
+/**
+ * Checks that the given Hardware Definition:
+ * - Uses valid peripheral types
+ * - Doesn't define peripherals with conflicting types
+ *
+ * @param hwDefinition The Hardware Definition to validate
+ * @param includeRelatedInfo If the client IDE supports adding diagnostic related information
+ * @returns Diagnostics with the Hardware Definition's underlying pin block conflicts
+ */
+export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelatedInfo: boolean): Diagnostic[] {
+	const warningDiagnostics: Diagnostic[] = [];
+	const controllerSetup: Map<string, PinMapping> = new Map();
+
+	for (const pinMapping of hwDefinition.pinMappings) {
+		const appManifestValue = getAppManifestValue(pinMapping.name, [hwDefinition]);
+
+		if (appManifestValue != undefined) {
+			const controller = getController(pinMapping.type, appManifestValue);
+
+			if (controller == undefined) {
+				const diagnostic: Diagnostic = {
+					message: `${pinMapping.mapping != undefined ? pinMapping.mapping : pinMapping.appManifestValue} cannot be used as ${pinMapping.type}`,
+					range: pinMapping.range,
+					severity: DiagnosticSeverity.Error,
+					source: EXTENSION_SOURCE
+				};
+				if (includeRelatedInfo) {
+					diagnostic.relatedInformation = [
+						{
+							location: {
+								uri: hwDefinition.uri,
+								range: pinMapping.range
+							},
+							message: `[TODO] Alternative options to be suggested here`
+						}
+					];
+				}
+				warningDiagnostics.push(diagnostic);
+			} else {
+				const existingControllerSetup = controllerSetup.get(controller.name);
+
+				if (existingControllerSetup != undefined &&
+					existingControllerSetup?.type != pinMapping.type) {
+					const diagnostic: Diagnostic = {
+						message: `${pinMapping.name} configured as ${existingControllerSetup?.type} by ${existingControllerSetup.name}`,
+						range: pinMapping.range,
+						severity: DiagnosticSeverity.Warning,
+						source: EXTENSION_SOURCE
+					};
+					if (includeRelatedInfo) {
+						diagnostic.relatedInformation = [
+							{
+								location: {
+									uri: hwDefinition.uri,
+									range: pinMapping.range
+								},
+								message: `[TODO] Alternative options to be suggested here`
+							}
+						];
+					}
+					warningDiagnostics.push(diagnostic);
+				}
+
+				controllerSetup.set(controller.name, pinMapping);
+			}
+		}
+	}
+
+	return warningDiagnostics;
 }
