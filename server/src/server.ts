@@ -22,14 +22,15 @@ import {
 
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
-import { pinMappingCompletionItemsAtPosition } from "./suggestions";
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
-import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
-import { URI } from 'vscode-uri';
-import * as jsonc from 'jsonc-parser';
-import * as fs from 'fs';
-import * as path from 'path';
+import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions } from "./suggestions";
+import { TextDocument } from "vscode-languageserver-textdocument";
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
+import { URI } from "vscode-uri";
+import * as jsonc from "jsonc-parser";
+import * as fs from "fs";
+import * as path from "path";
+import { readFileSync } from "fs";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -71,6 +72,10 @@ connection.onInitialize((params: InitializeParams) => {
       completionProvider: {
         resolveProvider: true,
       },
+      // Commands requested from the client to the server
+      executeCommandProvider: {
+        commands: ["availablePins"],
+      },
     },
   };
   if (hasWorkspaceFolderCapability) {
@@ -93,6 +98,22 @@ connection.onInitialized(() => {
       connection.console.log("Workspace folder change event received.");
     });
   }
+  // Server receives a request from the client
+  connection.onExecuteCommand(async (event) => {
+    switch (event.command) {
+      case "availablePins":
+        if (event.arguments) {
+          const hwDefinition = await checkCurrentHwDefinition(event.arguments[0]);
+
+          if (hwDefinition) {
+            console.log(returnAvailablePinMappings(hwDefinition));
+          }
+        }
+        break;
+      default:
+        connection.console.log(`Access Denied - ${event.command} not recognised`);
+    }
+  });
 });
 
 // The extension settings
@@ -146,6 +167,36 @@ function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
   }
   return result;
 }
+
+const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition | undefined> => {
+  if (!uri.endsWith(".json")) {
+    displayErrorNotification("The current file is not a valid Hardware Definition (Must be a JSON file).");
+    return;
+  }
+  // const text = documents.get(URI.parse(uri).fsPath)?.getText();
+  const currentFilePath = URI.parse(uri).fsPath;
+  const text = readFileSync(currentFilePath, "utf8");
+  if (!text) {
+    displayErrorNotification("Error reading current file");
+    return;
+  }
+
+  const settings = await getDocumentSettings(uri);
+  return tryParseHardwareDefinitionFile(text, uri, settings.SdkPath);
+};
+
+const displayErrorNotification = (message: string) => {
+  const msg: ShowMessageParams = {
+    message,
+    type: MessageType.Error,
+  };
+  connection.sendNotification(ShowMessageNotification.type, msg);
+  return;
+};
+
+const returnAvailablePinMappings = (hwDefinition: any) => {
+  return getPinMappingSuggestions(hwDefinition);
+};
 
 documents.onDidOpen(async (change) => {
   const textDocument = change.document;
@@ -367,7 +418,6 @@ const setSettingPath = (ide: string | undefined) => {
 };
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-
   const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
   let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
   if (!hwDefFileText) {
