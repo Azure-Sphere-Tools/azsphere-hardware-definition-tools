@@ -32,6 +32,24 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 	for (const mapping of hwDefinition.pinMappings) {
 		const existingMapping = reservedNames.get(mapping.name);
 		if (existingMapping) {
+			let hasIndirectImport = false;
+			for (const importedHwDefinition of hwDefinition.imports) {
+				if (existingMapping.hardwareDefinitionUri == importedHwDefinition.uri) {
+					hasIndirectImport = true;
+					break;
+				}
+			}
+			if (hasIndirectImport) {
+				const diagnostic: Diagnostic = {
+						message: `${mapping.name} is indirectly imported by ${hwDefinition.uri}`,
+						range: mapping.range,
+						severity: DiagnosticSeverity.Warning,
+						source: EXTENSION_SOURCE
+				};
+				warningDiagnostics.push(diagnostic);
+				break;
+			}
+			
 			const diagnostic: Diagnostic = {
 				message: `${mapping.name} is already used by another pin mapping`,
 				range: mapping.range,
