@@ -1,5 +1,5 @@
 import { Range } from "jsonc-parser";
-import { CodeAction, CodeActionParams, DiagnosticSeverity, CodeActionKind, DiagnosticRelatedInformation, Position} from 'vscode-languageserver';
+import { CodeAction, CodeActionParams, DiagnosticSeverity, CodeActionKind, Position} from 'vscode-languageserver';
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
 
 export const QUICKFIX_DUPLICATE_MSG = 'is already mapped';
