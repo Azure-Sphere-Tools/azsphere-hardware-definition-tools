@@ -4,7 +4,7 @@ import { Position } from "vscode-languageserver-textdocument";
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
 import { validateNamesAndMappings } from "./validator";
 
-export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinType = "Gpio"): string[] {
+export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinType?: string): string[] {
   let allPinMappings: PinMapping[] = [];
   const validPinMappings: string[] = [];
   for (const imported of hwDefinition.imports) {
@@ -14,11 +14,15 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
   const invalidPinMappings: Set<PinMapping> = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
-    if (!invalidPinMappings.has(pinMapping) && pinMapping.type == pinType && !usedPinNames.has(pinMapping.name)) {
+    const validPins = !invalidPinMappings.has(pinMapping) && !usedPinNames.has(pinMapping.name);
+    if (pinType && pinMapping.type == pinType && validPins) {
+      validPinMappings.push(pinMapping.name);
+    }
+
+    if (!pinType && validPins) {
       validPinMappings.push(pinMapping.name);
     }
   }
-
   return validPinMappings;
 }
 

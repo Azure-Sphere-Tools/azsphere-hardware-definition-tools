@@ -30,7 +30,7 @@ import { URI } from "vscode-uri";
 import * as jsonc from "jsonc-parser";
 import * as fs from "fs";
 import * as path from "path";
-import { readFileSync } from "fs";
+import { readFile } from "fs/promises";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -106,7 +106,7 @@ connection.onInitialized(() => {
           const hwDefinition = await checkCurrentHwDefinition(event.arguments[0]);
 
           if (hwDefinition) {
-            console.log(returnAvailablePinMappings(hwDefinition));
+            connection.console.log(returnAvailablePinMappings(hwDefinition).toString());
           }
         }
         break;
@@ -173,9 +173,9 @@ const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition
     displayErrorNotification("The current file is not a valid Hardware Definition (Must be a JSON file).");
     return;
   }
-  // const text = documents.get(URI.parse(uri).fsPath)?.getText();
   const currentFilePath = URI.parse(uri).fsPath;
-  const text = readFileSync(currentFilePath, "utf8");
+  const text = await readFile(currentFilePath, "utf8");
+
   if (!text) {
     displayErrorNotification("Error reading current file");
     return;
