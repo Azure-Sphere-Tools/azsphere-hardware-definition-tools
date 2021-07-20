@@ -4,7 +4,7 @@ import { Position } from "vscode-languageserver-textdocument";
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
 import { validateNamesAndMappings } from "./validator";
 
-export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinType: string): string[] {
+export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinType?: string): string[] {
   let allPinMappings: PinMapping[] = [];
   const validPinMappings: string[] = [];
   for (const imported of hwDefinition.imports) {
@@ -14,14 +14,17 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
   const invalidPinMappings: Set<PinMapping> = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
-    if (!invalidPinMappings.has(pinMapping) && pinMapping.type == pinType && !usedPinNames.has(pinMapping.name)) {
+    const validPins = !invalidPinMappings.has(pinMapping) && !usedPinNames.has(pinMapping.name);
+    if (pinType && pinMapping.type == pinType && validPins) {
+      validPinMappings.push(pinMapping.name);
+    }
+
+    if (!pinType && validPins) {
       validPinMappings.push(pinMapping.name);
     }
   }
-
   return validPinMappings;
 }
-
 
 export function pinMappingCompletionItemsAtPosition(hwDefinition: HardwareDefinition, caretPosition: Position): CompletionItem[] {
   const validPinMappings: CompletionItem[] = [];
@@ -34,7 +37,7 @@ export function pinMappingCompletionItemsAtPosition(hwDefinition: HardwareDefini
       break;
     }
   }
-  if(!caretIsInsidePinMapping || !pinMappingToComplete?.mappingPropertyRange) {
+  if (!caretIsInsidePinMapping || !pinMappingToComplete?.mappingPropertyRange) {
     return [];
   }
   for (const validPinMapping of getPinMappingSuggestions(hwDefinition, pinMappingToComplete.type)) {
@@ -44,8 +47,8 @@ export function pinMappingCompletionItemsAtPosition(hwDefinition: HardwareDefini
       preselect: true,
       textEdit: {
         range: pinMappingToComplete.mappingPropertyRange,
-        newText: `"${validPinMapping}"`
-      }
+        newText: `"${validPinMapping}"`,
+      },
     });
   }
 
