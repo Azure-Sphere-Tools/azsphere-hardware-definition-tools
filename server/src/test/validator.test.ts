@@ -12,6 +12,28 @@ import { validateNamesAndMappings, validatePinBlock } from '../validator';
 
 suite('validateNamesAndMappings', () => {
 
+	test('Validate Indirect Mapping', () => {
+		const indirectPin = new PinMapping('LED_GPIO0', 'Gpio', 'GPIO0', undefined, range(0, 0, 0, 5));
+		const pinWithSameMapping = new PinMapping('ODM_GPIO0', 'Gpio', 'GPIO0', undefined, range(0, 0, 0, 5));
+		const sourcePin = new PinMapping('GPIO0', 'Gpio', undefined, 0, range(0, 0, 0, 5));
+		
+		const hwDefFilePathWithIndirectPin = 'my_app/hardwareDef.json';
+		const hwDefFilePathFalseImported = 'my_app/odm.json';
+		const hwDefFilePathWithSourcePin = 'my_app/mt3620.json';
+		
+		const hwDefWithSourcePin = new HardwareDefinition(asURI(hwDefFilePathWithSourcePin), undefined, [sourcePin]);
+		const hwDefFalseImported = new HardwareDefinition(asURI(hwDefFilePathFalseImported), undefined, [pinWithSameMapping], [hwDefWithSourcePin]);
+		const hwDefWithIndirectPin = new HardwareDefinition(asURI(hwDefFilePathWithIndirectPin), undefined, [indirectPin], [hwDefFalseImported]);
+
+		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefWithIndirectPin, true);
+		const actualDiagnostic = warningDiagnostics[0];
+
+		assert.strictEqual(actualDiagnostic.message, indirectPin.mapping + ' is indirectly imported by ' + hwDefWithIndirectPin.uri);
+		assert.deepStrictEqual(actualDiagnostic.range, indirectPin.range);
+		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.source, 'az sphere');
+	});
+
 	test('Validate Duplicate Names', () => {
 		const validPin = new PinMapping('LED', 'Gpio', undefined, 0, range(0, 0, 0, 5));
 		const pinWithDuplicateName = new PinMapping(validPin.name, 'Gpio', undefined, 1, range(1, 2, 1, 8));

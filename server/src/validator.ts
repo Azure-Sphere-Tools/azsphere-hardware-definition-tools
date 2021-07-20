@@ -55,11 +55,28 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 			}
 			warningDiagnostics.push(diagnostic);
 		} else {
+			const mappedTo = <string>mapping.mapping;
 			if (!mapping.isRootMapping()) {
-				const mappedTo = <string>mapping.mapping;
 				if (!reservedNames.has(mappedTo)) {
 					const diagnostic: Diagnostic = {
 						message: `Mapping ${mappedTo} is invalid. There is no imported pin mapping with that name.`,
+						range: mapping.range,
+						severity: DiagnosticSeverity.Warning,
+						source: EXTENSION_SOURCE
+					};
+					warningDiagnostics.push(diagnostic);
+				}
+			} else {
+				const mappedToPath = reservedNames.get(mappedTo)?.hardwareDefinitionUri;
+				let hasIndirectImport = true;
+				for (const importedHwDefinition of hwDefinition.imports) {
+					if (mappedToPath == importedHwDefinition.uri) {
+						hasIndirectImport = false;
+					}
+				}
+				if (hasIndirectImport) {
+					const diagnostic: Diagnostic = {
+						message: `${mappedTo} is indirectly imported by ${hwDefinition.uri}`,
 						range: mapping.range,
 						severity: DiagnosticSeverity.Warning,
 						source: EXTENSION_SOURCE
