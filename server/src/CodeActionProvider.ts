@@ -1,5 +1,5 @@
 import { Range } from "jsonc-parser";
-import { CodeAction, CodeActionParams, DiagnosticSeverity, CodeActionKind, Position} from 'vscode-languageserver';
+import { CodeAction, CodeActionParams, DiagnosticSeverity, CodeActionKind, Position, Diagnostic} from 'vscode-languageserver';
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
 
 export const QUICKFIX_DUPLICATE_MSG = 'is already mapped';
@@ -24,6 +24,26 @@ export function findPinMappingRange(warnPosition:Position, hwDefinition: Hardwar
   return pinMappingToComplete;
 }
 
+
+export function findWarningCodeAction(codeActions: CodeAction[], warningTitle: string, diag: Diagnostic, parms: CodeActionParams, pinMappingToComplete: PinMapping): void{
+  if(!pinMappingToComplete || !pinMappingToComplete.mappingPropertyRange){
+    return;
+  }
+  codeActions.push({
+    title: warningTitle,
+    kind: CodeActionKind.QuickFix,
+    diagnostics: [diag],
+    edit: {
+      changes: {
+        [parms.textDocument.uri]: [{
+          range: pinMappingToComplete.mappingPropertyRange,  newText: `""`
+        }]
+      }
+    }
+  });
+}
+
+
 /**
  * Provide quickfix only for:
  * When the pin mapping is duplicate 
@@ -45,50 +65,17 @@ export function quickfix(hwDefinition: HardwareDefinition, parms: CodeActionPara
       }
 
       if (diag.severity === DiagnosticSeverity.Warning && diag.message.includes(QUICKFIX_DUPLICATE_MSG)) {
-        codeActions.push({
-          title: "Delete the Duplicate pin mapping",
-          kind: CodeActionKind.QuickFix,
-          diagnostics: [diag],
-          edit: {
-            changes: {
-              [parms.textDocument.uri]: [{
-                range: pinMappingToComplete.mappingPropertyRange,  newText: `""`
-              }]
-            }
-          }
-        });
+        findWarningCodeAction(codeActions, "Delete the Duplicate pin mapping", diag, parms, pinMappingToComplete);
         return;
       }
 
       if (diag.severity === DiagnosticSeverity.Warning && diag.message.includes(QUICKFIX_INVALID_MSG)) {
-        codeActions.push({
-          title: "Delete the Invalid pin mapping",
-          kind: CodeActionKind.QuickFix,
-          diagnostics: [diag],
-          edit: {
-            changes: {
-              [parms.textDocument.uri]: [{
-                range: pinMappingToComplete.mappingPropertyRange,  newText: `""`
-              }]
-            }
-          }
-        });
+        findWarningCodeAction(codeActions, "Delete the Invalid pin mapping", diag, parms, pinMappingToComplete);
         return;
       }
 
       if (diag.severity === DiagnosticSeverity.Warning && diag.message.includes(QUICKFIX_PINBLCOK_MSG)) {
-        codeActions.push({
-          title: "Delete the conflict based on the pin block",
-          kind: CodeActionKind.QuickFix,
-          diagnostics: [diag],
-          edit: {
-            changes: {
-              [parms.textDocument.uri]: [{
-                range: pinMappingToComplete.mappingPropertyRange,  newText: `""`
-              }]
-            }
-          }
-        });
+        findWarningCodeAction(codeActions, "Delete the conflict based on the pin block", diag, parms, pinMappingToComplete);
         return;
       }
     });
