@@ -26,7 +26,7 @@ import {
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
 
-import { pinMappingCompletionItemsAtPosition } from "./suggestions";
+import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions} from "./suggestions";
 import { quickfix } from './CodeActionProvider';
 import { URI } from "vscode-uri";
 import * as fs from "fs";
