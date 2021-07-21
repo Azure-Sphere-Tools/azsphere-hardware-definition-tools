@@ -25,6 +25,7 @@ import {
 
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
+
 import { pinMappingCompletionItemsAtPosition } from "./suggestions";
 import { quickfix } from './CodeActionProvider';
 import { URI } from "vscode-uri";
@@ -34,6 +35,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
 import * as jsonc from 'jsonc-parser';
+import { readFile } from "fs/promises";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -81,6 +83,10 @@ connection.onInitialize((params: InitializeParams) => {
       completionProvider: {
         resolveProvider: true,
       },
+      // Commands requested from the client to the server
+      executeCommandProvider: {
+        commands: ["availablePins"],
+      },
     },
   };
   if (hasWorkspaceFolderCapability) {
@@ -109,6 +115,22 @@ connection.onInitialized(() => {
       connection.console.log("Workspace folder change event received.");
     });
   }
+  // Server receives a request from the client
+  connection.onExecuteCommand(async (event) => {
+    switch (event.command) {
+      case "availablePins":
+        if (event.arguments) {
+          const hwDefinition = await checkCurrentHwDefinition(event.arguments[0]);
+
+          if (hwDefinition) {
+            connection.console.log(returnAvailablePinMappings(hwDefinition).toString());
+          }
+        }
+        break;
+      default:
+        connection.console.log(`Access Denied - ${event.command} not recognised`);
+    }
+  });
 });
 
 // The extension settings
@@ -162,6 +184,36 @@ function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
   }
   return result;
 }
+
+const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition | undefined> => {
+  if (!uri.endsWith(".json")) {
+    displayErrorNotification("The current file is not a valid Hardware Definition (Must be a JSON file).");
+    return;
+  }
+  const currentFilePath = URI.parse(uri).fsPath;
+  const text = await readFile(currentFilePath, "utf8");
+
+  if (!text) {
+    displayErrorNotification("Error reading current file");
+    return;
+  }
+
+  const settings = await getDocumentSettings(uri);
+  return tryParseHardwareDefinitionFile(text, uri, settings.SdkPath);
+};
+
+const displayErrorNotification = (message: string) => {
+  const msg: ShowMessageParams = {
+    message,
+    type: MessageType.Error,
+  };
+  connection.sendNotification(ShowMessageNotification.type, msg);
+  return;
+};
+
+const returnAvailablePinMappings = (hwDefinition: any) => {
+  return getPinMappingSuggestions(hwDefinition);
+};
 
 documents.onDidOpen(async (change) => {
   const textDocument = change.document;
@@ -398,7 +450,6 @@ async function provideCodeActions(parms: CodeActionParams): Promise<CodeAction[]
 }
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-
   const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
   let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
   if (!hwDefFileText) {
