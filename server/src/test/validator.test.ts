@@ -77,48 +77,91 @@ suite('validatePinBlock', () => {
 	// unmock the file system after each test
 	teardown(mockfs.restore);
 
-	test('Validate Conflict Based On Pin Block', () => {
-		const pins = [
-			{ name: 'MY_LED', type: 'Gpio', mapping: 'MT3620_GPIO4' },
-			{ name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: 'MT3620_PWM_CONTROLLER1' }
-		];
-		mockfs({
-			'my_app/odm.json':
-				`
-				{
-					"Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 },
-					"Imports": [ { "Path": "mt3620.json" } ],
-					"Peripherals": [
-						{ "Name": "${pins[0].name}", "Type": "${pins[0].type}", "Mapping": "${pins[0].mapping}" },
-						{ "Name": "${pins[1].name}", "Type": "${pins[1].type}", "Mapping": "${pins[1].mapping}" }
-					]
-				}
-				`,
-			'my_app/mt3620.json':
-				`
-				{
-					"Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 },
-					"Peripherals": [
-						{ "Name": "${pins[0].mapping}", "Type": "${pins[0].type}", "AppManifestValue": 4 },
-						{ "Name": "${pins[1].mapping}", "Type": "${pins[1].type}", "AppManifestValue": "PWM-CONTROLLER-1" }
-					]
-				}
-				`
-		});
+	test('Validate Conflict Based On Pin Block for GPIO', () => {
 
-		const hwDefFilePath = 'my_app/odm.json';
-		const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
+		const gpioPin = new PinMapping("MT3620_GPIO4", "Gpio", undefined, 4, range(0, 0, 0, 12));
+    const pwmPin = new PinMapping("MT3620_PWM_CONTROLLER1", "Pwm", undefined, "PWM-CONTROLLER-1", range(1, 0, 1, 21));
+    const importedhwDefFilePath = "my_app/importedHardwareDef.json";
+    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin, pwmPin]);
 
-		assert(hwDefinition);
+    const hwDefFilePath = "my_app/hardwareDef.json";
+    const validPin = new PinMapping("MY_LED", "Gpio", "MT3620_GPIO4", undefined, range(0, 0, 0, 6));
+		const warningPin = new PinMapping("MY_PWM_CONTROLLER0", "Pwm", "MT3620_PWM_CONTROLLER1", undefined, range(1, 0, 1, 18));
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
 
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, false);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);
 		const actualDiagnostic = warningDiagnostics[0];
-		assert.strictEqual(actualDiagnostic.message, pins[1].name + ' configured as Gpio by ' + pins[0].name);
-		assert.strictEqual(actualDiagnostic.range.start.line, 6);
-		assert.strictEqual(actualDiagnostic.range.start.character, 6);
-		assert.strictEqual(actualDiagnostic.range.end.line, 6);
-		assert.strictEqual(actualDiagnostic.range.end.character, 90);
+	
+		assert.strictEqual(actualDiagnostic.message, 'MY_PWM_CONTROLLER0 configured as Gpio by MY_LED');
+		assert.strictEqual(actualDiagnostic.range.start.line, 1);
+		assert.strictEqual(actualDiagnostic.range.start.character, 0);
+		assert.strictEqual(actualDiagnostic.range.end.line, 1);
+		assert.strictEqual(actualDiagnostic.range.end.character, 18);
 		assert.strictEqual(actualDiagnostic.severity, 2);
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
+	});
+
+	test('Validate Conflict Based On Pin Block for PWM', () => {
+
+		const gpioPin = new PinMapping("MT3620_GPIO4", "Gpio", undefined, 4, range(0, 0, 0, 12));
+    const pwmPin = new PinMapping("MT3620_PWM_CONTROLLER1", "Pwm", undefined, "PWM-CONTROLLER-1", range(1, 0, 1, 21));
+    const importedhwDefFilePath = "my_app/importedHardwareDef.json";
+    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin, pwmPin]);
+
+    const hwDefFilePath = "my_app/hardwareDef.json";
+		const validPin = new PinMapping("MY_PWM_CONTROLLER0", "Pwm", "MT3620_PWM_CONTROLLER1", undefined, range(0, 0, 0, 18));
+    const warningPin = new PinMapping("MY_LED", "Gpio", "MT3620_GPIO4", undefined, range(1, 0, 1, 6));
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
+
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);
+		const actualDiagnostic = warningDiagnostics[0];
+	
+		assert.strictEqual(actualDiagnostic.message, 'MY_LED configured as Pwm by MY_PWM_CONTROLLER0');
+		assert.strictEqual(actualDiagnostic.range.start.line, 1);
+		assert.strictEqual(actualDiagnostic.range.start.character, 0);
+		assert.strictEqual(actualDiagnostic.range.end.line, 1);
+		assert.strictEqual(actualDiagnostic.range.end.character, 6);
+		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.source, 'az sphere');
+	});
+
+	test('Validate Conflict Based On Pin Block for ISU0', () => {
+
+		const gpioPin = new PinMapping("MT3620_ISU0_I2C", "I2cMaster", undefined, "ISU0", range(0, 0, 0, 15));
+    const pwmPin = new PinMapping("MT3620_ISU0_SPI", "SpiMaster", undefined, "ISU0", range(1, 0, 1, 15));
+    const importedhwDefFilePath = "my_app/importedHardwareDef.json";
+    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin, pwmPin]);
+
+    const hwDefFilePath = "my_app/hardwareDef.json";
+		const validPin = new PinMapping("MY_I2C", "I2cMaster", "MT3620_ISU0_I2C", undefined, range(0, 0, 0, 6));
+    const warningPin = new PinMapping("MY_SPI", "SpiMaster", "MT3620_ISU0_SPI", undefined, range(1, 0, 1, 6));
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
+
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);
+		const actualDiagnostic = warningDiagnostics[0];
+	
+		assert.strictEqual(actualDiagnostic.message, 'MY_SPI configured as I2cMaster by MY_I2C');
+		assert.strictEqual(actualDiagnostic.range.start.line, 1);
+		assert.strictEqual(actualDiagnostic.range.start.character, 0);
+		assert.strictEqual(actualDiagnostic.range.end.line, 1);
+		assert.strictEqual(actualDiagnostic.range.end.character, 6);
+		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.source, 'az sphere');
+	});
+
+	test('No Conflict Based On Pin Block', () => {
+		const gpioPin1 = new PinMapping("MT3620_GPIO2", "Gpio", undefined, 2, range(0, 0, 0, 12));
+    const gpioPin2 = new PinMapping("MT3620_GPIO3", "Gpio", undefined, 3, range(1, 0, 1, 12));
+    const importedhwDefFilePath = "my_app/importedHardwareDef.json";
+    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin1, gpioPin2]);
+
+    const hwDefFilePath = "my_app/hardwareDef.json";
+    const validPin1 = new PinMapping("MY_LED_RED", "Gpio", "MT3620_GPIO2", undefined, range(0, 0, 0, 10));
+		const validPin2 = new PinMapping("MY_LED_BLUE", "Gpio", "MT3620_GPIO3", undefined, range(1, 0, 1, 11));
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1, validPin2], [importedhwDefinitionFile]);
+
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);
+		const actualDiagnostic = warningDiagnostics[0];
+		assert.strictEqual(actualDiagnostic, undefined);
 	});
 });
