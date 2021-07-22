@@ -41,6 +41,23 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 				if (!reservedNames.has(mappedTo)) {
 					const diagnostic: Diagnostic = nonexistentMappingError(mapping, mappedTo);
 					warningDiagnostics.push(diagnostic);
+				} else {
+					const mappedToPath = reservedNames.get(mappedTo)?.hardwareDefinitionUri;
+					let hasIndirectImport = true;
+					for (const importedHwDefinition of hwDefinition.imports) {
+						if (mappedToPath == importedHwDefinition.uri) {
+							hasIndirectImport = false;
+						}
+					}
+					if (hasIndirectImport) {
+						const diagnostic: Diagnostic = {
+							message: `${mappedTo} is indirectly imported from ${mappedToPath}.`,
+							range: mapping.range,
+							severity: DiagnosticSeverity.Warning,
+							source: EXTENSION_SOURCE
+						};
+						warningDiagnostics.push(diagnostic);
+					}
 				}
 			}
 			reservedNames.set(mapping.name, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
