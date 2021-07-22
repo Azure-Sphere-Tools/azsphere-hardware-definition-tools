@@ -18,18 +18,23 @@ import {
   IPCMessageWriter,
   ShowMessageNotification,
   ShowMessageParams,
+  CodeActionKind,
+  CodeActionParams,
+  CodeAction,
 } from "vscode-languageserver/node";
 
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
-import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions } from "./suggestions";
-import { TextDocument } from "vscode-languageserver-textdocument";
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
-import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
+
+import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions} from "./suggestions";
+import { quickfix } from './codeActionProvider';
 import { URI } from "vscode-uri";
-import * as jsonc from "jsonc-parser";
 import * as fs from "fs";
 import * as path from "path";
+import { TextDocument } from 'vscode-languageserver-textdocument';
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
+import * as jsonc from 'jsonc-parser';
 import { readFile } from "fs/promises";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
@@ -46,7 +51,7 @@ const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
-
+let hasCodeActionLiteralsCapability = false;
 let settingsPath: string;
 
 connection.onInitialize((params: InitializeParams) => {
@@ -64,6 +69,12 @@ connection.onInitialize((params: InitializeParams) => {
     capabilities.textDocument.publishDiagnostics &&
     capabilities.textDocument.publishDiagnostics.relatedInformation
   );
+
+  hasCodeActionLiteralsCapability = !!(
+		capabilities.textDocument &&
+		capabilities.textDocument.codeAction &&
+		capabilities.textDocument.codeAction.codeActionLiteralSupport
+	);
 
   const result: InitializeResult = {
     capabilities: {
@@ -83,6 +94,12 @@ connection.onInitialize((params: InitializeParams) => {
       workspaceFolders: {
         supported: true,
       },
+    };
+  }
+
+  if (hasCodeActionLiteralsCapability) {
+    result.capabilities.codeActionProvider = {
+        codeActionKinds: [CodeActionKind.QuickFix]
     };
   }
   return result;
@@ -416,6 +433,21 @@ const setSettingPath = (ide: string | undefined) => {
     settingsPath = ".vs/VSWorkspaceSettings.json";
   }
 };
+
+connection.onCodeAction(provideCodeActions);
+async function provideCodeActions(parms: CodeActionParams): Promise<CodeAction[]> {
+  const hwDefinitionFileUri = parms.textDocument.uri;
+  let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
+  if (!hwDefFileText) {
+    hwDefFileText = fs.readFileSync(URI.file(hwDefinitionFileUri).fsPath, { encoding: "utf8" });
+  }
+  const sdkPath = (await getDocumentSettings(hwDefinitionFileUri)).SdkPath;
+  const hwDefinition = tryParseHardwareDefinitionFile(hwDefFileText, hwDefinitionFileUri, sdkPath);
+  if (!hwDefinition) {
+    return [];
+  }
+  return quickfix(hwDefinition, parms);
+}
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
   const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;

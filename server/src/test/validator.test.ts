@@ -4,7 +4,6 @@ import * as assert from 'assert';
 import { HardwareDefinition, PinMapping } from '../hardwareDefinition';
 import { anyRange, asURI, range } from "./testUtils";
 import * as mockfs from 'mock-fs';
-import * as path from 'path';
 import * as fs from 'fs';
 import { URI } from 'vscode-uri';
 import { tryParseHardwareDefinitionFile } from '../server';
@@ -16,11 +15,11 @@ suite('validateNamesAndMappings', () => {
 		const indirectPin = new PinMapping('LED_GPIO0', 'Gpio', 'GPIO0', undefined, range(0, 0, 0, 5));
 		const pinWithSameMapping = new PinMapping('ODM_GPIO0', 'Gpio', 'GPIO0', undefined, range(0, 0, 0, 5));
 		const sourcePin = new PinMapping('GPIO0', 'Gpio', undefined, 0, range(0, 0, 0, 5));
-		
+
 		const hwDefFilePathWithIndirectPin = 'my_app/hardwareDef.json';
 		const hwDefFilePathFalseImported = 'my_app/odm.json';
 		const hwDefFilePathWithSourcePin = 'my_app/mt3620.json';
-		
+
 		const hwDefWithSourcePin = new HardwareDefinition(asURI(hwDefFilePathWithSourcePin), undefined, [sourcePin]);
 		const hwDefFalseImported = new HardwareDefinition(asURI(hwDefFilePathFalseImported), undefined, [pinWithSameMapping], [hwDefWithSourcePin]);
 		const hwDefWithIndirectPin = new HardwareDefinition(asURI(hwDefFilePathWithIndirectPin), undefined, [indirectPin], [hwDefFalseImported]);
@@ -28,7 +27,7 @@ suite('validateNamesAndMappings', () => {
 		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefWithIndirectPin, true);
 		const actualDiagnostic = warningDiagnostics[0];
 
-		assert.strictEqual(actualDiagnostic.message, indirectPin.mapping + ' is indirectly imported from ' + hwDefWithSourcePin.uri + '.');
+		assert.strictEqual(actualDiagnostic.message, indirectPin.mapping + ' is indirectly imported from ' + URI.parse(hwDefWithSourcePin.uri).fsPath + '.');
 		assert.deepStrictEqual(actualDiagnostic.range, indirectPin.range);
 		assert.strictEqual(actualDiagnostic.severity, 2);
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
@@ -46,7 +45,7 @@ suite('validateNamesAndMappings', () => {
 
 		assert.strictEqual(actualDiagnostic.message, pinWithDuplicateName.name + ' is already used by another pin mapping');
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
-		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.severity, 1);
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 
 		assert.ok(actualDiagnostic.relatedInformation);
@@ -71,7 +70,7 @@ suite('validateNamesAndMappings', () => {
 
 		assert.strictEqual(actualDiagnostic.message, 'Mapping ' + nonExistentMapping + ' is invalid. There is no imported pin mapping with that name.');
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithInvalidMapping.range);
-		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.severity, 1);
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 	});
 
@@ -133,7 +132,7 @@ suite('validatePinBlock', () => {
 
 		assert(hwDefinition);
 
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, false);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, true);
 		const actualDiagnostic = warningDiagnostics[0];
 		assert.strictEqual(actualDiagnostic.message, pins[1].name + ' configured as Gpio by ' + pins[0].name);
 		assert.strictEqual(actualDiagnostic.range.start.line, 6);
