@@ -1,5 +1,5 @@
-import { Range } from "jsonc-parser";
-import { CodeAction, CodeActionParams, DiagnosticSeverity, CodeActionKind, Position, Diagnostic} from 'vscode-languageserver';
+import { CodeAction, CodeActionParams, CodeActionKind, Position, Diagnostic} from 'vscode-languageserver';
+import { DUPLICATE_MAPPING_WARNING_CODE, NONEXISTENT_MAPPING_ERROR_CODE, PIN_BLOCK_CONFLICT_WARNING_CODE } from "./diagnostics";
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
 
 export const QUICKFIX_DUPLICATE_MSG = 'is already mapped';
@@ -64,18 +64,18 @@ export function quickfix(hwDefinition: HardwareDefinition, parms: CodeActionPara
         return [];
       }
 
-      if (diag.severity === DiagnosticSeverity.Warning && diag.message.includes(QUICKFIX_DUPLICATE_MSG)) {
+      if (diag.code === DUPLICATE_MAPPING_WARNING_CODE) {
         findWarningCodeAction(codeActions, "Delete the Duplicate pin mapping", diag, parms, pinMappingToComplete);
         return;
       }
 
-      if (diag.severity === DiagnosticSeverity.Warning && diag.message.includes(QUICKFIX_INVALID_MSG)) {
+      if (diag.code === NONEXISTENT_MAPPING_ERROR_CODE) {
         findWarningCodeAction(codeActions, "Delete the Invalid pin mapping", diag, parms, pinMappingToComplete);
         return;
       }
 
-      if (diag.severity === DiagnosticSeverity.Warning && diag.message.includes(QUICKFIX_PINBLCOK_MSG)) {
-        findWarningCodeAction(codeActions, "Delete the conflict based on the pin block", diag, parms, pinMappingToComplete);
+      if (diag.code === PIN_BLOCK_CONFLICT_WARNING_CODE) {
+        findWarningCodeAction(codeActions, "Assign pin mapping to a pin on a different pin block", diag, parms, pinMappingToComplete);
         return;
       }
     });

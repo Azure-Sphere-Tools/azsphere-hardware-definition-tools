@@ -28,7 +28,7 @@ namespace AZSphereHardwareDefinitionTools
         foreach (var diagnostic in diagnosticsToFilter)
         {
           var diagnosticRangeStart = diagnostic["range"]["start"];
-          //diagnosticRangeStart["character"].Replace(diagnosticRangeStart.Value<int>("character") + 1);
+          diagnosticRangeStart["character"].Replace(diagnosticRangeStart.Value<int>("character") + 1);
 
         }
       }

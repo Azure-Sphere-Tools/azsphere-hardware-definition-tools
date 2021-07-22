@@ -24,7 +24,7 @@ suite('validateNamesAndMappings', () => {
 
 		assert.strictEqual(actualDiagnostic.message, pinWithDuplicateName.name + ' is already used by another pin mapping');
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
-		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.severity, 1);
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 
 		assert.ok(actualDiagnostic.relatedInformation);
@@ -49,7 +49,7 @@ suite('validateNamesAndMappings', () => {
 
 		assert.strictEqual(actualDiagnostic.message, 'Mapping ' + nonExistentMapping + ' is invalid. There is no imported pin mapping with that name.');
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithInvalidMapping.range);
-		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.severity, 1);
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 	});
 
@@ -111,7 +111,7 @@ suite('validatePinBlock', () => {
 
 		assert(hwDefinition);
 
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, false);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, true);
 		const actualDiagnostic = warningDiagnostics[0];
 		assert.strictEqual(actualDiagnostic.message, pins[1].name + ' configured as Gpio by ' + pins[0].name);
 		assert.strictEqual(actualDiagnostic.range.start.line, 6);

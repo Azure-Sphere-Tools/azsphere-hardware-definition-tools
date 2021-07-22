@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import { Position, TextEdit } from "vscode-languageserver-textdocument";
 import { HardwareDefinition, PinMapping } from "../hardwareDefinition";
-import { findPinMappingRange, quickfix } from "../CodeActionProvider";
+import { findPinMappingRange, quickfix } from "../codeActionProvider";
 import { anyRange, asURI, range } from "./testUtils";
 import { CodeActionParams, Diagnostic, Range } from "vscode-languageserver";
 import { findDuplicateMappings, validateNamesAndMappings, validatePinBlock } from "../validator";
@@ -106,7 +106,7 @@ suite("quickfix", () => {
   });
 
   
-  test("Delete the conflict based on the pin block", () => {
+  test("Assign pin mapping to a pin on a different pin block", () => {
 		const pins = [
 			{ name: 'MY_LED', type: 'Gpio', mapping: 'MT3620_GPIO4' },
 			{ name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: 'MT3620_PWM_CONTROLLER1' }
@@ -149,7 +149,7 @@ suite("quickfix", () => {
       textDocument: {uri: asURI(hwDefFilePath)}
     };
     const codeAction = quickfix(hwDefinitionFile,params);
-    assert.strictEqual(codeAction[0].title, "Delete the conflict based on the pin block");
+    assert.strictEqual(codeAction[0].title, "Assign pin mapping to a pin on a different pin block");
 
   });
 });
