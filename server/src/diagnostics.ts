@@ -7,9 +7,12 @@ const EXTENSION_SOURCE = 'az sphere';
 export const DUPLICATE_NAME_ERROR_CODE = "AST1";
 export const NONEXISTENT_MAPPING_ERROR_CODE = "AST2";
 export const DUPLICATE_MAPPING_WARNING_CODE = "AST3";
-export const INVALID_PIN_TYPE_ERROR_CODE = "AST4";
-export const PIN_BLOCK_CONFLICT_WARNING_CODE = "AST5";
-export const UNKNOWN_IMPORT_WARNING_CODE = "AST6";
+export const INDIRECT_MAPPING_WARNING_CODE = "AST4";
+export const INVALID_PIN_TYPE_ERROR_CODE = "AST5";
+export const PIN_BLOCK_CONFLICT_WARNING_CODE = "AST6";
+
+
+export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
 /**
  * 
  * @param badMapping The faulty pin mapping which uses the same name as another mapped pin
@@ -89,6 +92,25 @@ export function duplicateMappingWarning(duplicateMappingName: string, badMapping
   }
   return diagnostic;
 }
+
+
+/**
+ * 
+ * @param indirectMappingName The name of the pin mapping which is indirectly imported
+ * @param badMappingRange The location of the pin mapping which references to the indirect mapping
+ * @param indirectMappingUri The uri of the hardware definition file in which the indirect pin mapping is declared
+ */
+export function indirectMappingWarning(indirectMappingName: string, badMappingRange: Range, indirectMappingUri: string): Diagnostic {
+  const diagnostic: Diagnostic = {
+    code: INDIRECT_MAPPING_WARNING_CODE,
+    message: `${indirectMappingName} is indirectly imported from ${URI.parse(indirectMappingUri).fsPath}.`,
+    range: badMappingRange,
+    severity: DiagnosticSeverity.Warning,
+    source: EXTENSION_SOURCE
+  };
+  return diagnostic;
+}
+
 
 /**
  * 

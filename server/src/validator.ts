@@ -1,14 +1,12 @@
 import {
 	Diagnostic,
-	DiagnosticSeverity,
 	integer,
 } from 'vscode-languageserver/node';
 
-import { Position, TextDocument } from 'vscode-languageserver-textdocument';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
-import { URI } from 'vscode-uri';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
-import { duplicateMappingWarning, duplicateNameError, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning } from "./diagnostics";
+import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning } from "./diagnostics";
 
 const EXTENSION_SOURCE = 'az sphere';
 
@@ -38,11 +36,12 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 		} else {
 			if (!mapping.isRootMapping()) {
 				const mappedTo = <string>mapping.mapping;
-				if (!reservedNames.has(mappedTo)) {
+				const mappedToPin = reservedNames.get(mappedTo);
+				if (!mappedToPin) {
 					const diagnostic: Diagnostic = nonexistentMappingError(mapping, mappedTo);
 					warningDiagnostics.push(diagnostic);
 				} else {
-					const mappedToPath = reservedNames.get(mappedTo)?.hardwareDefinitionUri;
+					const mappedToPath = mappedToPin.hardwareDefinitionUri;
 					let hasIndirectImport = true;
 					for (const importedHwDefinition of hwDefinition.imports) {
 						if (mappedToPath == importedHwDefinition.uri) {
@@ -50,12 +49,7 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 						}
 					}
 					if (hasIndirectImport) {
-						const diagnostic: Diagnostic = {
-							message: `${mappedTo} is indirectly imported from ${mappedToPath}.`,
-							range: mapping.range,
-							severity: DiagnosticSeverity.Warning,
-							source: EXTENSION_SOURCE
-						};
+						const diagnostic: Diagnostic = indirectMappingWarning(mappedTo, mapping.range, mappedToPath);
 						warningDiagnostics.push(diagnostic);
 					}
 				}
