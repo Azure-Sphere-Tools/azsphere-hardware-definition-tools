@@ -1,13 +1,12 @@
 import {
 	Diagnostic,
-	DiagnosticSeverity,
 	integer,
 } from 'vscode-languageserver/node';
 
-import { Position, TextDocument } from 'vscode-languageserver-textdocument';
+import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
-import { URI } from 'vscode-uri';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
+import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning } from "./diagnostics";
 
 const EXTENSION_SOURCE = 'az sphere';
 
@@ -32,39 +31,27 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 	for (const mapping of hwDefinition.pinMappings) {
 		const existingMapping = reservedNames.get(mapping.name);
 		if (existingMapping) {
-			const diagnostic: Diagnostic = {
-				message: `${mapping.name} is already used by another pin mapping`,
-				range: mapping.range,
-				severity: DiagnosticSeverity.Warning,
-				source: EXTENSION_SOURCE
-			};
-			if (includeRelatedInfo) {
-				diagnostic.relatedInformation = [
-					{
-						location: {
-							uri: existingMapping.hardwareDefinitionUri,
-							range: existingMapping.pinMapping.range
-						},
-						message: `Duplicate peripheral mapping declared`
-					}
-				];
-			} else {
-				const relatedInfoPosition = existingMapping.pinMapping.range.start;
-				const relatedInfoUri = existingMapping.hardwareDefinitionUri;
-				addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, relatedInfoUri, hwDefinition.uri);
-			}
+			const diagnostic: Diagnostic = duplicateNameError(mapping, hwDefinition.uri, existingMapping.pinMapping, existingMapping.hardwareDefinitionUri, includeRelatedInfo);
 			warningDiagnostics.push(diagnostic);
 		} else {
 			if (!mapping.isRootMapping()) {
 				const mappedTo = <string>mapping.mapping;
-				if (!reservedNames.has(mappedTo)) {
-					const diagnostic: Diagnostic = {
-						message: `Mapping ${mappedTo} is invalid. There is no imported pin mapping with that name.`,
-						range: mapping.range,
-						severity: DiagnosticSeverity.Warning,
-						source: EXTENSION_SOURCE
-					};
+				const mappedToPin = reservedNames.get(mappedTo);
+				if (!mappedToPin) {
+					const diagnostic: Diagnostic = nonexistentMappingError(mapping, mappedTo);
 					warningDiagnostics.push(diagnostic);
+				} else {
+					const mappedToPath = mappedToPin.hardwareDefinitionUri;
+					let hasIndirectImport = true;
+					for (const importedHwDefinition of hwDefinition.imports) {
+						if (mappedToPath == importedHwDefinition.uri) {
+							hasIndirectImport = false;
+						}
+					}
+					if (hasIndirectImport) {
+						const diagnostic: Diagnostic = indirectMappingWarning(mappedTo, mapping.range, mappedToPath);
+						warningDiagnostics.push(diagnostic);
+					}
 				}
 			}
 			reservedNames.set(mapping.name, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
@@ -114,26 +101,9 @@ export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: st
 				mapEnd = matchedPattern == null ? mapStart : mapStart + matchedPattern[0].length;
 
 			}
-			const diagnostic: Diagnostic = {
-				severity: DiagnosticSeverity.Warning,
-				range: toRange(textDocument.getText(), mapStart, mapEnd),
-				message: `"${mappedTo}" is already mapped`,
-				source: EXTENSION_SOURCE
-			};
-			if (includeRelatedInfo) {
-				diagnostic.relatedInformation = [
-					{
-						location: {
-							uri: textDocument.uri,
-							range: toRange(textDocument.getText(), prevStart, prevEnd)
-						},
-						message: `Duplicate peripheral mapping declared`
-					}
-				];
-			} else {
-				const relatedInfoPosition = toRange(textDocument.getText(), prevStart, prevEnd).start;
-				addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, textDocument.uri, hwDefinition.uri);
-			}
+			const badMappingRange = toRange(textDocument.getText(), mapStart, mapEnd);
+			const existingMappingRange = toRange(textDocument.getText(), prevStart, prevEnd);
+			const diagnostic: Diagnostic = duplicateMappingWarning(mappedTo, badMappingRange, existingMappingRange, hwDefinition.uri, includeRelatedInfo);
 			diagnostics.push(diagnostic);
 		} else {
 			nodes.set(mappedTo, [mapStart, mapEnd, 0]);
@@ -145,32 +115,10 @@ export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: st
 export function findUnknownImports(hwDefinition: HardwareDefinition, textDocument: TextDocument): Diagnostic[] {
 	const diagnostics: Diagnostic[] = [];
 	for (const unknownImport of hwDefinition.unknownImports) {
-		diagnostics.push({
-			severity: DiagnosticSeverity.Warning,
-			range: toRange(textDocument.getText(), unknownImport.start, unknownImport.end),
-			message: `Cannot find imported file '${unknownImport.fileName}' under ${unknownImport.hwDefinitionFilePath} or ${unknownImport.sdkPath}`,
-			source: EXTENSION_SOURCE
-		});
+		const diagnostic = unknownImportWarning(unknownImport, toRange(textDocument.getText(), unknownImport.start, unknownImport.end));
+		diagnostics.push(diagnostic);
 	}
 	return diagnostics;
-}
-
-/**
- * @param diagnostic Adds a diagnostic's related information directly in its message under the form (line x, char y)
- * - useful for IDEs that don't support a diagnostic's 'relatedInformation' property.
- * If the related information is in a different file than the diagnostic, "in {filepath}" is appended to the message 
- * @param relatedInfoPosition The position in the document that the related information would appear
- * @param hwDefinitionUri The uri of the hardware definition file where the diagnostic will appear 
- * @param relatedInfoUri The uri of the file containing the related information
- */
-function addRelatedInfoAsDiagnosticMessage(diagnostic: Diagnostic, relatedInfoPosition: Position, hwDefinitionUri: string, relatedInfoUri: string) {
-	// line and char are incremented by 1 since we start counting lines from 1 in text files (not 0)
-	diagnostic.message += ` (line ${relatedInfoPosition.line + 1}, char ${relatedInfoPosition.character + 1}`;
-	if (hwDefinitionUri != relatedInfoUri) {
-		// mention the related info's file uri if it wasn't defined in the current hw definition file  
-		diagnostic.message += ` in ${URI.file(relatedInfoUri).fsPath}`;
-	}
-	diagnostic.message += ')';
 }
 
 /**
@@ -264,46 +212,14 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 			const controller = getController(pinMapping.type, appManifestValue);
 
 			if (controller == undefined) {
-				const diagnostic: Diagnostic = {
-					message: `${pinMapping.mapping != undefined ? pinMapping.mapping : pinMapping.appManifestValue} cannot be used as ${pinMapping.type}`,
-					range: pinMapping.range,
-					severity: DiagnosticSeverity.Error,
-					source: EXTENSION_SOURCE
-				};
-				if (includeRelatedInfo) {
-					diagnostic.relatedInformation = [
-						{
-							location: {
-								uri: hwDefinition.uri,
-								range: pinMapping.range
-							},
-							message: `[TODO] Alternative options to be suggested here`
-						}
-					];
-				}
+				const diagnostic: Diagnostic = invalidPinTypeError(pinMapping, hwDefinition.uri, includeRelatedInfo);
 				warningDiagnostics.push(diagnostic);
 			} else {
 				const existingControllerSetup = controllerSetup.get(controller.name);
 
 				if (existingControllerSetup != undefined &&
 					existingControllerSetup?.type != pinMapping.type) {
-					const diagnostic: Diagnostic = {
-						message: `${pinMapping.name} configured as ${existingControllerSetup?.type} by ${existingControllerSetup.name}`,
-						range: pinMapping.range,
-						severity: DiagnosticSeverity.Warning,
-						source: EXTENSION_SOURCE
-					};
-					if (includeRelatedInfo) {
-						diagnostic.relatedInformation = [
-							{
-								location: {
-									uri: hwDefinition.uri,
-									range: pinMapping.range
-								},
-								message: `[TODO] Alternative options to be suggested here`
-							}
-						];
-					}
+					const diagnostic: Diagnostic = pinBlockConflictWarning(pinMapping, existingControllerSetup, hwDefinition.uri, includeRelatedInfo);
 					warningDiagnostics.push(diagnostic);
 				}
 
