@@ -118,7 +118,7 @@ suite("quickfix", () => {
 		const warningPin = new PinMapping("MY_PWM_CONTROLLER0", "Pwm", "MT3620_PWM_CONTROLLER1", undefined, range(1, 0, 1, 18));
     const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
 
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, true);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);
 
     const params: CodeActionParams = {
       context: {diagnostics: warningDiagnostics},
