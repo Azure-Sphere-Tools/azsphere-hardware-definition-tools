@@ -65,7 +65,7 @@ suite("quickfix", () => {
     };
 
     const text = textDocument.getText();
-    const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinitionFile, text, textDocument, false);
+    const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinitionFile, text, textDocument, true);
     
     const params: CodeActionParams = {
       context: {diagnostics: diagnostics},
@@ -107,39 +107,19 @@ suite("quickfix", () => {
 
   
   test("Assign pin mapping to a pin on a different pin block", () => {
-		const pins = [
-			{ name: 'MY_LED', type: 'Gpio', mapping: 'MT3620_GPIO4' },
-			{ name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: 'MT3620_PWM_CONTROLLER1' }
-		];
-		mockfs({
-			'my_app/odm.json':
-				`
-				{
-					"Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 },
-					"Imports": [ { "Path": "mt3620.json" } ],
-					"Peripherals": [
-						{ "Name": "${pins[0].name}", "Type": "${pins[0].type}", "Mapping": "${pins[0].mapping}" },
-						{ "Name": "${pins[1].name}", "Type": "${pins[1].type}", "Mapping": "${pins[1].mapping}" }
-					]
-				}
-				`,
-			'my_app/mt3620.json':
-				`
-				{
-					"Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 },
-					"Peripherals": [
-						{ "Name": "${pins[0].mapping}", "Type": "${pins[0].type}", "AppManifestValue": 4 },
-						{ "Name": "${pins[1].mapping}", "Type": "${pins[1].type}", "AppManifestValue": "PWM-CONTROLLER-1" }
-					]
-				}
-				`
-		});
 
-		const hwDefFilePath = 'my_app/odm.json';
-		const hwDefinitionFile = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
+    const gpioPin = new PinMapping("MT3620_GPIO4", "Gpio", undefined, 4, range(0, 0, 0, 12));
+    const pwmPin = new PinMapping("MT3620_PWM_CONTROLLER1", "Pwm", undefined, "PWM-CONTROLLER-1", range(1, 0, 1, 21));
+    const importedhwDefFilePath = "my_app/importedHardwareDef.json";
+    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin, pwmPin]);
 
-		assert(hwDefinitionFile);
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);    
+    const hwDefFilePath = "my_app/hardwareDef.json";
+    const validPin = new PinMapping("MY_LED", "Gpio", "MT3620_GPIO4", undefined, range(0, 0, 0, 6));
+		const warningPin = new PinMapping("MY_PWM_CONTROLLER0", "Pwm", "MT3620_PWM_CONTROLLER1", undefined, range(1, 0, 1, 18));
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
+
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, true);
+
     const params: CodeActionParams = {
       context: {diagnostics: warningDiagnostics},
       range: {
