@@ -20,7 +20,7 @@ suite('Pin Block Get the Diagnostrics', () => {
 
 	test('Pin Block Conflict', async () => {
 		await testDiagnostics(docUri, [
-			{ message: 'MT3620_RDB_PWM_CONTROLLER0 configured as Gpio by MT3620_RDB_LED1_RED1', range: toRange(27, 8, 32, 9), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' }
+			{ message: 'MT3620_RDB_PWM_CONTROLLER0 configured as Gpio by MT3620_RDB_LED1_BLUE', range: toRange(27, 8, 32, 9), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' }
 		]);
 	});
 });
