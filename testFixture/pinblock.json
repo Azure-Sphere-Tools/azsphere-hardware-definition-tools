@@ -1,0 +1,35 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+"Metadata":
+  {
+      "Type": "Azure Sphere Hardware Definition",
+      "Version": 1
+  },
+  "Description":
+  {
+      "Name": "MT3620 Reference Development Board (RDB)",
+      "MainCoreHeaderFileTopContent": [
+      ]
+  },
+  "Imports" : [ {"Path": "mt3620.json"} ],
+  "Peripherals": [
+      {
+          "Name": "MT3620_RDB_LED1_RED", 
+          "Type": "Gpio", 
+          "Mapping": "MT3620_GPIO0", 
+          "Comment": "LED 1 Red channel uses GPIO0."
+      },
+      {
+          "Name": "MT3620_RDB_LED1_BLUE", 
+          "Type": "Gpio", 
+          "Mapping": "MT3620_GPIO1", 
+          "Comment": "LED 1 BLUE channel uses GPIO1."
+      },
+      {
+          "Name": "MT3620_RDB_PWM_CONTROLLER0", 
+          "Type": "Pwm", 
+          "Mapping": "MT3620_PWM_CONTROLLER0",
+          "Comment": "PWM CONTROLLER channel uses PWM_CONTROLLER0."
+      }
+  ]
+}
