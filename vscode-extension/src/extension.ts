@@ -55,13 +55,41 @@ export function activate(context: ExtensionContext) {
 
   context.subscriptions.push(
     disposable,
-    commands.registerCommand("azsphere-hardware-definition-tools.availablePins", () => displayHwDefinitionList())
+    commands.registerCommand("azsphere-hardware-definition-tools.pinMappingGeneration", () => displayNewMapping())
   );
 }
 
-const displayHwDefinitionList = async () => {
+const displayNewMapping = async () => {
   const currentlyOpenTabfilePath: string = window.activeTextEditor?.document.uri.fsPath;
-  commands.executeCommand("availablePins", currentlyOpenTabfilePath);
+  const pinTypes: string[] = await commands.executeCommand("pinMappingGeneration", currentlyOpenTabfilePath);
+
+  // Dropdown list allowing multiple selections - TBC
+  window
+    .showQuickPick(pinTypes, {
+      canPickMany: false,
+      placeHolder: "Select one of the available pin types",
+      // onDidSelectItem: (selection) => {},
+    })
+    .then(async (pinTypeSelected) => {
+      if (!pinTypeSelected) {
+        return;
+      }
+
+      const pinAmount: string[] = await commands.executeCommand("availablePins", currentlyOpenTabfilePath, pinTypeSelected);
+      const pins = [...Array(pinAmount.length + 1)].map((_, i) => i.toString()).slice(1);
+
+      window
+        .showQuickPick(pins, {
+          canPickMany: false,
+          placeHolder: "Select one of the available pin types",
+          // onDidSelectItem: (selection) => {},
+        })
+        .then(async (pinTypeSelected) => {
+          if (!pinTypeSelected) {
+            return;
+          }
+        });
+    });
 };
 
 export function deactivate(): Thenable<void> | undefined {

@@ -26,15 +26,15 @@ import {
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
 
-import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions} from "./suggestions";
-import { quickfix } from './codeActionProvider';
+import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions } from "./suggestions";
+import { quickfix } from "./codeActionProvider";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
-import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
-import * as jsonc from 'jsonc-parser';
+import { TextDocument } from "vscode-languageserver-textdocument";
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
+import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
@@ -53,6 +53,7 @@ let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 let hasCodeActionLiteralsCapability = false;
 let settingsPath: string;
+let currentFileText: string;
 
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
@@ -70,11 +71,7 @@ connection.onInitialize((params: InitializeParams) => {
     capabilities.textDocument.publishDiagnostics.relatedInformation
   );
 
-  hasCodeActionLiteralsCapability = !!(
-		capabilities.textDocument &&
-		capabilities.textDocument.codeAction &&
-		capabilities.textDocument.codeAction.codeActionLiteralSupport
-	);
+  hasCodeActionLiteralsCapability = !!(capabilities.textDocument && capabilities.textDocument.codeAction && capabilities.textDocument.codeAction.codeActionLiteralSupport);
 
   const result: InitializeResult = {
     capabilities: {
@@ -85,7 +82,7 @@ connection.onInitialize((params: InitializeParams) => {
       },
       // Commands requested from the client to the server
       executeCommandProvider: {
-        commands: ["availablePins"],
+        commands: ["availablePins", "pinMappingGeneration"],
       },
     },
   };
@@ -99,7 +96,7 @@ connection.onInitialize((params: InitializeParams) => {
 
   if (hasCodeActionLiteralsCapability) {
     result.capabilities.codeActionProvider = {
-        codeActionKinds: [CodeActionKind.QuickFix]
+      codeActionKinds: [CodeActionKind.QuickFix],
     };
   }
   return result;
@@ -120,11 +117,20 @@ connection.onInitialized(() => {
     switch (event.command) {
       case "availablePins":
         if (event.arguments) {
-          const hwDefinition = await checkCurrentHwDefinition(event.arguments[0]);
+          const [uri, pinTypeSelected] = event.arguments;
 
-          if (hwDefinition) {
-            connection.console.log(returnAvailablePinMappings(hwDefinition).toString());
+          const hwDefinition = await checkCurrentHwDefinition(uri);
+
+          if (hwDefinition && pinTypeSelected) {
+            return getPinMappingSuggestions(hwDefinition, pinTypeSelected);
           }
+        }
+        break;
+      case "pinMappingGeneration":
+        if (event.arguments) {
+          const pinTypes = await getPinTypes(event.arguments[0]);
+
+          if (pinTypes) return pinTypes;
         }
         break;
       default:
@@ -147,6 +153,25 @@ function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
   }
   return settingsToValidate;
 }
+
+const getPinTypes = async (uri: string) => {
+  const text = await checkOdmJson(uri);
+  const pinTypes: string[] = [];
+
+  if (text) {
+    currentFileText = text;
+    const { Peripherals } = JSON.parse(text);
+
+    for (const peripheral of Peripherals) {
+      const { Type } = peripheral;
+      if (!pinTypes.includes(Type)) pinTypes.push(Type);
+    }
+
+    return pinTypes;
+  } else {
+    displayErrorNotification("Error parsing current odm.json file.");
+  }
+};
 
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
 // Please note that this is not the case when using this server with the vscode client but could happen with other clients.
@@ -185,7 +210,7 @@ function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
   return result;
 }
 
-const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition | undefined> => {
+const checkOdmJson = async (uri: string): Promise<string | undefined> => {
   if (!uri.endsWith(".json")) {
     displayErrorNotification("The current file is not a valid Hardware Definition (Must be a JSON file).");
     return;
@@ -198,8 +223,12 @@ const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition
     return;
   }
 
+  return text;
+};
+
+const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition | undefined> => {
   const settings = await getDocumentSettings(uri);
-  return tryParseHardwareDefinitionFile(text, uri, settings.SdkPath);
+  return tryParseHardwareDefinitionFile(currentFileText, uri, settings.SdkPath);
 };
 
 const displayErrorNotification = (message: string) => {
@@ -209,10 +238,6 @@ const displayErrorNotification = (message: string) => {
   };
   connection.sendNotification(ShowMessageNotification.type, msg);
   return;
-};
-
-const returnAvailablePinMappings = (hwDefinition: any) => {
-  return getPinMappingSuggestions(hwDefinition);
 };
 
 documents.onDidOpen(async (change) => {

@@ -52,6 +52,11 @@
         "command": "azsphere-hardware-definition-tools.availablePins",
         "category": "Azure Sphere Tools",
         "title": "Get available pin mappings given a Hardware Definition"
+      },
+      {
+        "command": "azsphere-hardware-definition-tools.pinMappingGeneration",
+        "category": "Azure Sphere Tools",
+        "title": "Get new pin mapping generation"
       }
     ]
   },
