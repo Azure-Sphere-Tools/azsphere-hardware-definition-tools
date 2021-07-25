@@ -1,5 +1,6 @@
 import { homedir } from "os";
 import * as path from "path";
+import * as fs from "fs";
 import { workspace, ExtensionContext, ExtensionMode, commands, window, InputBoxOptions, QuickPickItem } from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from "vscode-languageclient/node";
 
@@ -56,6 +57,36 @@ export function activate(context: ExtensionContext) {
   context.subscriptions.push(
     disposable,
     commands.registerCommand("azsphere-hardware-definition-tools.availablePins", () => displayHwDefinitionList())
+  );
+
+  const BOARDS = [
+    "Avnet MT3620 Starter Kit",
+    "MT3620 reference development board",
+    "Seeed MT3620 Mini Development Board",
+    "Open new hardware definition"
+  ];
+
+  const fileExplorerOptions = {
+    canSelectMany: false,
+    filters: {
+      'HardwareDefinitions': ['json']
+    }
+  };
+
+  context.subscriptions.push(
+    commands.registerCommand("azsphere-hardware-definition-tools.porting", () => {
+      window.showQuickPick(BOARDS)
+        .then(response => {
+          if (response == BOARDS[BOARDS.length - 1]) {
+            window.showOpenDialog(fileExplorerOptions)
+              .then(response => {
+                window.showInformationMessage(response[0].path);
+              });
+          } else {
+            window.showInformationMessage(response);
+          }
+        });
+    })
   );
 }
 
