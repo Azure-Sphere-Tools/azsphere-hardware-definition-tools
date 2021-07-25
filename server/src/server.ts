@@ -35,7 +35,7 @@ import { TextDocument } from "vscode-languageserver-textdocument";
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import * as jsonc from "jsonc-parser";
-import { readFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -53,7 +53,11 @@ let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 let hasCodeActionLiteralsCapability = false;
 let settingsPath: string;
-let currentFileText: string;
+
+const currentFile = {
+  text: "",
+  uri: "",
+};
 
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
@@ -82,7 +86,7 @@ connection.onInitialize((params: InitializeParams) => {
       },
       // Commands requested from the client to the server
       executeCommandProvider: {
-        commands: ["availablePins", "pinMappingGeneration"],
+        commands: ["getAvailablePins", "getAvailablePinTypes", "postPinAmountToGenerate"],
       },
     },
   };
@@ -115,7 +119,14 @@ connection.onInitialized(() => {
   // Server receives a request from the client
   connection.onExecuteCommand(async (event) => {
     switch (event.command) {
-      case "availablePins":
+      case "getAvailablePinTypes":
+        if (event.arguments) {
+          const pinTypes = await getPinTypes(event.arguments[0]);
+
+          if (pinTypes) return pinTypes;
+        }
+        break;
+      case "getAvailablePins":
         if (event.arguments) {
           const [uri, pinTypeSelected] = event.arguments;
 
@@ -126,11 +137,10 @@ connection.onInitialized(() => {
           }
         }
         break;
-      case "pinMappingGeneration":
+      case "postPinAmountToGenerate":
         if (event.arguments) {
-          const pinTypes = await getPinTypes(event.arguments[0]);
-
-          if (pinTypes) return pinTypes;
+          const [pinsToAdd, pinType] = event.arguments;
+          addPinMappings(pinsToAdd, pinType);
         }
         break;
       default:
@@ -154,12 +164,37 @@ function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
   return settingsToValidate;
 }
 
+const addPinMappings = async (pinsToAdd: string[], pinType: string) => {
+  const { text, uri } = currentFile;
+  if (text && uri && pinsToAdd && pinType) {
+    const { Peripherals } = JSON.parse(text);
+
+    if (Peripherals) {
+      pinsToAdd.forEach((pin) =>
+        Peripherals.push({
+          Name: "",
+          Type: pinType,
+          Mapping: pin,
+          Comment: "",
+        })
+      );
+    }
+
+    const edits = jsonc.modify(text, ["Peripherals"], Peripherals, { formattingOptions: { insertSpaces: true } });
+    try {
+      await writeFile(uri, jsonc.applyEdits(text, edits));
+    } catch (e) {
+      console.error(e);
+      return [];
+    }
+  }
+};
+
 const getPinTypes = async (uri: string) => {
   const text = await checkOdmJson(uri);
   const pinTypes: string[] = [];
 
   if (text) {
-    currentFileText = text;
     const { Peripherals } = JSON.parse(text);
 
     for (const peripheral of Peripherals) {
@@ -218,17 +253,21 @@ const checkOdmJson = async (uri: string): Promise<string | undefined> => {
   const currentFilePath = URI.parse(uri).fsPath;
   const text = await readFile(currentFilePath, "utf8");
 
+  currentFile;
+
   if (!text) {
     displayErrorNotification("Error reading current file");
     return;
   }
+  currentFile.text = text;
+  currentFile.uri = currentFilePath;
 
   return text;
 };
 
 const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition | undefined> => {
   const settings = await getDocumentSettings(uri);
-  return tryParseHardwareDefinitionFile(currentFileText, uri, settings.SdkPath);
+  return tryParseHardwareDefinitionFile(currentFile.text, uri, settings.SdkPath);
 };
 
 const displayErrorNotification = (message: string) => {

@@ -55,13 +55,13 @@ export function activate(context: ExtensionContext) {
 
   context.subscriptions.push(
     disposable,
-    commands.registerCommand("azsphere-hardware-definition-tools.pinMappingGeneration", () => displayNewMapping())
+    commands.registerCommand("azsphere-hardware-definition-tools.getAvailablePinTypes", () => displayNewMapping())
   );
 }
 
 const displayNewMapping = async () => {
   const currentlyOpenTabfilePath: string = window.activeTextEditor?.document.uri.fsPath;
-  const pinTypes: string[] = await commands.executeCommand("pinMappingGeneration", currentlyOpenTabfilePath);
+  const pinTypes: string[] = await commands.executeCommand("getAvailablePinTypes", currentlyOpenTabfilePath);
 
   // Dropdown list allowing multiple selections - TBC
   window
@@ -75,19 +75,22 @@ const displayNewMapping = async () => {
         return;
       }
 
-      const pinAmount: string[] = await commands.executeCommand("availablePins", currentlyOpenTabfilePath, pinTypeSelected);
+      const pinAmount: string[] = await commands.executeCommand("getAvailablePins", currentlyOpenTabfilePath, pinTypeSelected);
+
+      // Map number of available pin mappings
       const pins = [...Array(pinAmount.length + 1)].map((_, i) => i.toString()).slice(1);
 
       window
         .showQuickPick(pins, {
-          canPickMany: false,
-          placeHolder: "Select one of the available pin types",
-          // onDidSelectItem: (selection) => {},
+          placeHolder: `Choose the number of ${pinTypeSelected} pins you want to add`,
         })
-        .then(async (pinTypeSelected) => {
-          if (!pinTypeSelected) {
+        .then(async (pinAmountSelected) => {
+          if (!pinAmountSelected) {
             return;
           }
+
+          const pinsToAdd: string[] = pinAmount.slice(0, Number(pinAmountSelected));
+          commands.executeCommand("postPinAmountToGenerate", pinsToAdd, pinTypeSelected);
         });
     });
 };
