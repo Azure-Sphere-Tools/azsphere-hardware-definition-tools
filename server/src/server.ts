@@ -34,8 +34,8 @@ import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
+import { getPinTypes, addPinMappings, currentFile } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
-import { readFile, writeFile } from "fs/promises";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -53,11 +53,6 @@ let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 let hasCodeActionLiteralsCapability = false;
 let settingsPath: string;
-
-const currentFile = {
-  text: "",
-  uri: "",
-};
 
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
@@ -164,50 +159,6 @@ function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
   return settingsToValidate;
 }
 
-const addPinMappings = async (pinsToAdd: string[], pinType: string) => {
-  const { text, uri } = currentFile;
-  if (text && uri && pinsToAdd && pinType) {
-    const { Peripherals } = JSON.parse(text);
-
-    if (Peripherals) {
-      pinsToAdd.forEach((pin) =>
-        Peripherals.push({
-          Name: "",
-          Type: pinType,
-          Mapping: pin,
-          Comment: "",
-        })
-      );
-    }
-
-    const edits = jsonc.modify(text, ["Peripherals"], Peripherals, { formattingOptions: { insertSpaces: true } });
-    try {
-      await writeFile(uri, jsonc.applyEdits(text, edits));
-    } catch (e) {
-      console.error(e);
-      return [];
-    }
-  }
-};
-
-const getPinTypes = async (uri: string) => {
-  const text = await checkOdmJson(uri);
-  const pinTypes: string[] = [];
-
-  if (text) {
-    const { Peripherals } = JSON.parse(text);
-
-    for (const peripheral of Peripherals) {
-      const { Type } = peripheral;
-      if (!pinTypes.includes(Type)) pinTypes.push(Type);
-    }
-
-    return pinTypes;
-  } else {
-    displayErrorNotification("Error parsing current odm.json file.");
-  }
-};
-
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
 // Please note that this is not the case when using this server with the vscode client but could happen with other clients.
 let globalSettings: ExtensionSettings = defaultSettings;
@@ -245,32 +196,12 @@ function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
   return result;
 }
 
-const checkOdmJson = async (uri: string): Promise<string | undefined> => {
-  if (!uri.endsWith(".json")) {
-    displayErrorNotification("The current file is not a valid Hardware Definition (Must be a JSON file).");
-    return;
-  }
-  const currentFilePath = URI.parse(uri).fsPath;
-  const text = await readFile(currentFilePath, "utf8");
-
-  currentFile;
-
-  if (!text) {
-    displayErrorNotification("Error reading current file");
-    return;
-  }
-  currentFile.text = text;
-  currentFile.uri = currentFilePath;
-
-  return text;
-};
-
 const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition | undefined> => {
   const settings = await getDocumentSettings(uri);
   return tryParseHardwareDefinitionFile(currentFile.text, uri, settings.SdkPath);
 };
 
-const displayErrorNotification = (message: string) => {
+export const displayErrorNotification = (message: string) => {
   const msg: ShowMessageParams = {
     message,
     type: MessageType.Error,
