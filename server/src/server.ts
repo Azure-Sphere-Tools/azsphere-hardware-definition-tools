@@ -33,7 +33,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
-import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
+import { HardwareDefinition, PinMapping, MyPinMapping, UnknownImport, toRange } from './hardwareDefinition';
 import * as jsonc from 'jsonc-parser';
 import { readFile } from "fs/promises";
 
@@ -376,6 +376,53 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
         }
       }
     }
+
+
+
+    
+    const myPinMappings: MyPinMapping[] = [];
+    
+    for (let i = 0; i < Peripherals.length; i++) {
+      const { Name, Type, Mapping, AppManifestValue } = Peripherals[i];
+      const hasMappingOrAppManifestValue = typeof Mapping == "string" || typeof AppManifestValue == "string" || typeof AppManifestValue == "number";
+      const isPinMapping = typeof Name == "string" && typeof Type == "string" && hasMappingOrAppManifestValue;
+      
+      if (isPinMapping) {
+        const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
+        
+        const values: Map<string, any> = new Map();
+        const range = toRange(hwDefinitionFileText, mappingAsJsonNode.offset, mappingAsJsonNode.offset + mappingAsJsonNode.length);
+
+        mappingAsJsonNode.children?.forEach(keyValue => {
+          if (keyValue.children) {
+            values.set(keyValue.children[0].value.toLowerCase(), {
+              range: toRange(hwDefinitionFileText, keyValue.offset, keyValue.offset + keyValue.length),
+              key: {
+                range: toRange(hwDefinitionFileText, keyValue.children[0].offset, keyValue.children[0].offset + keyValue.children[0].length),
+                text: keyValue.children[0].value,
+              },
+              value: {
+                range: toRange(hwDefinitionFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length),
+                text: keyValue.children[1].value
+              }
+            });
+          }
+        });
+
+        myPinMappings.push(new MyPinMapping(
+          range,
+          values.get('name'),
+          values.get('type'),
+          values.get('mapping'),
+          values.get('appmanifestvalue'),
+          values.get('comment')
+        ));
+      }
+    }
+
+
+
+
 
     const pinMappings: PinMapping[] = [];
 
