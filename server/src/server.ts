@@ -85,7 +85,7 @@ connection.onInitialize((params: InitializeParams) => {
       },
       // Commands requested from the client to the server
       executeCommandProvider: {
-        commands: ["getAvailablePins", "getAvailablePinTypes", "postPinAmountToGenerate"],
+        commands: ["getAvailablePins", "getAvailablePinTypes", "postPinAmountToGenerate", "porting"],
       },
     },
   };
@@ -145,11 +145,23 @@ connection.onInitialized(() => {
           addPinMappings(pinsToAdd, pinType, hwDefUri, await getFileText(hwDefUri));
         }
         break;
+      case "porting":
+        if (event.arguments) {
+          const { from, to } = event.arguments[0];
+          porting(from, to);
+        }
+        break;
       default:
         connection.console.log(`Access Denied - ${event.command} not recognised`);
     }
   });
 });
+
+function porting(from: string, to: string): void {
+  // TODO: (DOBO)
+  console.log(from);
+  console.log(to);
+}
 
 // The extension settings
 interface ExtensionSettings {
