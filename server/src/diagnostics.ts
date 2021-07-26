@@ -24,7 +24,7 @@ export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
 export function duplicateNameError(badMapping: PinMapping, pinMappingUri: string, existingMapping: PinMapping, existingMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: DUPLICATE_NAME_ERROR_CODE,
-    message: `${badMapping.name} is already used by another pin mapping`,
+    message: `${badMapping.name.value.text} is already used by another pin mapping`,
     range: badMapping.range,
     severity: DiagnosticSeverity.Error,
     source: EXTENSION_SOURCE
@@ -121,7 +121,7 @@ export function indirectMappingWarning(indirectMappingName: string, badMappingRa
 export function invalidPinTypeError(pinMapping: PinMapping, hwDefinitionUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: INVALID_PIN_TYPE_ERROR_CODE,
-    message: `${pinMapping.mapping != undefined ? pinMapping.mapping : pinMapping.appManifestValue} cannot be used as ${pinMapping.type}`,
+    message: `${pinMapping.mapping != undefined ? pinMapping.mapping.value.text : pinMapping.appManifestValue?.value.text} cannot be used as ${pinMapping.type.value.text}`,
     range: pinMapping.range,
     severity: DiagnosticSeverity.Error,
     source: EXTENSION_SOURCE
@@ -150,7 +150,7 @@ export function invalidPinTypeError(pinMapping: PinMapping, hwDefinitionUri: str
 export function pinBlockConflictWarning(badMapping: PinMapping, existingMapping: PinMapping, hwDefinitionUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: PIN_BLOCK_CONFLICT_WARNING_CODE,
-    message: `${badMapping.name} configured as ${existingMapping?.type} by ${existingMapping.name}`,
+    message: `${badMapping.name.value.text} configured as ${existingMapping?.type.value.text} by ${existingMapping.name.value.text}`,
     range: badMapping.range,
     severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE
@@ -162,7 +162,7 @@ export function pinBlockConflictWarning(badMapping: PinMapping, existingMapping:
           uri: hwDefinitionUri,
           range: badMapping.range
         },
-        message: `Pin block configured as ${existingMapping?.type}`
+        message: `Pin block configured as ${existingMapping?.type.value.text}`
       }
     ];
   } else {

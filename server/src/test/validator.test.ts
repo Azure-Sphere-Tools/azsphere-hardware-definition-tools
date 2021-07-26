@@ -2,7 +2,7 @@ import { Diagnostic } from 'vscode-languageserver/node';
 
 import * as assert from 'assert';
 import { HardwareDefinition, PinMapping } from '../hardwareDefinition';
-import { anyRange, asURI, range } from "./testUtils";
+import { asURI, getRange, getDummyPinMapping } from "./testUtils";
 import * as mockfs from 'mock-fs';
 import * as fs from 'fs';
 import { URI } from 'vscode-uri';
@@ -12,9 +12,10 @@ import { validateNamesAndMappings, validatePinBlock } from '../validator';
 suite('validateNamesAndMappings', () => {
 
 	test('Validate Indirect Mapping', () => {
-		const indirectPin = new PinMapping('LED_GPIO0', 'Gpio', 'GPIO0', undefined, range(0, 0, 0, 5));
-		const pinWithSameMapping = new PinMapping('ODM_GPIO0', 'Gpio', 'GPIO0', undefined, range(0, 0, 0, 5));
-		const sourcePin = new PinMapping('GPIO0', 'Gpio', undefined, 0, range(0, 0, 0, 5));
+		// Name, Type, Mapping, AppManifestValue, range
+		const indirectPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'LED_GPIO0', type: 'Gpio', mapping: 'GPIO0' });
+		const pinWithSameMapping = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'ODM_GPIO0', type: 'Gpio', mapping: 'GPIO0' });
+		const sourcePin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'GPIO0', type: 'Gpio', appManifestValue: 0 });
 
 		const hwDefFilePathWithIndirectPin = 'my_app/hardwareDef.json';
 		const hwDefFilePathFalseImported = 'my_app/odm.json';
@@ -27,15 +28,15 @@ suite('validateNamesAndMappings', () => {
 		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefWithIndirectPin, true);
 		const actualDiagnostic = warningDiagnostics[0];
 
-		assert.strictEqual(actualDiagnostic.message, indirectPin.mapping + ' is indirectly imported from ' + URI.parse(hwDefWithSourcePin.uri).fsPath + '.');
+		assert.strictEqual(actualDiagnostic.message, indirectPin.mapping?.value.text + ' is indirectly imported from ' + URI.parse(hwDefWithSourcePin.uri).fsPath + '.');
 		assert.deepStrictEqual(actualDiagnostic.range, indirectPin.range);
 		assert.strictEqual(actualDiagnostic.severity, 2);
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 	});
 
 	test('Validate Duplicate Names', () => {
-		const validPin = new PinMapping('LED', 'Gpio', undefined, 0, range(0, 0, 0, 5));
-		const pinWithDuplicateName = new PinMapping(validPin.name, 'Gpio', undefined, 1, range(1, 2, 1, 8));
+		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'LED', type: 'Gpio', appManifestValue: 0 });
+		const pinWithDuplicateName = getDummyPinMapping({ range: getRange(1, 2, 1, 8), name: validPin.name.value.text, type: 'Gpio', appManifestValue: 1});
 
 		const hwDefFilePath = 'my_app/hardwareDef.json';
 		const hwDefinitionWithDuplicateNames = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, pinWithDuplicateName]);
@@ -43,7 +44,7 @@ suite('validateNamesAndMappings', () => {
 		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionWithDuplicateNames, true);
 		const actualDiagnostic = warningDiagnostics[0];
 
-		assert.strictEqual(actualDiagnostic.message, pinWithDuplicateName.name + ' is already used by another pin mapping');
+		assert.strictEqual(actualDiagnostic.message, pinWithDuplicateName.name.value.text + ' is already used by another pin mapping');
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
 		assert.strictEqual(actualDiagnostic.severity, 1);
 		assert.strictEqual(actualDiagnostic.source, 'az sphere');
@@ -55,11 +56,11 @@ suite('validateNamesAndMappings', () => {
 	test('Validate Non-existent Mappings', () => {
 		const existingMapping = "GPIO0";
 
-		const importedPin = new PinMapping(existingMapping, 'Gpio', undefined, 0, anyRange());
-		const validPin = new PinMapping('LED', 'Gpio', existingMapping, undefined, anyRange());
+		const importedPin = getDummyPinMapping({ name: existingMapping, type: 'Gpio', appManifestValue: 0});
+		const validPin = getDummyPinMapping({ name: 'LED', type: 'Gpio', mapping: existingMapping });
 
 		const nonExistentMapping = "GPIO28";
-		const pinWithInvalidMapping = new PinMapping('BUTTON', 'Gpio', nonExistentMapping, undefined, range(1, 2, 1, 8));
+		const pinWithInvalidMapping = getDummyPinMapping({ range: getRange(1, 2, 1, 8), name: 'BUTTON', type: 'Gpio', mapping: nonExistentMapping });
 
 
 		const importedHwDefinition = new HardwareDefinition(asURI('my_app/mt3620.json'), undefined, [importedPin]);
@@ -75,8 +76,8 @@ suite('validateNamesAndMappings', () => {
 	});
 
 	test('Includes Related Information in Diagnostic Message if "includeRelatedInfo" = false', () => {
-		const validPin = new PinMapping('LED', 'Gpio', undefined, 0, range(0, 0, 0, 5));
-		const pinWithDuplicateName = new PinMapping(validPin.name, 'Gpio', undefined, 1, range(1, 2, 1, 8));
+		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'LED', type: 'Gpio', appManifestValue: 0 });
+		const pinWithDuplicateName = getDummyPinMapping({ range: getRange(1, 2, 1, 8), name: validPin.name.value.text, type: 'Gpio', appManifestValue: 1 });
 		const hwDefFilePath = 'my_app/hardwareDef.json';
 		const hwDefinitionWithDuplicateNames = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, pinWithDuplicateName]);
 
@@ -86,7 +87,7 @@ suite('validateNamesAndMappings', () => {
 		// we expect line and char to be incremented by 1 since we start counting lines from 1 in text files (not 0)
 		const relatedInfoStartLine = validPin.range.start.line + 1;
 		const relatedInfoStartChar = validPin.range.start.character + 1;
-		const baseMessage = `${pinWithDuplicateName.name} is already used by another pin mapping`;
+		const baseMessage = `${pinWithDuplicateName.name.value.text} is already used by another pin mapping`;
 		const expectedMessage = `${baseMessage} (line ${relatedInfoStartLine}, char ${relatedInfoStartChar})`;
 		assert.strictEqual(actualDiagnostic.message, expectedMessage);
 		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);

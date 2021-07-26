@@ -16,7 +16,7 @@ export const QUICKFIX_PINBLCOK_MSG = 'configured as';
 export function findPinMappingRange(warnPosition:Position, hwDefinition: HardwareDefinition): PinMapping | undefined{
   let pinMappingToComplete;
   for (const pinMapping of hwDefinition.pinMappings) {
-    if (pinMapping.mappingPropertyRange && isInsideRange(warnPosition, pinMapping.range)) {
+    if (pinMapping.mapping?.value.range && isInsideRange(warnPosition, pinMapping.range)) {
       pinMappingToComplete = pinMapping;
       break;
     }
@@ -26,7 +26,7 @@ export function findPinMappingRange(warnPosition:Position, hwDefinition: Hardwar
 
 
 export function findWarningCodeAction(codeActions: CodeAction[], warningTitle: string, diag: Diagnostic, parms: CodeActionParams, pinMappingToComplete: PinMapping): void{
-  if(!pinMappingToComplete || !pinMappingToComplete.mappingPropertyRange){
+  if(!pinMappingToComplete || !pinMappingToComplete.mapping?.value.range){
     return;
   }
   codeActions.push({
@@ -36,7 +36,7 @@ export function findWarningCodeAction(codeActions: CodeAction[], warningTitle: s
     edit: {
       changes: {
         [parms.textDocument.uri]: [{
-          range: pinMappingToComplete.mappingPropertyRange,  newText: `""`
+          range: pinMappingToComplete.mapping.value.range,  newText: `""`
         }]
       }
     }
@@ -60,7 +60,7 @@ export function quickfix(hwDefinition: HardwareDefinition, parms: CodeActionPara
     const codeActions: CodeAction[] = [];
     diagnostics.forEach((diag) => {
       const pinMappingToComplete = findPinMappingRange(diag.range.start,hwDefinition);
-      if(!pinMappingToComplete || !pinMappingToComplete.mappingPropertyRange){
+      if(!pinMappingToComplete || !pinMappingToComplete.mapping){
         return [];
       }
 

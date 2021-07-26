@@ -33,7 +33,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
-import { HardwareDefinition, PinMapping, MyPinMapping, UnknownImport, toRange } from './hardwareDefinition';
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
 import * as jsonc from 'jsonc-parser';
 import { readFile } from "fs/promises";
 
@@ -380,7 +380,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
 
 
     
-    const myPinMappings: MyPinMapping[] = [];
+    const pinMappings: PinMapping[] = [];
     
     for (let i = 0; i < Peripherals.length; i++) {
       const { Name, Type, Mapping, AppManifestValue } = Peripherals[i];
@@ -409,7 +409,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
           }
         });
 
-        myPinMappings.push(new MyPinMapping(
+        pinMappings.push(new PinMapping(
           range,
           values.get('name'),
           values.get('type'),
@@ -419,34 +419,7 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
         ));
       }
     }
-
-
-
-
-
-    const pinMappings: PinMapping[] = [];
-
-    if (Array.isArray(Peripherals)) {
-      for (let i = 0; i < Peripherals.length; i++) {
-        const { Name, Type, Mapping, AppManifestValue, Comment } = Peripherals[i];
-        const hasMappingOrAppManifestValue = typeof Mapping == "string" || typeof AppManifestValue == "string" || typeof AppManifestValue == "number";
-        const isPinMapping = typeof Name == "string" && typeof Type == "string" && hasMappingOrAppManifestValue;
-        if (isPinMapping) {
-          const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
-          const start = mappingAsJsonNode?.offset;
-          const end = start + mappingAsJsonNode?.length;
-          const pinMapping = new PinMapping(Name, Type, Mapping, AppManifestValue, toRange(hwDefinitionFileText, start, end), Comment);
-
-          const mappingPropertyNode = jsonc.findNodeAtLocation(mappingAsJsonNode, ["Mapping"]);
-          if (mappingPropertyNode) {
-            const mappingPropertyStart = mappingPropertyNode.offset;
-            const mappingPropertyEnd = mappingPropertyStart + mappingPropertyNode.length;
-            pinMapping.mappingPropertyRange = toRange(hwDefinitionFileText, mappingPropertyStart, mappingPropertyEnd);
-          }
-          pinMappings.push(pinMapping);
-        }
-      }
-    }
+    
     return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports);
   } catch (error) {
     connection.console.log("Cannot parse Hardware Definition file as JSON");

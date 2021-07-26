@@ -22,40 +22,14 @@ export type PinMappingKey<T> = {
 	}
 }
 
-export class MyPinMapping {
+export class PinMapping {
 	constructor(
 		public range: Range,
 		public name: PinMappingKey<string>,
 		public type: PinMappingKey<string>,
-		public mapping: PinMappingKey<string>,
-		public appManifestValue: PinMappingKey<string | number>,
-		public comment: PinMappingKey<string>
-	) { }
-
-	/**
-	 * 
-	 * @returns true if the pin mapping is at the root hardware definition (usually mt3620.json) 
-	 * i.e. has an AppManifestValue property
-	 */
-	public isRootMapping(): boolean {
-		return this.appManifestValue != undefined;
-	}
-}
-
-export class PinMapping {
-
-	/**
-	 * Range of the "Mapping" property value in the pin mapping
-	 */
-	mappingPropertyRange: Range | undefined;
-
-	constructor(
-		public name: string,
-		public type: string,
-		public mapping: string | undefined,
-		public appManifestValue: number | string | undefined,
-		public range: Range,
-		public comment: string | undefined = undefined,
+		public mapping?: PinMappingKey<string>,
+		public appManifestValue?: PinMappingKey<string | number>,
+		public comment?: PinMappingKey<string>
 	) { }
 
 	/**
