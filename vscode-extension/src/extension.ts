@@ -66,9 +66,14 @@ export function activate(context: ExtensionContext) {
 
       const hwDefinitions = getAvailableHwDefinitions();
 
-      const quickPickItems = hwDefinitions.map(value => value.name);
-      quickPickItems.push('Open new');
-
+      const quickPickItems = hwDefinitions.map(value => { 
+        return {
+          label: value.name,
+          detail: value.filePath
+        };
+      });
+      quickPickItems.push({ label: 'Open new', detail: '' });
+      
       window.showQuickPick(quickPickItems)
         .then(chosenItem => {
           if (chosenItem == quickPickItems[quickPickItems.length - 1]) {
