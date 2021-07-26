@@ -64,7 +64,7 @@ suite("pinMappingCompletionItemsAtPosition", () => {
 
     const caretPosition: Position = { line: 0, character: 6 };
     // const pinWithEmptyMapping = new PinMapping("LED", "Gpio", "", undefined, anyRange());
-    const pinWithEmptyMapping = getDummyPinMapping({ range: getRange(), name: "LED", type: "Gpio", mapping: { value: { range: getRange(0, 5, 0, 7), text: "" }} });
+    const pinWithEmptyMapping = getDummyPinMapping({ range: getRange(), name: "LED", type: "Gpio", mapping: { value: { range: getRange(0, 5, 0, 7), text: "" } } });
     const hwDefinitionFile = new HardwareDefinition(asURI("hardwareDef.json"), undefined, [pinWithEmptyMapping], [importedhwDefinition]);
 
     const actualSuggestions = pinMappingCompletionItemsAtPosition(hwDefinitionFile, caretPosition);

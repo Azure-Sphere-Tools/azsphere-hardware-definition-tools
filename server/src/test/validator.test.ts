@@ -12,7 +12,6 @@ import { validateNamesAndMappings, validatePinBlock } from '../validator';
 suite('validateNamesAndMappings', () => {
 
 	test('Validate Indirect Mapping', () => {
-		// Name, Type, Mapping, AppManifestValue, range
 		const indirectPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'LED_GPIO0', type: 'Gpio', mapping: 'GPIO0' });
 		const pinWithSameMapping = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'ODM_GPIO0', type: 'Gpio', mapping: 'GPIO0' });
 		const sourcePin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'GPIO0', type: 'Gpio', appManifestValue: 0 });
@@ -36,7 +35,7 @@ suite('validateNamesAndMappings', () => {
 
 	test('Validate Duplicate Names', () => {
 		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'LED', type: 'Gpio', appManifestValue: 0 });
-		const pinWithDuplicateName = getDummyPinMapping({ range: getRange(1, 2, 1, 8), name: validPin.name.value.text, type: 'Gpio', appManifestValue: 1});
+		const pinWithDuplicateName = getDummyPinMapping({ range: getRange(1, 2, 1, 8), name: validPin.name.value.text, type: 'Gpio', appManifestValue: 1 });
 
 		const hwDefFilePath = 'my_app/hardwareDef.json';
 		const hwDefinitionWithDuplicateNames = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, pinWithDuplicateName]);
@@ -56,7 +55,7 @@ suite('validateNamesAndMappings', () => {
 	test('Validate Non-existent Mappings', () => {
 		const existingMapping = "GPIO0";
 
-		const importedPin = getDummyPinMapping({ name: existingMapping, type: 'Gpio', appManifestValue: 0});
+		const importedPin = getDummyPinMapping({ name: existingMapping, type: 'Gpio', appManifestValue: 0 });
 		const validPin = getDummyPinMapping({ name: 'LED', type: 'Gpio', mapping: existingMapping });
 
 		const nonExistentMapping = "GPIO28";

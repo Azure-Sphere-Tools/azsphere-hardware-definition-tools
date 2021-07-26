@@ -11,7 +11,7 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
     allPinMappings = allPinMappings.concat(imported.pinMappings);
   }
   const usedPinNames = new Set(hwDefinition.pinMappings.map((p) => p.mapping?.value.text));
-  const invalidPinMappings: Set<PinMapping> = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
+  const invalidPinMappings = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
     const validPins = !invalidPinMappings.has(pinMapping) && !usedPinNames.has(pinMapping.name.value.text);
@@ -31,13 +31,13 @@ export function pinMappingCompletionItemsAtPosition(hwDefinition: HardwareDefini
   let caretIsInsidePinMapping = false;
   let pinMappingToComplete = undefined;
   for (const pinMapping of hwDefinition.pinMappings) {
-    if (pinMapping.mapping?.value.range && isInsideRange(caretPosition, pinMapping.mapping.value.range)) {
+    if (pinMapping.mapping && isInsideRange(caretPosition, pinMapping.mapping.value.range)) {
       caretIsInsidePinMapping = true;
       pinMappingToComplete = pinMapping;
       break;
     }
   }
-  if (!caretIsInsidePinMapping || !pinMappingToComplete?.mapping?.value.range) {
+  if (!caretIsInsidePinMapping || !pinMappingToComplete?.mapping) {
     return [];
   }
   for (const validPinMapping of getPinMappingSuggestions(hwDefinition, pinMappingToComplete.type.value.text)) {

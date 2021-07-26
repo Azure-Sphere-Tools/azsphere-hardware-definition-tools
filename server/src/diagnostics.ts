@@ -150,7 +150,7 @@ export function invalidPinTypeError(pinMapping: PinMapping, hwDefinitionUri: str
 export function pinBlockConflictWarning(badMapping: PinMapping, existingMapping: PinMapping, hwDefinitionUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: PIN_BLOCK_CONFLICT_WARNING_CODE,
-    message: `${badMapping.name.value.text} configured as ${existingMapping?.type.value.text} by ${existingMapping.name.value.text}`,
+    message: `${badMapping.name.value.text} configured as ${existingMapping.type.value.text} by ${existingMapping.name.value.text}`,
     range: badMapping.range,
     severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE
@@ -162,7 +162,7 @@ export function pinBlockConflictWarning(badMapping: PinMapping, existingMapping:
           uri: hwDefinitionUri,
           range: badMapping.range
         },
-        message: `Pin block configured as ${existingMapping?.type.value.text}`
+        message: `Pin block configured as ${existingMapping.type.value.text}`
       }
     ];
   } else {
