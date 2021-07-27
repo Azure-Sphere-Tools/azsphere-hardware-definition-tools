@@ -10,20 +10,26 @@ export class HardwareDefinition {
 	) { }
 }
 
+export type PinMappingKey<T> = {
+	range: Range,
+	key: {
+		range: Range,
+		text: T
+	},
+	value: {
+		range: Range,
+		text: T
+	}
+}
+
 export class PinMapping {
-
-	/**
-	 * Range of the "Mapping" property value in the pin mapping
-	 */
-	mappingPropertyRange: Range | undefined;
-
 	constructor(
-		public name: string,
-		public type: string,
-		public mapping: string | undefined,
-		public appManifestValue: number | string | undefined,
 		public range: Range,
-		public comment: string | undefined = undefined,
+		public name: PinMappingKey<string>,
+		public type: PinMappingKey<string>,
+		public mapping?: PinMappingKey<string>,
+		public appManifestValue?: PinMappingKey<string | number>,
+		public comment?: PinMappingKey<string>
 	) { }
 
 	/**

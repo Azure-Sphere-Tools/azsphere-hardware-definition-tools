@@ -10,17 +10,17 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
   for (const imported of hwDefinition.imports) {
     allPinMappings = allPinMappings.concat(imported.pinMappings);
   }
-  const usedPinNames = new Set(hwDefinition.pinMappings.map((p) => p.mapping));
-  const invalidPinMappings: Set<PinMapping> = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
+  const usedPinNames = new Set(hwDefinition.pinMappings.map((p) => p.mapping?.value.text));
+  const invalidPinMappings = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
-    const validPins = !invalidPinMappings.has(pinMapping) && !usedPinNames.has(pinMapping.name);
-    if (pinType && pinMapping.type == pinType && validPins) {
-      validPinMappings.push(pinMapping.name);
+    const validPins = !invalidPinMappings.has(pinMapping) && !usedPinNames.has(pinMapping.name.value.text);
+    if (pinType && pinMapping.type.value.text == pinType && validPins) {
+      validPinMappings.push(pinMapping.name.value.text);
     }
 
     if (!pinType && validPins) {
-      validPinMappings.push(pinMapping.name);
+      validPinMappings.push(pinMapping.name.value.text);
     }
   }
   return validPinMappings;
@@ -31,22 +31,22 @@ export function pinMappingCompletionItemsAtPosition(hwDefinition: HardwareDefini
   let caretIsInsidePinMapping = false;
   let pinMappingToComplete = undefined;
   for (const pinMapping of hwDefinition.pinMappings) {
-    if (pinMapping.mappingPropertyRange && isInsideRange(caretPosition, pinMapping.mappingPropertyRange)) {
+    if (pinMapping.mapping && isInsideRange(caretPosition, pinMapping.mapping.value.range)) {
       caretIsInsidePinMapping = true;
       pinMappingToComplete = pinMapping;
       break;
     }
   }
-  if (!caretIsInsidePinMapping || !pinMappingToComplete?.mappingPropertyRange) {
+  if (!caretIsInsidePinMapping || !pinMappingToComplete?.mapping) {
     return [];
   }
-  for (const validPinMapping of getPinMappingSuggestions(hwDefinition, pinMappingToComplete.type)) {
+  for (const validPinMapping of getPinMappingSuggestions(hwDefinition, pinMappingToComplete.type.value.text)) {
     validPinMappings.push({
       label: `"${validPinMapping}"`,
       kind: CompletionItemKind.Value,
       preselect: true,
       textEdit: {
-        range: pinMappingToComplete.mappingPropertyRange,
+        range: pinMappingToComplete.mapping.value.range,
         newText: `"${validPinMapping}"`,
       },
     });

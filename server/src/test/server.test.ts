@@ -37,9 +37,9 @@ suite("tryParseHardwareDefinitionFile", () => {
         const expectedPin = pins[i];
         const actualPin = actualPins[i];
 
-        assert.strictEqual(actualPin.name, expectedPin.name);
-        assert.strictEqual(actualPin.type, expectedPin.type);
-        assert.strictEqual(actualPin.appManifestValue, expectedPin.appManifestValue);
+        assert.strictEqual(actualPin.name.value.text, expectedPin.name);
+        assert.strictEqual(actualPin.type.value.text, expectedPin.type);
+        assert.strictEqual(actualPin.appManifestValue?.value.text, expectedPin.appManifestValue);
       }
     } else {
       assert.fail("Parsed Hardware Definition was undefined");
@@ -85,9 +85,9 @@ suite("tryParseHardwareDefinitionFile", () => {
         const expectedPin = pins[i];
         const actualPin = actualPins[i];
 
-        assert.strictEqual(actualPin.name, expectedPin.name);
-        assert.strictEqual(actualPin.type, expectedPin.type);
-        assert.strictEqual(actualPin.mapping, expectedPin.mapping);
+        assert.strictEqual(actualPin.name.value.text, expectedPin.name);
+        assert.strictEqual(actualPin.type.value.text, expectedPin.type);
+        assert.strictEqual(actualPin.mapping?.value.text, expectedPin.mapping);
       }
 
       // check imports
@@ -99,8 +99,8 @@ suite("tryParseHardwareDefinitionFile", () => {
         const importedPin = importedPins[i];
         const actualPin = actualPins[i];
 
-        assert.strictEqual(actualPin.mapping, importedPin.name);
-        assert.strictEqual(actualPin.type, importedPin.type);
+        assert.strictEqual(actualPin.mapping?.value.text, importedPin.name.value.text);
+        assert.strictEqual(actualPin.type.value.text, importedPin.type.value.text);
       }
     }
   });

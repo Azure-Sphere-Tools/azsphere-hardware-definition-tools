@@ -29,13 +29,13 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 		recursiveFindDuplicateNames(importedHwDefinition, reservedNames);
 	}
 	for (const mapping of hwDefinition.pinMappings) {
-		const existingMapping = reservedNames.get(mapping.name);
+		const existingMapping = reservedNames.get(mapping.name.value.text);
 		if (existingMapping) {
 			const diagnostic: Diagnostic = duplicateNameError(mapping, hwDefinition.uri, existingMapping.pinMapping, existingMapping.hardwareDefinitionUri, includeRelatedInfo);
 			warningDiagnostics.push(diagnostic);
 		} else {
-			if (!mapping.isRootMapping()) {
-				const mappedTo = <string>mapping.mapping;
+			if (!mapping.isRootMapping() && mapping.mapping) {
+				const mappedTo = mapping.mapping.value.text;
 				const mappedToPin = reservedNames.get(mappedTo);
 				if (!mappedToPin) {
 					const diagnostic: Diagnostic = nonexistentMappingError(mapping, mappedTo);
@@ -54,7 +54,7 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 					}
 				}
 			}
-			reservedNames.set(mapping.name, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
+			reservedNames.set(mapping.name.value.text, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
 		}
 	}
 	return warningDiagnostics;
@@ -65,20 +65,19 @@ function recursiveFindDuplicateNames(hwDefinition: HardwareDefinition, reservedN
 		recursiveFindDuplicateNames(importedHwDefinition, reservedNames);
 	}
 	for (const mapping of hwDefinition.pinMappings) {
-		if (reservedNames.has(mapping.name)) {
+		if (reservedNames.has(mapping.name.value.text)) {
 			continue;
 		}
-		reservedNames.set(mapping.name, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
+		reservedNames.set(mapping.name.value.text, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
 	}
 }
 
 export function findDuplicateMappings(hwDefinition: HardwareDefinition, text: string, textDocument: TextDocument, includeRelatedInfo: boolean): Diagnostic[] {
 	const nodes: Map<string, [integer, integer, integer]> = new Map();
 
-
 	const diagnostics: Diagnostic[] = [];
 	for (const mapping of hwDefinition.pinMappings) {
-		const mappedTo = mapping.mapping;
+		const mappedTo = mapping.mapping?.value.text;
 		if (!mappedTo) {
 			continue;
 		}
@@ -160,16 +159,20 @@ function getAppManifestValue(name: string, hwDefinitions: HardwareDefinition[]):
 	let definition: HardwareDefinition | undefined;
 
 	for (definition of hwDefinitions) {
-		mapping = definition.pinMappings.find(_ => _.name == name);
+		mapping = definition.pinMappings.find(_ => _.name.value.text == name);
 
 		if (mapping != undefined)
 			break;
 	}
 
 	if (mapping != undefined && definition != undefined) {
-		return (mapping.appManifestValue != undefined)
-			? mapping.appManifestValue
-			: getAppManifestValue(mapping.mapping || "", definition.imports);
+		if (mapping.appManifestValue != undefined) {
+			return mapping.appManifestValue.value.text;
+		}
+
+		if (mapping.mapping != undefined) {
+			return getAppManifestValue(mapping.mapping.value.text, definition.imports);
+		}
 	}
 
 	return undefined;
@@ -206,10 +209,10 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 	const controllerSetup: Map<string, PinMapping> = new Map();
 
 	for (const pinMapping of hwDefinition.pinMappings) {
-		const appManifestValue = getAppManifestValue(pinMapping.name, [hwDefinition]);
+		const appManifestValue = getAppManifestValue(pinMapping.name.value.text, [hwDefinition]);
 
 		if (appManifestValue != undefined) {
-			const controller = getController(pinMapping.type, appManifestValue);
+			const controller = getController(pinMapping.type.value.text, appManifestValue);
 
 			if (controller == undefined) {
 				const diagnostic: Diagnostic = invalidPinTypeError(pinMapping, hwDefinition.uri, includeRelatedInfo);
@@ -218,7 +221,7 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 				const existingControllerSetup = controllerSetup.get(controller.name);
 
 				if (existingControllerSetup != undefined &&
-					existingControllerSetup?.type != pinMapping.type) {
+					existingControllerSetup?.type.value.text != pinMapping.type.value.text) {
 					const diagnostic: Diagnostic = pinBlockConflictWarning(pinMapping, existingControllerSetup, hwDefinition.uri, includeRelatedInfo);
 					warningDiagnostics.push(diagnostic);
 				}
