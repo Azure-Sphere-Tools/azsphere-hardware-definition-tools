@@ -16,20 +16,37 @@
       {
           "Name": "MT3620_RDB_LED1_RED", 
           "Type": "Gpio", 
-          "Mapping": "MT3620_GPIO0", 
-          "Comment": "LED 1 Red channel uses GPIO0."
+          "Mapping": "MT3620_GPIO0"
       },
       {
           "Name": "MT3620_RDB_LED1_BLUE", 
           "Type": "Gpio", 
-          "Mapping": "MT3620_GPIO1", 
-          "Comment": "LED 1 BLUE channel uses GPIO1."
+          "Mapping": "MT3620_GPIO1"
       },
       {
           "Name": "MT3620_RDB_PWM_CONTROLLER0", 
           "Type": "Pwm", 
-          "Mapping": "MT3620_PWM_CONTROLLER0",
-          "Comment": "PWM CONTROLLER channel uses PWM_CONTROLLER0."
+          "Mapping": "MT3620_PWM_CONTROLLER0"
+      },
+      {
+        "Name": "MT3620_RDB_ISU0_I2C", 
+        "Type": "I2cMaster", 
+        "Mapping": "MT3620_ISU0_I2C"
+      },
+      {
+        "Name": "MT3620_RDB_ISU0_SPI", 
+        "Type": "SpiMaster", 
+        "Mapping": "MT3620_ISU0_SPI"
+      },
+      {
+        "Name": "MT3620_RDB_LED2_RED", 
+        "Type": "Gpio", 
+        "Mapping": "MT3620_GPIO5"
+      },
+      {
+        "Name": "MT3620_RDB_LED2_BLUE", 
+        "Type": "Gpio", 
+        "Mapping": "MT3620_GPIO6"
       }
   ]
 }

@@ -13,17 +13,16 @@ suite('Should get diagnostics', () => {
 			{ message: 'Mapping USER_BUTTON_B is invalid. There is no imported pin mapping with that name.', range: toRange(20, 4, 24, 5), severity: vscode.DiagnosticSeverity.Error, source: 'az sphere' }
 		]);
 	});
-});
 
-suite('Pin Block Get the Diagnostrics', () => {
-	const docUri = getDocUri('pinblock.json');
-
+	const pinBlockDocUri = getDocUri('pinblock.json');
 	test('Pin Block Conflict', async () => {
-		await testDiagnostics(docUri, [
-			{ message: 'MT3620_RDB_PWM_CONTROLLER0 configured as Gpio by MT3620_RDB_LED1_BLUE', range: toRange(27, 6, 32, 7), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' }
+		await testDiagnostics(pinBlockDocUri, [
+			{ message: 'MT3620_RDB_PWM_CONTROLLER0 configured as Gpio by MT3620_RDB_LED1_BLUE', range: toRange(25, 6, 29, 7), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' },
+			{ message: 'MT3620_RDB_ISU0_SPI configured as I2cMaster by MT3620_RDB_ISU0_I2C', range: toRange(35, 6, 39, 7), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' }
 		]);
 	});
 });
+
 
 function toRange(sLine: number, sChar: number, eLine: number, eChar: number) {
 	const start = new vscode.Position(sLine, sChar);
