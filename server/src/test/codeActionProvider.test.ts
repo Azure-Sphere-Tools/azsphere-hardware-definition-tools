@@ -61,7 +61,7 @@ suite("quickfix", () => {
     };
 
     const text = textDocument.getText();
-    const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinitionFile, text, textDocument, false);
+    const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinitionFile, text, textDocument, true);
     
     const params: CodeActionParams = {
       context: {diagnostics: diagnostics},
@@ -101,7 +101,8 @@ suite("quickfix", () => {
 
   
   test("Assign pin mapping to a pin on a different pin block", () => {
-		const pins = [
+
+    const pins = [
 			{ name: 'MY_LED', type: 'Gpio', mapping: 'MT3620_GPIO4' },
 			{ name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: 'MT3620_PWM_CONTROLLER1' }
 		];
@@ -131,9 +132,9 @@ suite("quickfix", () => {
 
 		const hwDefFilePath = 'my_app/odm.json';
 		const hwDefinitionFile = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
-
 		assert(hwDefinitionFile);
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);    
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);  
+    
     const params: CodeActionParams = {
       context: {diagnostics: warningDiagnostics},
       range: {
