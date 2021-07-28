@@ -82,7 +82,7 @@ const displayNewMapping = async () => {
 
       window
         .showQuickPick(pins, {
-          placeHolder: `Choose the number of ${pinTypeSelected} pins you want to add.}`,
+          placeHolder: `Choose the number of ${pinTypeSelected} pins you want to add.`,
         })
         .then(async (pinAmountSelected) => {
           if (!pinAmountSelected) {
