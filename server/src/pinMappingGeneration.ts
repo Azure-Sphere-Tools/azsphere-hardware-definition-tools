@@ -11,7 +11,8 @@ function checkHwDefinition(importedHwDef: HardwareDefinition): Set<string> {
   const Peripherals = importedHwDef.pinMappings;
 
   for (const peripheral of Peripherals) {
-    if (!pinTypes.has(peripheral.type)) pinTypes.add(peripheral.type);
+    const pinType = peripheral.type.value.text;
+    if (!pinTypes.has(pinType)) pinTypes.add(pinType);
   }
 
   return pinTypes;
