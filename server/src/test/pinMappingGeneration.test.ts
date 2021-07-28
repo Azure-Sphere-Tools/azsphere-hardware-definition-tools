@@ -6,11 +6,12 @@ import * as jsonc from "jsonc-parser";
 import * as fs from "fs";
 
 suite("pinMappingGeneration", () => {
-  const text = `{"Peripherals": [{ "Name": "TEMPLATE_LED", "Type": "Gpio", "Mapping": "SEEED_MT3620_MDB_USER_LED" }]}`;
+  const text = `{"Imports":[{ "Path": "odm.json" }],"Peripherals": [{ "Name": "TEMPLATE_LED", "Type": "Gpio", "Mapping": "SEEED_MT3620_MDB_USER_LED" }]}`;
   const obj = {
-    "my_app/odm.json": text,
+    "my_app/my_appmanifest.json": text,
+    "my_app/odm.json": `{"Peripherals": [{ "Name": "TEMPLATE_LED", "Type": "Gpio", "Mapping": "SEEED_MT3620_MDB_USER_LED2" }]}`,
   };
-  const uri = path.resolve("my_app/odm.json");
+  const uri = path.resolve("my_app/my_appmanifest.json");
 
   setup(() => {
     mockfs(obj);
