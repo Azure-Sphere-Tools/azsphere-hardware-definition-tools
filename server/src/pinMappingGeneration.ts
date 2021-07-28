@@ -40,17 +40,22 @@ export const getPinTypes = async (uri: string) => {
   const text = await getText(uri);
 
   if (text) {
-    const {
-      Imports: [{ Path }],
-    } = jsonc.parse(text);
+    try {
+      const {
+        Imports: [{ Path }],
+      } = jsonc.parse(text);
 
-    if (Path) {
-      my_appmanifest.text = text;
-      my_appmanifest.uri = uri;
+      if (Path) {
+        my_appmanifest.text = text;
+        my_appmanifest.uri = uri;
 
-      return checkHwDefinition(path.resolve(path.join(path.dirname(URI.parse(uri).fsPath)), Path));
-    } else {
-      displayErrorNotification("Import Hardware Definition not found.");
+        return checkHwDefinition(path.resolve(path.join(path.dirname(URI.parse(uri).fsPath)), Path));
+      } else {
+        displayErrorNotification(`Import Hardware Definition file path is not declared.`);
+      }
+    } catch (err) {
+      displayErrorNotification(`Import Hardware Definition not found - ${err}.`);
+      return;
     }
   }
 };
