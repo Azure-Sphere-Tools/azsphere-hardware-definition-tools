@@ -8,9 +8,9 @@ suite('Should get diagnostics', () => {
 	test('Diagnoses duplicate and non-existent mappings', async () => {
 		await testDiagnostics(docUri, [
 			{ message: '"USER_BUTTON_A" is already mapped', range: toRange(18, 6, 18, 32), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' },
-			{ message: 'Mapping USER_BUTTON_A is invalid. There is no imported pin mapping with that name.', range: toRange(10, 4, 14, 5), severity: vscode.DiagnosticSeverity.Error, source: 'az sphere' },
-			{ message: 'Mapping USER_BUTTON_A is invalid. There is no imported pin mapping with that name.', range: toRange(15, 4, 19, 5), severity: vscode.DiagnosticSeverity.Error, source: 'az sphere' },
-			{ message: 'Mapping USER_BUTTON_B is invalid. There is no imported pin mapping with that name.', range: toRange(20, 4, 24, 5), severity: vscode.DiagnosticSeverity.Error, source: 'az sphere' }
+			{ message: 'Peripheral USER_BUTTON_A not found.', range: toRange(13, 17, 13, 32), severity: vscode.DiagnosticSeverity.Error, source: 'az sphere' },
+			{ message: 'Peripheral USER_BUTTON_A not found.', range: toRange(18, 17, 18, 32), severity: vscode.DiagnosticSeverity.Error, source: 'az sphere' },
+			{ message: 'Peripheral USER_BUTTON_B not found.', range: toRange(23, 17, 23, 32), severity: vscode.DiagnosticSeverity.Error, source: 'az sphere' }
 		]);
 	});
 

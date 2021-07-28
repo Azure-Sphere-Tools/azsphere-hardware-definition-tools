@@ -12,63 +12,88 @@ const EXTENSION_SOURCE = 'az sphere';
 
 interface ReservedPinMapping {
 	pinMapping: PinMapping,
-	hardwareDefinitionUri: string
+	hardwareDefinitionUri: string,
+	used?: boolean
 }
+
 /**
  * Checks that the given Hardware Definition and its imports:
  * - Don't have pin mappings with duplicate names
  * - Don't have pin mappings which map to target mappings that don't exist
+ * - Don't have indirectly imported pin mappings 
  * @param hwDefinition The Hardware Definition to validate
  * @param includeRelatedInfo If the client IDE supports adding diagnostic related information
  * @returns Diagnostics with the Hardware Definition's underlying issues
  */
 export function validateNamesAndMappings(hwDefinition: HardwareDefinition, includeRelatedInfo: boolean): Diagnostic[] {
 	const warningDiagnostics: Diagnostic[] = [];
-	const reservedNames: Map<string, ReservedPinMapping> = new Map();
-	for (const importedHwDefinition of hwDefinition.imports) {
-		recursiveFindDuplicateNames(importedHwDefinition, reservedNames);
-	}
+	const reservedNames: Map<string, ReservedPinMapping[]> = new Map();
+	recursiveFindAllMappings(hwDefinition, reservedNames);
+
 	for (const mapping of hwDefinition.pinMappings) {
-		const existingMapping = reservedNames.get(mapping.name.value.text);
-		if (existingMapping) {
-			const diagnostic: Diagnostic = duplicateNameError(mapping, hwDefinition.uri, existingMapping.pinMapping, existingMapping.hardwareDefinitionUri, includeRelatedInfo);
-			warningDiagnostics.push(diagnostic);
-		} else {
-			if (!mapping.isRootMapping() && mapping.mapping) {
-				const mappedTo = mapping.mapping.value.text;
-				const mappedToPin = reservedNames.get(mappedTo);
-				if (!mappedToPin) {
-					const diagnostic: Diagnostic = nonexistentMappingError(mapping, mappedTo);
-					warningDiagnostics.push(diagnostic);
-				} else {
-					const mappedToPath = mappedToPin.hardwareDefinitionUri;
-					let hasIndirectImport = true;
-					for (const importedHwDefinition of hwDefinition.imports) {
-						if (mappedToPath == importedHwDefinition.uri) {
-							hasIndirectImport = false;
-						}
-					}
-					if (hasIndirectImport) {
-						const diagnostic: Diagnostic = indirectMappingWarning(mappedTo, mapping.range, mappedToPath);
-						warningDiagnostics.push(diagnostic);
-					}
-				}
+		const existingMappings = reservedNames.get(mapping.name.value.text);
+
+		if (existingMappings != undefined && existingMappings.length > 1) {
+			const conflictingMapping = existingMappings.find(value => value.pinMapping != mapping);
+
+			if (conflictingMapping != undefined) {
+				const diagnostic = duplicateNameError(
+					mapping,
+					hwDefinition.uri,
+					conflictingMapping.pinMapping,
+					conflictingMapping.hardwareDefinitionUri,
+					includeRelatedInfo
+				);
+
+				warningDiagnostics.push(diagnostic);
 			}
-			reservedNames.set(mapping.name.value.text, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
+		}
+
+		if (mapping.mapping != undefined) {
+			const mappedPeripherals = reservedNames.get(mapping.mapping.value.text);
+
+			if (mappedPeripherals == undefined) {
+				const diagnostic = nonexistentMappingError(mapping);
+				warningDiagnostics.push(diagnostic);
+			} else if (mappedPeripherals.length == 1) {
+				const firstLevelImports = hwDefinition.imports.map(hwDefinition => hwDefinition.uri);
+
+				if (mappedPeripherals[0].hardwareDefinitionUri != hwDefinition.uri &&
+					!firstLevelImports.includes(mappedPeripherals[0].hardwareDefinitionUri)) {
+					const diagnostic = indirectMappingWarning(
+						mapping,
+						mappedPeripherals[0].pinMapping,
+						mappedPeripherals[0].hardwareDefinitionUri,
+						includeRelatedInfo
+					);
+
+					warningDiagnostics.push(diagnostic);
+				}
+				const diagnostic = nonexistentMappingError(mapping);
+			} else if (mappedPeripherals.length > 1) {
+				// TODO: (DOBO) mapping to an imported peripheral with duplicate name exists
+				console.log('');
+			}
 		}
 	}
+	
 	return warningDiagnostics;
 }
 
-function recursiveFindDuplicateNames(hwDefinition: HardwareDefinition, reservedNames: Map<string, ReservedPinMapping>): void {
-	for (const importedHwDefinition of hwDefinition.imports) {
-		recursiveFindDuplicateNames(importedHwDefinition, reservedNames);
-	}
+function recursiveFindAllMappings(hwDefinition: HardwareDefinition, reservedNames: Map<string, ReservedPinMapping[]>): void {
 	for (const mapping of hwDefinition.pinMappings) {
-		if (reservedNames.has(mapping.name.value.text)) {
-			continue;
-		}
-		reservedNames.set(mapping.name.value.text, { pinMapping: mapping, hardwareDefinitionUri: hwDefinition.uri });
+		const existingValues = reservedNames.get(mapping.name.value.text) || [];
+
+		existingValues.push({ 
+			pinMapping: mapping, 
+			hardwareDefinitionUri: hwDefinition.uri 
+		});
+
+		reservedNames.set(mapping.name.value.text, existingValues);
+	}
+
+	for (const importedHwDefinition of hwDefinition.imports) {
+		recursiveFindAllMappings(importedHwDefinition, reservedNames);
 	}
 }
 

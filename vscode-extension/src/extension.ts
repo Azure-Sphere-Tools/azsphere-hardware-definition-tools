@@ -1,12 +1,12 @@
 import { homedir } from "os";
 import * as path from "path";
 import { workspace, ExtensionContext, ExtensionMode, commands, window, InputBoxOptions, QuickPickItem } from "vscode";
-import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from "vscode-languageclient/node";
+import { LanguageClient, LanguageClientOptions, ServerOptions, StreamInfo, TransportKind } from "vscode-languageclient/node";
 
 let client: LanguageClient;
 
 export function activate(context: ExtensionContext) {
-  let serverModule;
+  let serverModule: string;
   if (context.extensionMode == ExtensionMode.Development || context.extensionMode == ExtensionMode.Test) {
     // if in development/test mode, run language server directly from language server project to enable breakpoints on source code
     serverModule = context.asAbsolutePath(path.join("..", "server", "dist", "server.js"));
