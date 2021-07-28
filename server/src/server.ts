@@ -34,7 +34,7 @@ import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
-import { getPinTypes, addPinMappings, my_appmanifest } from "./pinMappingGeneration";
+import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
 
@@ -117,16 +117,19 @@ connection.onInitialized(() => {
     switch (event.command) {
       case "getAvailablePinTypes":
         if (event.arguments) {
-          const pinTypes = await getPinTypes(event.arguments[0]);
-
-          if (pinTypes) return pinTypes;
+          const hwDefUri = event.arguments[0];
+          const hwDef = await getHardwareDefinition(hwDefUri);
+          if (hwDef) {
+            const pinTypes = await getPinTypes(hwDef);
+            if (pinTypes) return pinTypes;
+          }
         }
         break;
       case "getAvailablePins":
         if (event.arguments) {
-          const [pinTypeSelected] = event.arguments;
-          const hwDefinition = await checkCurrentHwDefinition();
-          console.log(hwDefinition);
+          const [hwDefUri, pinTypeSelected] = event.arguments;
+          
+          const hwDefinition = await getHardwareDefinition(hwDefUri);
 
           if (hwDefinition && pinTypeSelected) {
             return getPinMappingSuggestions(hwDefinition, pinTypeSelected);
@@ -135,8 +138,8 @@ connection.onInitialized(() => {
         break;
       case "postPinAmountToGenerate":
         if (event.arguments) {
-          const [pinsToAdd, pinType] = event.arguments;
-          addPinMappings(pinsToAdd, pinType);
+          const [hwDefUri, pinsToAdd, pinType] = event.arguments;
+          addPinMappings(pinsToAdd, pinType, hwDefUri, await getFileText(hwDefUri));
         }
         break;
       default:
@@ -197,16 +200,18 @@ function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
   return result;
 }
 
-export const getText = async (uri: string) => {
-  const currentFilePath = URI.parse(uri).fsPath;
-  return await readFile(currentFilePath, "utf8");
-};
+async function getHardwareDefinition(hwDefUri: any): Promise<HardwareDefinition | undefined> {
+  const settings = await getDocumentSettings(hwDefUri);
 
-const checkCurrentHwDefinition = async (): Promise<HardwareDefinition | undefined> => {
-  const { text, uri } = my_appmanifest;
-  const settings = await getDocumentSettings(uri);
-  return tryParseHardwareDefinitionFile(text, uri, settings.SdkPath);
-};
+  try {
+    const hwDefText = await getFileText(hwDefUri);
+    const hwDef = tryParseHardwareDefinitionFile(hwDefText, hwDefUri, settings.SdkPath);
+    return hwDef;    
+  } catch (e) {
+    connection.console.error(`Failed to get hw definition file ${hwDefUri} - ${e}`);
+    return;
+  }
+}
 
 export const displayErrorNotification = (message: string) => {
   const msg: ShowMessageParams = {
@@ -439,12 +444,7 @@ const setSettingPath = (ide: string | undefined) => {
 connection.onCodeAction(provideCodeActions);
 async function provideCodeActions(parms: CodeActionParams): Promise<CodeAction[]> {
   const hwDefinitionFileUri = parms.textDocument.uri;
-  let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
-  if (!hwDefFileText) {
-    hwDefFileText = fs.readFileSync(URI.file(hwDefinitionFileUri).fsPath, { encoding: "utf8" });
-  }
-  const sdkPath = (await getDocumentSettings(hwDefinitionFileUri)).SdkPath;
-  const hwDefinition = tryParseHardwareDefinitionFile(hwDefFileText, hwDefinitionFileUri, sdkPath);
+  const hwDefinition = await getHardwareDefinition(hwDefinitionFileUri);
   if (!hwDefinition) {
     return [];
   }
@@ -453,14 +453,8 @@ async function provideCodeActions(parms: CodeActionParams): Promise<CodeAction[]
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
   const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
-  let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
-  if (!hwDefFileText) {
-    hwDefFileText = fs.readFileSync(URI.file(hwDefinitionFileUri).fsPath, { encoding: "utf8" });
-  }
 
-  const sdkPath = (await getDocumentSettings(hwDefinitionFileUri)).SdkPath;
-
-  const hwDefinition = tryParseHardwareDefinitionFile(hwDefFileText, hwDefinitionFileUri, sdkPath);
+  const hwDefinition = await getHardwareDefinition(hwDefinitionFileUri);
   if (!hwDefinition) {
     return [];
   }
@@ -475,6 +469,15 @@ connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams)
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
+
+
+async function getFileText(uri: string): Promise<string> {
+  let fileText = documents.get(uri)?.getText();
+  if (!fileText) {
+    fileText = await readFile(URI.parse(uri).fsPath, { encoding: "utf8" });
+  }
+  return fileText;
+}
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

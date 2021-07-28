@@ -1,71 +1,46 @@
-import { readFile, writeFile } from "fs/promises";
+import { writeFile } from "fs/promises";
 import * as jsonc from "jsonc-parser";
-import path = require("path");
 import { URI } from "vscode-uri";
-import { displayErrorNotification, getText } from "./server";
+import { HardwareDefinition } from "./hardwareDefinition";
+import { displayErrorNotification } from "./server";
 
-export const my_appmanifest = { text: "", uri: "" };
+function checkHwDefinition(importedHwDef: HardwareDefinition): Set<string> {
 
-const checkHwDefinition = async (Path: string): Promise<string[] | undefined> => {
-  if (!Path.endsWith(".json")) {
-    displayErrorNotification("The current file is not a valid Hardware Definition (Must be a JSON file).");
-    return;
+  const pinTypes = new Set<string>();
+
+  const Peripherals = importedHwDef.pinMappings;
+
+  for (const peripheral of Peripherals) {
+    if (!pinTypes.has(peripheral.type)) pinTypes.add(peripheral.type);
   }
-  const text = await getText(Path).catch((err) => {
-    displayErrorNotification(`The Hardware Definition you are trying to import does not exist (Check its file path) - ${err}`);
-    return;
-  });
-  const pinTypes: string[] = [];
 
-  if (text) {
-    const { Peripherals } = jsonc.parse(text);
+  return pinTypes;
+}
 
-    if (Peripherals) {
-      for (const peripheral of Peripherals) {
-        const { Type } = peripheral;
-        if (!pinTypes.includes(Type)) pinTypes.push(Type);
+export async function getPinTypes(hwDefinition: HardwareDefinition): Promise<string[] | undefined> {
+
+  try {
+    if (hwDefinition.imports.length > 0) {
+      const pinTypes = new Set<string>();
+      for (const hwDefImport of hwDefinition.imports) {
+        const pinTypesInImport = checkHwDefinition(hwDefImport);
+        pinTypesInImport.forEach(p => pinTypes.add(p));
       }
-
-      return pinTypes;
+      return Array.from(pinTypes);
     } else {
-      displayErrorNotification("The imported Hardware Definition does not have any pins defined.");
+      displayErrorNotification(`Hardware Definition file does not have any imports to generate pins from.`);
     }
-  } else {
-    displayErrorNotification("Error parsing current odm.json file.");
+  } catch (err) {
+    displayErrorNotification(`Import Hardware Definition not found - ${err}.`);
     return;
   }
-};
+}
 
-export const getPinTypes = async (uri: string) => {
-  const text = await getText(uri);
-
-  if (text) {
-    try {
-      const {
-        Imports: [{ Path }],
-      } = jsonc.parse(text);
-
-      if (Path) {
-        my_appmanifest.text = text;
-        my_appmanifest.uri = uri;
-
-        return checkHwDefinition(path.resolve(path.join(path.dirname(URI.parse(uri).fsPath)), Path));
-      } else {
-        displayErrorNotification(`Import Hardware Definition file path is not declared.`);
-      }
-    } catch (err) {
-      displayErrorNotification(`Import Hardware Definition not found - ${err}.`);
-      return;
-    }
-  }
-};
-
-export const addPinMappings = async (pinsToAdd: string[], pinType: string, testCurrentFile?: any) => {
+export const addPinMappings = async (pinsToAdd: string[], pinType: string, hwDefUri: string, hwDefText: string) => {
   // Use currentFile passed by the test
-  const { text, uri } = testCurrentFile ?? my_appmanifest;
 
-  if (text && uri && pinsToAdd && pinType) {
-    const { Peripherals } = jsonc.parse(text);
+  if (pinsToAdd && pinType) {
+    const { Peripherals } = jsonc.parse(hwDefText);
 
     if (Peripherals) {
       pinsToAdd.forEach((pin) =>
@@ -77,11 +52,11 @@ export const addPinMappings = async (pinsToAdd: string[], pinType: string, testC
       );
     }
 
-    const edits = jsonc.modify(text, ["Peripherals"], Peripherals, { formattingOptions: { insertSpaces: true } });
+    const edits = jsonc.modify(hwDefText, ["Peripherals"], Peripherals, { formattingOptions: { insertSpaces: true } });
     try {
-      await writeFile(uri, jsonc.applyEdits(text, edits));
+      await writeFile(URI.parse(hwDefUri).fsPath, jsonc.applyEdits(hwDefText, edits));
     } catch (err) {
-      displayErrorNotification(`Failed to add new pin mappings to ${uri} - ${err}.`);
+      displayErrorNotification(`Failed to add new pin mappings to ${hwDefUri} - ${err}.`);
     }
   }
 };
