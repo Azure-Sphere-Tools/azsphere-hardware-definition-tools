@@ -34,8 +34,9 @@ import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
-import { getPinTypes, addPinMappings, currentFile } from "./pinMappingGeneration";
+import { getPinTypes, addPinMappings, my_appmanifest } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
+import { readFile } from "fs/promises";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -123,9 +124,9 @@ connection.onInitialized(() => {
         break;
       case "getAvailablePins":
         if (event.arguments) {
-          const [uri, pinTypeSelected] = event.arguments;
-
-          const hwDefinition = await checkCurrentHwDefinition(uri);
+          const [pinTypeSelected] = event.arguments;
+          const hwDefinition = await checkCurrentHwDefinition();
+          console.log(hwDefinition);
 
           if (hwDefinition && pinTypeSelected) {
             return getPinMappingSuggestions(hwDefinition, pinTypeSelected);
@@ -196,9 +197,15 @@ function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
   return result;
 }
 
-const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition | undefined> => {
+export const getText = async (uri: string) => {
+  const currentFilePath = URI.parse(uri).fsPath;
+  return await readFile(currentFilePath, "utf8");
+};
+
+const checkCurrentHwDefinition = async (): Promise<HardwareDefinition | undefined> => {
+  const { text, uri } = my_appmanifest;
   const settings = await getDocumentSettings(uri);
-  return tryParseHardwareDefinitionFile(currentFile.text, uri, settings.SdkPath);
+  return tryParseHardwareDefinitionFile(text, uri, settings.SdkPath);
 };
 
 export const displayErrorNotification = (message: string) => {

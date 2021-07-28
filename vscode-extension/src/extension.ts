@@ -75,14 +75,14 @@ const displayNewMapping = async () => {
         return;
       }
 
-      const pinAmount: string[] = await commands.executeCommand("getAvailablePins", currentlyOpenTabfilePath, pinTypeSelected);
+      const pinAmount: string[] = await commands.executeCommand("getAvailablePins", pinTypeSelected);
 
       // Map number of available pin mappings
       const pins = [...Array(pinAmount.length + 1)].map((_, i) => i.toString()).slice(1);
 
       window
         .showQuickPick(pins, {
-          placeHolder: `Choose the number of ${pinTypeSelected} pins you want to add`,
+          placeHolder: `Choose the number of ${pinTypeSelected} pins you want to add.}`,
         })
         .then(async (pinAmountSelected) => {
           if (!pinAmountSelected) {
