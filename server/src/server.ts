@@ -26,15 +26,16 @@ import {
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
 
-import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions} from "./suggestions";
-import { quickfix } from './codeActionProvider';
+import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions } from "./suggestions";
+import { quickfix } from "./codeActionProvider";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from './validator';
-import { HardwareDefinition, PinMapping, UnknownImport, toRange } from './hardwareDefinition';
-import * as jsonc from 'jsonc-parser';
+import { TextDocument } from "vscode-languageserver-textdocument";
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
+import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
+import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
+import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
@@ -70,11 +71,7 @@ connection.onInitialize((params: InitializeParams) => {
     capabilities.textDocument.publishDiagnostics.relatedInformation
   );
 
-  hasCodeActionLiteralsCapability = !!(
-		capabilities.textDocument &&
-		capabilities.textDocument.codeAction &&
-		capabilities.textDocument.codeAction.codeActionLiteralSupport
-	);
+  hasCodeActionLiteralsCapability = !!(capabilities.textDocument && capabilities.textDocument.codeAction && capabilities.textDocument.codeAction.codeActionLiteralSupport);
 
   const result: InitializeResult = {
     capabilities: {
@@ -85,7 +82,7 @@ connection.onInitialize((params: InitializeParams) => {
       },
       // Commands requested from the client to the server
       executeCommandProvider: {
-        commands: ["availablePins"],
+        commands: ["getAvailablePins", "getAvailablePinTypes", "postPinAmountToGenerate"],
       },
     },
   };
@@ -99,7 +96,7 @@ connection.onInitialize((params: InitializeParams) => {
 
   if (hasCodeActionLiteralsCapability) {
     result.capabilities.codeActionProvider = {
-        codeActionKinds: [CodeActionKind.QuickFix]
+      codeActionKinds: [CodeActionKind.QuickFix],
     };
   }
   return result;
@@ -118,13 +115,31 @@ connection.onInitialized(() => {
   // Server receives a request from the client
   connection.onExecuteCommand(async (event) => {
     switch (event.command) {
-      case "availablePins":
+      case "getAvailablePinTypes":
         if (event.arguments) {
-          const hwDefinition = await checkCurrentHwDefinition(event.arguments[0]);
-
-          if (hwDefinition) {
-            connection.console.log(returnAvailablePinMappings(hwDefinition).toString());
+          const hwDefUri = event.arguments[0];
+          const hwDef = await getHardwareDefinition(hwDefUri);
+          if (hwDef) {
+            const pinTypes = await getPinTypes(hwDef);
+            if (pinTypes) return pinTypes;
           }
+        }
+        break;
+      case "getAvailablePins":
+        if (event.arguments) {
+          const [hwDefUri, pinTypeSelected] = event.arguments;
+          
+          const hwDefinition = await getHardwareDefinition(hwDefUri);
+
+          if (hwDefinition && pinTypeSelected) {
+            return getPinMappingSuggestions(hwDefinition, pinTypeSelected);
+          }
+        }
+        break;
+      case "postPinAmountToGenerate":
+        if (event.arguments) {
+          const [hwDefUri, pinsToAdd, pinType] = event.arguments;
+          addPinMappings(pinsToAdd, pinType, hwDefUri, await getFileText(hwDefUri));
         }
         break;
       default:
@@ -185,34 +200,26 @@ function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
   return result;
 }
 
-const checkCurrentHwDefinition = async (uri: string): Promise<HardwareDefinition | undefined> => {
-  if (!uri.endsWith(".json")) {
-    displayErrorNotification("The current file is not a valid Hardware Definition (Must be a JSON file).");
+async function getHardwareDefinition(hwDefUri: any): Promise<HardwareDefinition | undefined> {
+  const settings = await getDocumentSettings(hwDefUri);
+
+  try {
+    const hwDefText = await getFileText(hwDefUri);
+    const hwDef = tryParseHardwareDefinitionFile(hwDefText, hwDefUri, settings.SdkPath);
+    return hwDef;    
+  } catch (e) {
+    connection.console.error(`Failed to get hw definition file ${hwDefUri} - ${e}`);
     return;
   }
-  const currentFilePath = URI.parse(uri).fsPath;
-  const text = await readFile(currentFilePath, "utf8");
+}
 
-  if (!text) {
-    displayErrorNotification("Error reading current file");
-    return;
-  }
-
-  const settings = await getDocumentSettings(uri);
-  return tryParseHardwareDefinitionFile(text, uri, settings.SdkPath);
-};
-
-const displayErrorNotification = (message: string) => {
+export const displayErrorNotification = (message: string) => {
   const msg: ShowMessageParams = {
     message,
     type: MessageType.Error,
   };
   connection.sendNotification(ShowMessageNotification.type, msg);
   return;
-};
-
-const returnAvailablePinMappings = (hwDefinition: any) => {
-  return getPinMappingSuggestions(hwDefinition);
 };
 
 documents.onDidOpen(async (change) => {
@@ -457,12 +464,7 @@ const setSettingPath = (ide: string | undefined) => {
 connection.onCodeAction(provideCodeActions);
 async function provideCodeActions(parms: CodeActionParams): Promise<CodeAction[]> {
   const hwDefinitionFileUri = parms.textDocument.uri;
-  let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
-  if (!hwDefFileText) {
-    hwDefFileText = fs.readFileSync(URI.file(hwDefinitionFileUri).fsPath, { encoding: "utf8" });
-  }
-  const sdkPath = (await getDocumentSettings(hwDefinitionFileUri)).SdkPath;
-  const hwDefinition = tryParseHardwareDefinitionFile(hwDefFileText, hwDefinitionFileUri, sdkPath);
+  const hwDefinition = await getHardwareDefinition(hwDefinitionFileUri);
   if (!hwDefinition) {
     return [];
   }
@@ -471,14 +473,8 @@ async function provideCodeActions(parms: CodeActionParams): Promise<CodeAction[]
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
   const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
-  let hwDefFileText = documents.get(hwDefinitionFileUri)?.getText();
-  if (!hwDefFileText) {
-    hwDefFileText = fs.readFileSync(URI.file(hwDefinitionFileUri).fsPath, { encoding: "utf8" });
-  }
 
-  const sdkPath = (await getDocumentSettings(hwDefinitionFileUri)).SdkPath;
-
-  const hwDefinition = tryParseHardwareDefinitionFile(hwDefFileText, hwDefinitionFileUri, sdkPath);
+  const hwDefinition = await getHardwareDefinition(hwDefinitionFileUri);
   if (!hwDefinition) {
     return [];
   }
@@ -493,6 +489,15 @@ connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams)
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
+
+
+async function getFileText(uri: string): Promise<string> {
+  let fileText = documents.get(uri)?.getText();
+  if (!fileText) {
+    fileText = await readFile(URI.parse(uri).fsPath, { encoding: "utf8" });
+  }
+  return fileText;
+}
 
 // Make the text document manager listen on the connection
 // for open, change and close text document events

@@ -55,13 +55,42 @@ export function activate(context: ExtensionContext) {
 
   context.subscriptions.push(
     disposable,
-    commands.registerCommand("azsphere-hardware-definition-tools.availablePins", () => displayHwDefinitionList())
+    commands.registerCommand("azsphere-hardware-definition-tools.generatePinMappings", () => generatePinMappings())
   );
 }
 
-const displayHwDefinitionList = async () => {
-  const currentlyOpenTabfilePath: string = window.activeTextEditor?.document.uri.fsPath;
-  commands.executeCommand("availablePins", currentlyOpenTabfilePath);
+const generatePinMappings = async () => {
+  const currentlyOpenTabfileUri: string = window.activeTextEditor?.document.uri.toString();
+  const pinTypes: string[] = await commands.executeCommand("getAvailablePinTypes", currentlyOpenTabfileUri);
+
+  await window
+    .showQuickPick(pinTypes, {
+      canPickMany: false,
+      placeHolder: "Select a pin type to add",
+    })
+    .then(async (pinTypeSelected) => {
+      if (!pinTypeSelected) {
+        return;
+      }
+
+      const pinAmount: string[] = await commands.executeCommand("getAvailablePins", currentlyOpenTabfileUri, pinTypeSelected);
+
+      // Map number of available pin mappings
+      const pins = [...Array(pinAmount.length + 1)].map((_, i) => i.toString()).slice(1);
+
+      window
+        .showQuickPick(pins, {
+          placeHolder: `Choose the number of ${pinTypeSelected} pins you want to add.`,
+        })
+        .then(async (pinAmountSelected) => {
+          if (!pinAmountSelected) {
+            return;
+          }
+
+          const pinsToAdd: string[] = pinAmount.slice(0, Number(pinAmountSelected));
+          commands.executeCommand("postPinAmountToGenerate", currentlyOpenTabfileUri, pinsToAdd, pinTypeSelected);
+        });
+    });
 };
 
 export function deactivate(): Thenable<void> | undefined {
