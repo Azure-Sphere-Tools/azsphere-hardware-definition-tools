@@ -205,7 +205,7 @@ suite('validateNamesAndMappings', () => {
 	});
 
 	test('Includes Related Information in Diagnostic Message if "includeRelatedInfo" = false', () => {
-		// {}
+		// { "Name": "LED", "Type": "Gpio", "AppManifestValue": 0 }
 		const validPin = getDummyPinMapping({ 
 			name: {
 				value: {
@@ -216,7 +216,7 @@ suite('validateNamesAndMappings', () => {
 			type: 'Gpio', 
 			appManifestValue: 0 
 		});
-		// 
+		// { "Name": "LED", "Type": "Gpio", "AppManifestValue": 1 }
 		const pinWithDuplicateName = getDummyPinMapping({ 
 			range: getRange(1, 2, 1, 8), 
 			name: {

@@ -54,9 +54,9 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
 ### Indirect Mapping
 
 ```json
-"Imports" : [ {"Path": "mt3620_rdb.json"} ],
-"Peripherals" : {
-  { "Name": "LED_1", "Type": "Gpio", "Mapping": "GPIO0" },
+"Imports": [ {"Path": "mt3620_rdb.json"} ],
+"Peripherals": {
+  { "Name": "LED_1", "Type": "Gpio", "Mapping": "GPIO0" }
 }
 ```
 
@@ -103,7 +103,7 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
 ### Unknown Import
 
 ```json
-"Imports" : [ {"Path": "mt3620_rdb.json"}, {"Path": "invalid_path"} ]
+"Imports": [ {"Path": "mt3620_rdb.json"}, {"Path": "invalid_path"} ]
 ```
 
 |                     | |
