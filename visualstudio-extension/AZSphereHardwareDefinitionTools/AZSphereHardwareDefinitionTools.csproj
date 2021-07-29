@@ -48,16 +48,22 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="DiagnosticsAdjustmentMiddleLayer.cs" />
+    <Compile Include="GeneratePinMappingsCommand.cs" />
     <Compile Include="HardwareDefinitionLanguageClient.cs" />
     <Compile Include="HardwareDefinitionLanguageContent.cs" />
     <Content Include="AZSphereHardwareDefinitionToolsExtensionSettings.json">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
+    <Compile Include="PinMappingGenerator.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="AZSphereHardwareDefinitionToolsPackage.cs" />
     <Content Include="AZSphereHardwareDefinitionToolsExtension.pkgdef">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
+    <Content Include="Resources\GeneratePinMappingsCommand.png" />
+    <VSCTCompile Include="AZSphereHardwareDefinitionToolsPackage.vsct">
+      <ResourceName>Menus.ctmenu</ResourceName>
+    </VSCTCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="EmbeddedLanguageServer\package.json" />
@@ -66,6 +72,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
   </ItemGroup>
   <ItemGroup>
@@ -76,6 +83,9 @@
       <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="16.10.1055" />
+    <PackageReference Include="Community.VisualStudio.Toolkit" Version="16.0.75.152-pre" ExcludeAssets="Runtime">
+      <IncludeAssets>compile; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="$(VSToolsPath)\VSSDK\Microsoft.VsSDK.targets" Condition="'$(VSToolsPath)' != ''" />
