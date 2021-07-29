@@ -32,7 +32,7 @@ import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
+import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock, getAppManifestValue } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
@@ -284,15 +284,40 @@ documents.onDidChangeContent(async (change) => {
   const textDocument = change.document;
 
   if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
-    const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
-    const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
-    if (detectedPartnerApplications.length > 0) {
-      const msg: ShowMessageParams = {
-        message: `Partner applications ${detectedPartnerApplications.join(", ")} detected, please open their app_manifest.json`,
-        type: MessageType.Warning,
-      };
-      connection.sendNotification(ShowMessageNotification.type, msg);
+    // const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
+    // const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
+    // if (detectedPartnerApplications.length > 0) {
+    //   const msg: ShowMessageParams = {
+    //     message: `Partner applications ${detectedPartnerApplications.join(", ")} detected, please open their app_manifest.json`,
+    //     type: MessageType.Warning,
+    //   };
+    //   connection.sendNotification(ShowMessageNotification.type, msg);
+    //   return;
+    // }
+    
+    const settings = await getDocumentSettings(textDocument.uri);
+    const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
+    const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
+    if(!hwDefinitionPath){
       return;
+    }
+    const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
+    const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
+    if (!hwDefinition) {
+      return;
+    }
+
+    if (textDocument.uri) {
+      const app_manifestPath = URI.parse(textDocument.uri).fsPath;
+      const {
+        Capabilities: { Gpio, I2cMaster, Pwm, UART, SpiMaster, Adc },
+      } = jsonc.parse(await readFile(app_manifestPath, "utf8"));
+
+      if(Gpio){
+        connection.console.log(Gpio);
+        const appManifestValue = getAppManifestValue(Gpio, [hwDefinition]);
+        connection.console.log(appManifestValue as string);
+      }
     }
   }
 
