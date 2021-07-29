@@ -179,7 +179,7 @@ connection.onDidChangeConfiguration((change) => {
   }
 
   // Revalidate all open text documents
-  documents.all().forEach(validateTextDocument);
+  documents.all().forEach(validateDocument);
 });
 
 function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
@@ -240,7 +240,7 @@ documents.onDidOpen(async (change) => {
     return;
   }
 
-  if (textDocument.uri.endsWith(".json") && !textDocument.uri.endsWith("app_manifest.json")) {
+  if (isHardwareDefinitionFile(textDocument.uri)) {
     const hwDefinition = tryParseHardwareDefinitionFile(text, textDocument.uri, settings.SdkPath);
 
     if (!hwDefinition) {
@@ -280,44 +280,45 @@ documents.onDidClose((e) => {
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent(async (change) => {
-  const textDocument = change.document;
+documents.onDidChangeContent(async (change) => validateDocument(change.document));
 
-  if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
-    await applicationValidateTextDocument(textDocument);
+async function validateDocument(textDocument: TextDocument) {
 
-    // const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
-    // const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
-    // if (detectedPartnerApplications.length > 0) {
-    //   const msg: ShowMessageParams = {
-    //     message: `Partner applications ${detectedPartnerApplications.join(", ")} detected, please open their app_manifest.json`,
-    //     type: MessageType.Warning,
-    //   };
-    //   connection.sendNotification(ShowMessageNotification.type, msg);
-    //   return;
-    // }
-    
+  if (isAppManifestFile(textDocument.uri) && settingsPath) {
+    await validateAppManifestDoc(textDocument);
+
+    const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
+    const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
+    if (detectedPartnerApplications.length > 0) {
+      const msg: ShowMessageParams = {
+        message: `Partner applications ${detectedPartnerApplications.join(", ")} detected, please open their app_manifest.json`,
+        type: MessageType.Warning,
+      };
+      connection.sendNotification(ShowMessageNotification.type, msg);
+      return;
+    }
+
   }
 
-  if (textDocument.uri.endsWith(".json") && !textDocument.uri.endsWith("app_manifest.json")) {
-    await validateTextDocument(textDocument);
+  if (isHardwareDefinitionFile(textDocument.uri)) {
+    await validateHardwareDefinitionDoc(textDocument);
   }
-});
+}
 
-async function applicationValidateTextDocument(textDocument: TextDocument): Promise<void> {
+async function validateAppManifestDoc(textDocument: TextDocument): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
   const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
   const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
-  if(!hwDefinitionPath){
+  if (!hwDefinitionPath) {
     return;
   }
   const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
   const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
-  
+
   if (!hwDefinition) {
     return;
   }
-  
+
   if (textDocument.uri) {
     const app_manifestPath = URI.parse(textDocument.uri).fsPath;
     const {
@@ -337,14 +338,14 @@ async function applicationValidateTextDocument(textDocument: TextDocument): Prom
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
-function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): void{
-  if(typeArray){
-    for(const name of typeArray){
-      if(name.toString().includes("$")){
-        const pinName = name.replace('$','');
+function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): void {
+  if (typeArray) {
+    for (const name of typeArray) {
+      if (name.toString().includes("$")) {
+        const pinName = name.replace('$', '');
         const appManifestValue = getAppManifestValue(pinName, [hwDefinition]);
         connection.console.log(appManifestValue as string);
-      }else{
+      } else {
         connection.console.log(name);
       }
     }
@@ -353,7 +354,7 @@ function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: strin
 
 
 
-async function validateTextDocument(textDocument: TextDocument): Promise<void> {
+async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
   const text = textDocument.getText();
 
@@ -512,24 +513,29 @@ const setSettingPath = (ide: string | undefined) => {
 
 connection.onCodeAction(provideCodeActions);
 async function provideCodeActions(parms: CodeActionParams): Promise<CodeAction[]> {
-  const hwDefinitionFileUri = parms.textDocument.uri;
-  const hwDefinition = await getHardwareDefinition(hwDefinitionFileUri);
-  if (!hwDefinition) {
-    return [];
+  const docUri = parms.textDocument.uri;
+  if (isHardwareDefinitionFile(docUri)) {
+    const hwDefinition = await getHardwareDefinition(docUri);
+    if (!hwDefinition) {
+      return [];
+    }
+    return quickfix(hwDefinition, parms);
   }
-  return quickfix(hwDefinition, parms);
+  return [];
 }
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-  const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
+  const docUri = textDocumentPosition.textDocument.uri;
+  if (isHardwareDefinitionFile(docUri)) {
+    const hwDefinition = await getHardwareDefinition(docUri);
+    if (!hwDefinition) {
+      return [];
+    }
 
-  const hwDefinition = await getHardwareDefinition(hwDefinitionFileUri);
-  if (!hwDefinition) {
-    return [];
+    const caretPosition = textDocumentPosition.position;
+    return pinMappingCompletionItemsAtPosition(hwDefinition, caretPosition);
   }
-
-  const caretPosition = textDocumentPosition.position;
-  return pinMappingCompletionItemsAtPosition(hwDefinition, caretPosition);
+  return [];
 });
 
 // This handler resolves additional information for the item selected in
@@ -546,6 +552,14 @@ async function getFileText(uri: string): Promise<string> {
     fileText = await readFile(URI.parse(uri).fsPath, { encoding: "utf8" });
   }
   return fileText;
+}
+
+function isHardwareDefinitionFile(uri: string) {
+  return uri.endsWith(".json") && !isAppManifestFile(uri);
+}
+
+function isAppManifestFile(uri: string) {
+  return uri.endsWith("app_manifest.json");
 }
 
 // Make the text document manager listen on the connection
