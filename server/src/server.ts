@@ -240,7 +240,7 @@ documents.onDidOpen(async (change) => {
     return;
   }
 
-  if (textDocument.uri.endsWith(".json")) {
+  if (textDocument.uri.endsWith(".json") && !textDocument.uri.endsWith("app_manifest.json")) {
     const hwDefinition = tryParseHardwareDefinitionFile(text, textDocument.uri, settings.SdkPath);
 
     if (!hwDefinition) {
@@ -284,6 +284,8 @@ documents.onDidChangeContent(async (change) => {
   const textDocument = change.document;
 
   if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
+    await applicationValidateTextDocument(textDocument);
+
     // const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
     // const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
     // if (detectedPartnerApplications.length > 0) {
@@ -295,36 +297,61 @@ documents.onDidChangeContent(async (change) => {
     //   return;
     // }
     
-    const settings = await getDocumentSettings(textDocument.uri);
-    const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
-    const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
-    if(!hwDefinitionPath){
-      return;
-    }
-    const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
-    const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
-    if (!hwDefinition) {
-      return;
-    }
-
-    if (textDocument.uri) {
-      const app_manifestPath = URI.parse(textDocument.uri).fsPath;
-      const {
-        Capabilities: { Gpio, I2cMaster, Pwm, UART, SpiMaster, Adc },
-      } = jsonc.parse(await readFile(app_manifestPath, "utf8"));
-
-      if(Gpio){
-        connection.console.log(Gpio);
-        const appManifestValue = getAppManifestValue(Gpio, [hwDefinition]);
-        connection.console.log(appManifestValue as string);
-      }
-    }
   }
 
-  if (textDocument.uri.endsWith(".json")) {
+  if (textDocument.uri.endsWith(".json") && !textDocument.uri.endsWith("app_manifest.json")) {
     await validateTextDocument(textDocument);
   }
 });
+
+async function applicationValidateTextDocument(textDocument: TextDocument): Promise<void> {
+  const settings = await getDocumentSettings(textDocument.uri);
+  const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
+  const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
+  if(!hwDefinitionPath){
+    return;
+  }
+  const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
+  const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
+  
+  if (!hwDefinition) {
+    return;
+  }
+  
+  if (textDocument.uri) {
+    const app_manifestPath = URI.parse(textDocument.uri).fsPath;
+    const {
+      Capabilities: { Gpio, I2cMaster, Pwm, Uart, SpiMaster, Adc },
+    } = jsonc.parse(await readFile(app_manifestPath, "utf8"));
+
+    findAppManifestValue(hwDefinition, Gpio);
+    findAppManifestValue(hwDefinition, I2cMaster);
+    findAppManifestValue(hwDefinition, Pwm);
+    findAppManifestValue(hwDefinition, Uart);
+    findAppManifestValue(hwDefinition, SpiMaster);
+    findAppManifestValue(hwDefinition, Adc);
+  }
+
+  const diagnostics: Diagnostic[] = [];
+  // Send the computed diagnostics to VSCode.
+  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+}
+
+function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): void{
+  if(typeArray){
+    for(const name of typeArray){
+      if(name.toString().includes("$")){
+        const pinName = name.replace('$','');
+        const appManifestValue = getAppManifestValue(pinName, [hwDefinition]);
+        connection.console.log(appManifestValue as string);
+      }else{
+        connection.console.log(name);
+      }
+    }
+  }
+}
+
+
 
 async function validateTextDocument(textDocument: TextDocument): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
@@ -409,9 +436,6 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
       }
     }
 
-
-
-    
     const pinMappings: PinMapping[] = [];
     
     for (let i = 0; i < Peripherals.length; i++) {
