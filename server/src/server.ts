@@ -54,6 +54,7 @@ let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 let hasCodeActionLiteralsCapability = false;
 let settingsPath: string;
+const applicationMap: Map<string, string[]> = new Map();
 
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
@@ -297,7 +298,6 @@ async function validateDocument(textDocument: TextDocument) {
       connection.sendNotification(ShowMessageNotification.type, msg);
       return;
     }
-
   }
 
   if (isHardwareDefinitionFile(textDocument.uri)) {
@@ -319,18 +319,35 @@ async function validateAppManifestDoc(textDocument: TextDocument): Promise<void>
     return;
   }
 
+  const appManifestValue: string[] = [];
   if (textDocument.uri) {
     const app_manifestPath = URI.parse(textDocument.uri).fsPath;
     const {
+      ComponentId,
       Capabilities: { Gpio, I2cMaster, Pwm, Uart, SpiMaster, Adc },
     } = jsonc.parse(await readFile(app_manifestPath, "utf8"));
 
-    findAppManifestValue(hwDefinition, Gpio);
-    findAppManifestValue(hwDefinition, I2cMaster);
-    findAppManifestValue(hwDefinition, Pwm);
-    findAppManifestValue(hwDefinition, Uart);
-    findAppManifestValue(hwDefinition, SpiMaster);
-    findAppManifestValue(hwDefinition, Adc);
+    findAppManifestValue(hwDefinition, Gpio, appManifestValue);
+    findAppManifestValue(hwDefinition, I2cMaster, appManifestValue);
+    findAppManifestValue(hwDefinition, Pwm, appManifestValue);
+    findAppManifestValue(hwDefinition, Uart, appManifestValue);
+    findAppManifestValue(hwDefinition, SpiMaster, appManifestValue);
+    findAppManifestValue(hwDefinition, Adc, appManifestValue);
+    applicationMap.set(ComponentId, appManifestValue);
+  }
+
+  const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
+  const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
+  for(const partner of detectedPartnerApplications){
+    if(applicationMap.has(partner)){
+      const partnerAppManifestValue = applicationMap.get(partner);
+      if(partnerAppManifestValue){
+        connection.console.log(partnerAppManifestValue.toString());
+        connection.console.log(appManifestValue.toString());
+        const intersection = appManifestValue.filter(element => partnerAppManifestValue.includes(element));
+        connection.console.log([...new Set(intersection)].toString());
+      }
+    }
   }
 
   const diagnostics: Diagnostic[] = [];
@@ -338,19 +355,20 @@ async function validateAppManifestDoc(textDocument: TextDocument): Promise<void>
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
 
-function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): void {
+function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[], result: string[]): void {
   if (typeArray) {
     for (const name of typeArray) {
       if (name.toString().includes("$")) {
         const pinName = name.replace('$', '');
         const appManifestValue = getAppManifestValue(pinName, [hwDefinition]);
-        connection.console.log(appManifestValue as string);
+        result.push(appManifestValue as string);
       } else {
-        connection.console.log(name);
+        result.push(name);
       }
     }
   }
 }
+
 
 
 
