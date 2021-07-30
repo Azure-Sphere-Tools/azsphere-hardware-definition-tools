@@ -47,7 +47,7 @@ suite('validateNamesAndMappings', () => {
 
 		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefWithIndirectPin, true);
 
-		assert.strictEqual(warningDiagnostics.length, 1);
+		assert.strictEqual(warningDiagnostics.length, 2);
 
 		assert.strictEqual(warningDiagnostics[0].message, indirectPin.mapping?.value.text + ' is indirectly imported from ' + URI.parse(hwDefWithSourcePin.uri).fsPath + '.');
 		assert.deepStrictEqual(warningDiagnostics[0].range, indirectPin.mapping?.value.range);
@@ -202,6 +202,133 @@ suite('validateNamesAndMappings', () => {
 		assert.strictEqual(warningDiagnostics[0].severity, 1);
 		assert.strictEqual(warningDiagnostics[0].source, 'az sphere');
 		assert.strictEqual(warningDiagnostics[0].code, 'AST2');
+	});
+
+	test('Validate Duplicate Mapping', () => {
+		// {"Name": "MT3620_GPIO0", "Type": "Gpio", "AppManifestValue": 0}
+		const mt3620_peripheral_0 = getDummyPinMapping({
+			name: 'MT3620_GPIO0',
+			type: 'Gpio',
+			appManifestValue: 0
+		});
+		// {"Name": "MT3620_GPIO1", "Type": "Gpio", "AppManifestValue": 1}
+		const mt3620_peripheral_1 = getDummyPinMapping({
+			name: 'MT3620_GPIO1',
+			type: 'Gpio',
+			appManifestValue: 1
+		});
+		// {"Name": "MT3620_GPIO2", "Type": "Gpio", "AppManifestValue": 2}
+		const mt3620_peripheral_2 = getDummyPinMapping({
+			name: 'MT3620_GPIO2',
+			type: 'Gpio',
+			appManifestValue: 2
+		});
+
+		// {"Name": "AVNET_GPIO0", "Type": "Gpio", "Mapping": "MT3620_GPIO0"}
+		const avnet_peripheral_0 = getDummyPinMapping({
+			name: 'AVNET_GPIO0',
+			type: 'Gpio',
+			mapping: {
+				value: {
+					range: getRange(0, 51, 0, 65),
+					text: 'MT3620_GPIO0'
+				}
+			}
+		});
+		// {"Name": "AVNET_GPIO1", "Type": "Gpio", "Mapping": "MT3620_GPIO1"}
+		const avnet_peripheral_1 = getDummyPinMapping({
+			name: 'AVNET_GPIO1',
+			type: 'Gpio',
+			mapping: {
+				value: {
+					range: getRange(1, 51, 1, 65),
+					text: 'MT3620_GPIO1'
+				}
+			}
+		});
+
+		// {"Name": "LED_OK", "Type": "Gpio", "Mapping": "AVNET_GPIO0"}
+		const peripheralWithNoDuplicate = getDummyPinMapping({
+			name: 'LED_OK',
+			type: 'Gpio',
+			mapping: {
+				value: {
+					range: getRange(0, 46, 0, 54),
+					text: 'AVNET_GPIO0'
+				}
+			}
+		});
+		// {"Name": "LED_DUPLICATE_0", "Type": "Gpio", "Mapping": "AVNET_GPIO1"}
+		const peripheralWithDuplicate0 = getDummyPinMapping({
+			name: 'LED_DUPLICATE_0',
+			type: 'Gpio',
+			mapping: {
+				value: {
+					range: getRange(1, 55, 1, 63),
+					text: 'AVNET_GPIO1'
+				}
+			}
+		});
+		// {"Name": "LED_DUPLICATE_1", "Type": "Gpio", "Mapping": "AVNET_GPIO1"}
+		const peripheralWithDuplicate1 = getDummyPinMapping({
+			name: 'LED_DUPLICATE_1',
+			type: 'Gpio',
+			mapping: {
+				value: {
+					range: getRange(2, 55, 2, 63),
+					text: 'AVNET_GPIO1'
+				}
+			}
+		});
+		// {"Name": "LED_IMPORTED_DUPLICATE", "Type": "Gpio", "Mapping": "MT3620_GPIO0"}
+		const peripheralWithImportedDuplicate = getDummyPinMapping({
+			name: 'LED_IMPORTED_DUPLICATE',
+			type: 'Gpio',
+			mapping: {
+				value: {
+					range: getRange(3, 62, 3, 76),
+					text: 'MT3620_GPIO0'
+				}
+			}
+		});
+
+		const mt3620 = new HardwareDefinition('mt3620.json', undefined, [mt3620_peripheral_0, mt3620_peripheral_1, mt3620_peripheral_2]);
+		const avnet = new HardwareDefinition('avnet.json', undefined, [avnet_peripheral_0, avnet_peripheral_1], [mt3620]);
+		const application = new HardwareDefinition('application.json', undefined, [peripheralWithNoDuplicate, peripheralWithDuplicate0, peripheralWithDuplicate1, peripheralWithImportedDuplicate], [avnet]);
+
+		const diagnostics = validateNamesAndMappings(application, true);
+
+		assert.strictEqual(diagnostics.length, 4);
+
+		assert.strictEqual(diagnostics[0].message, `${peripheralWithDuplicate0.mapping?.value.text} is also mapped to ${peripheralWithDuplicate1.name.value.text}.`);
+		assert.deepStrictEqual(diagnostics[0].range, peripheralWithDuplicate0.mapping?.value.range);
+		assert.strictEqual(diagnostics[0].severity, 2);
+		assert.strictEqual(diagnostics[0].source, 'az sphere');
+		assert.strictEqual(diagnostics[0].code, 'AST3');
+		assert.ok(diagnostics[0].relatedInformation);
+		assert.deepStrictEqual(diagnostics[0].relatedInformation[0].location.uri, application.uri);
+		assert.deepStrictEqual(diagnostics[0].relatedInformation[0].location.range, peripheralWithDuplicate1.mapping?.value.range);
+		assert.strictEqual(diagnostics[0].relatedInformation[0].message, 'Duplicate peripheral mapping');
+
+		assert.strictEqual(diagnostics[1].message, `${peripheralWithDuplicate1.mapping?.value.text} is also mapped to ${peripheralWithDuplicate0.name.value.text}.`);
+		assert.deepStrictEqual(diagnostics[1].range, peripheralWithDuplicate1.mapping?.value.range);
+		assert.strictEqual(diagnostics[1].severity, 2);
+		assert.strictEqual(diagnostics[1].source, 'az sphere');
+		assert.strictEqual(diagnostics[1].code, 'AST3');
+		assert.ok(diagnostics[1].relatedInformation);
+		assert.deepStrictEqual(diagnostics[1].relatedInformation[0].location.uri, application.uri);
+		assert.deepStrictEqual(diagnostics[1].relatedInformation[0].location.range, peripheralWithDuplicate0.mapping?.value.range);
+		assert.strictEqual(diagnostics[1].relatedInformation[0].message, 'Duplicate peripheral mapping');
+
+		assert.strictEqual(diagnostics[3].message, `${peripheralWithImportedDuplicate.mapping?.value.text} is also mapped to ${avnet_peripheral_0.name.value.text}.`);
+		assert.deepStrictEqual(diagnostics[3].range, peripheralWithImportedDuplicate.mapping?.value.range);
+		assert.strictEqual(diagnostics[3].severity, 2);
+		assert.strictEqual(diagnostics[3].source, 'az sphere');
+		assert.strictEqual(diagnostics[3].code, 'AST3');
+		assert.ok(diagnostics[3].relatedInformation);
+		assert.deepStrictEqual(diagnostics[3].relatedInformation[0].location.uri, avnet.uri);
+		assert.deepStrictEqual(diagnostics[3].relatedInformation[0].location.range, avnet_peripheral_0.mapping?.value.range);
+		assert.strictEqual(diagnostics[3].relatedInformation[0].message, 'Duplicate peripheral mapping');
 	});
 
 	test('Includes Related Information in Diagnostic Message if "includeRelatedInfo" = false', () => {

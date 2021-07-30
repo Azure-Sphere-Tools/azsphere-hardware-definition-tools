@@ -17,12 +17,11 @@ export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
 /**
  * 
  * @param badMapping The faulty pin mapping which uses the same name as another mapped pin
- * @param pinMappingUri The uri of the hardware definition in which 'badMapping' is declared
  * @param existingMapping The pin mapping which used the pin name before 'badMapping' 
  * @param existingMappingUri The uri of the hardware definition in which 'existingMapping' is declared
  * @param includeRelatedInfo If the IDE supports the 'relatedInformation' property
  */
-export function duplicateNameError(badMapping: PinMapping, pinMappingUri: string, existingMapping: PinMapping, existingMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
+export function duplicateNameError(badMapping: PinMapping, existingMapping: PinMapping, existingMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: DUPLICATE_NAME_ERROR_CODE,
     message: `Peripheral name ${badMapping.name.value.text} is used multiple times.`,
@@ -62,32 +61,31 @@ export function nonexistentMappingError(badMapping: PinMapping): Diagnostic {
 
 /**
  * 
- * @param duplicateMappingName The name of the pin mapping which was already reserved by 'existingMapping'
- * @param badMappingRange The location of the pin mapping which maps to an already used mapping
- * @param existingMappingRange The location of  the pin mapping which reserved 'reservedMapping' first
- * @param hardwareDefinitionUri The uri of the hardware definition in which the pin mappings are declared
+ * @param duplicateMapping1 First peripheral mapping to the same peripheral
+ * @param duplicateMapping2 Second peripheral mapping to the same peripheral
+ * @param duplicateUri The uri of the hardware definition in which second peripheral is declared
  * @param includeRelatedInfo If the IDE supports the 'relatedInformation' property
  */
-export function duplicateMappingWarning(duplicateMappingName: string, badMappingRange: Range, existingMappingRange: Range, hardwareDefinitionUri: string, includeRelatedInfo: boolean): Diagnostic {
+export function duplicateMappingWarning(duplicateMapping1: PinMapping, duplicateMapping2: PinMapping, duplicateUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: DUPLICATE_MAPPING_WARNING_CODE,
     severity: DiagnosticSeverity.Warning,
-    range: badMappingRange,
-    message: `"${duplicateMappingName}" is already mapped`,
+    range: duplicateMapping1.mapping?.value.range || duplicateMapping1.range,
+    message: `${duplicateMapping1.mapping?.value.text} is also mapped to ${duplicateMapping2.name.value.text}.`,
     source: EXTENSION_SOURCE
   };
   if (includeRelatedInfo) {
     diagnostic.relatedInformation = [
       {
         location: {
-          uri: hardwareDefinitionUri,
-          range: existingMappingRange
+          uri: duplicateUri,
+          range: duplicateMapping2.mapping?.value.range || duplicateMapping2.range
         },
-        message: `Duplicate peripheral mapping declared`
+        message: `Duplicate peripheral mapping`
       }
     ];
   } else {
-    const relatedInfoPosition = existingMappingRange.start;
+    const relatedInfoPosition = duplicateMapping2.range.start;
     addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition);
   }
   return diagnostic;

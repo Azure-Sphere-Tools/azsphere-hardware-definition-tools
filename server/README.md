@@ -23,16 +23,16 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
 |Related info location|first `"LED_1"` from the top in the closest import, excluding the hovered one|
 |Related info message |`Duplicate peripheral name`|
 
-### Non Existent Mapping
+### Nonexistent Mapping
 
 ```json
-{ "Name": "LED_1", "Type": "Pwm", "Mapping": "NON_EXISTENT_GPIO" }
+{ "Name": "LED_1", "Type": "Pwm", "Mapping": "NONEXISTENT_GPIO" }
 ```
 
 |                     | |
 |---------------------|-|
-|Range                |`"NON_EXISTENT_GPIO"`|
-|Message              |`Peripheral NON_EXISTENT_GPIO not found.`|
+|Range                |`"NONEXISTENT_GPIO"`|
+|Message              |`Peripheral NONEXISTENT_GPIO not found.`|
 |Severity             |Error|
 
 ### Duplicate Mapping
