@@ -12,6 +12,7 @@ env:
 jobs:
   build-vscode:
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
 
     strategy:
       max-parallel: 3
@@ -40,6 +41,7 @@ jobs:
 
   build-visualstudio:
     runs-on: windows-latest
+    timeout-minutes: 30
     concurrency:
       # ensure the visual studio build runs only 1 at a time per branch, since it's expensive
       group: build-visualstudio-${{ github.ref }}
