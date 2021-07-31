@@ -37,6 +37,7 @@ import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwa
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
+import { exec } from "child_process";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -44,7 +45,7 @@ const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere
 // when fixed, remove IPCMessageReader/Writer from server.ts and LANGUAGE_SERVER_MODE from .vscode/settings.json
 const runningTests = process.env.LANGUAGE_SERVER_MODE == "TEST";
 // avoid referencing connection in other files/modules as it is expensive to create and can prevent tests from running in parallel
-const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
+export const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -128,7 +129,7 @@ connection.onInitialized(() => {
       case "getAvailablePins":
         if (event.arguments) {
           const [hwDefUri, pinTypeSelected] = event.arguments;
-          
+
           const hwDefinition = await getHardwareDefinition(hwDefUri);
 
           if (hwDefinition && pinTypeSelected) {
@@ -206,14 +207,14 @@ async function getHardwareDefinition(hwDefUri: any): Promise<HardwareDefinition 
   try {
     const hwDefText = await getFileText(hwDefUri);
     const hwDef = tryParseHardwareDefinitionFile(hwDefText, hwDefUri, settings.SdkPath);
-    return hwDef;    
+    return hwDef;
   } catch (e) {
     connection.console.error(`Failed to get hw definition file ${hwDefUri} - ${e}`);
     return;
   }
 }
 
-export const displayErrorNotification = (message: string) => {
+export const showNotification = (message: string) => {
   const msg: ShowMessageParams = {
     message,
     type: MessageType.Error,
@@ -297,11 +298,21 @@ documents.onDidChangeContent(async (change) => {
   }
 
   if (textDocument.uri.endsWith(".json")) {
-    await validateTextDocument(textDocument);
+    const hwDefintionUri = await validateTextDocument(textDocument);
+
+    // Hardware Definition header generation
+    if (hwDefintionUri) {
+      exec(`azsphere hardware-definition generate-header --hardware-definition-file ${URI.parse(hwDefintionUri).fsPath}`, (err, stdout, stderr) => {
+        console.log(URI.parse(path.dirname(hwDefintionUri)).fsPath);
+        if (err) return connection.sendNotification(ShowMessageNotification.type, { message: `Header file generation error: ${err.message}`, type: MessageType.Error });
+        if (stderr) return connection.sendNotification(ShowMessageNotification.type, { message: `Header file generation stderr: ${stderr}`, type: MessageType.Error });
+        if (stdout) return connection.sendNotification(ShowMessageNotification.type, { message: stdout, type: MessageType.Info });
+      });
+    }
   }
 });
 
-async function validateTextDocument(textDocument: TextDocument): Promise<void> {
+async function validateTextDocument(textDocument: TextDocument): Promise<string | undefined> {
   const settings = await getDocumentSettings(textDocument.uri);
   const text = textDocument.getText();
 
@@ -325,6 +336,8 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
 
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+
+  return textDocument.uri;
 }
 
 export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefinitionFileUri: string, sdkPath: string): HardwareDefinition | undefined {
@@ -384,23 +397,20 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
       }
     }
 
-
-
-    
     const pinMappings: PinMapping[] = [];
-    
+
     for (let i = 0; i < Peripherals.length; i++) {
       const { Name, Type, Mapping, AppManifestValue } = Peripherals[i];
       const hasMappingOrAppManifestValue = typeof Mapping == "string" || typeof AppManifestValue == "string" || typeof AppManifestValue == "number";
       const isPinMapping = typeof Name == "string" && typeof Type == "string" && hasMappingOrAppManifestValue;
-      
+
       if (isPinMapping) {
         const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
-        
+
         const values: Map<string, any> = new Map();
         const range = toRange(hwDefinitionFileText, mappingAsJsonNode.offset, mappingAsJsonNode.offset + mappingAsJsonNode.length);
 
-        mappingAsJsonNode.children?.forEach(keyValue => {
+        mappingAsJsonNode.children?.forEach((keyValue) => {
           if (keyValue.children) {
             values.set(keyValue.children[0].value.toLowerCase(), {
               range: toRange(hwDefinitionFileText, keyValue.offset, keyValue.offset + keyValue.length),
@@ -410,23 +420,16 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
               },
               value: {
                 range: toRange(hwDefinitionFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length),
-                text: keyValue.children[1].value
-              }
+                text: keyValue.children[1].value,
+              },
             });
           }
         });
 
-        pinMappings.push(new PinMapping(
-          range,
-          values.get('name'),
-          values.get('type'),
-          values.get('mapping'),
-          values.get('appmanifestvalue'),
-          values.get('comment')
-        ));
+        pinMappings.push(new PinMapping(range, values.get("name"), values.get("type"), values.get("mapping"), values.get("appmanifestvalue"), values.get("comment")));
       }
     }
-    
+
     return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports);
   } catch (error) {
     connection.console.log("Cannot parse Hardware Definition file as JSON");
@@ -489,7 +492,6 @@ connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams)
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
-
 
 async function getFileText(uri: string): Promise<string> {
   let fileText = documents.get(uri)?.getText();
