@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
+import * as fs from "fs";
 
 export let doc: vscode.TextDocument;
 export let editor: vscode.TextEditor;
@@ -22,7 +23,7 @@ export async function activate(docUri: vscode.Uri) {
 	}
 }
 
-async function sleep(ms: number) {
+export async function sleep(ms: number) {
 	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
@@ -39,4 +40,20 @@ export async function setTestContent(content: string): Promise<boolean> {
 		doc.positionAt(doc.getText().length)
 	);
 	return editor.edit(eb => eb.replace(all, content));
+}
+
+export function createFile(path: string, data: string) {
+  fs.writeFile(getDocPath(path), data, function(err) {
+    if (err) {
+      return console.error(err);
+    }
+  });
+}
+
+export function removeFile(path: string) {
+  fs.unlink(getDocPath(path), (err) => {
+    if (err) {
+      return console.error(err);
+    }
+  });
 }
