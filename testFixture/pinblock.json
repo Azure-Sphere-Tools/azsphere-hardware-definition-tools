@@ -40,13 +40,13 @@
       },
       {
         "Name": "MT3620_RDB_LED2_RED", 
-        "Type": "Gpio", 
+        "Type": "Pwm", 
         "Mapping": "MT3620_GPIO5"
       },
       {
         "Name": "MT3620_RDB_LED2_BLUE", 
         "Type": "Gpio", 
-        "Mapping": "MT3620_GPIO6"
+        "Mapping": "MT3620_PWM_CONTROLLER1"
       }
   ]
 }
