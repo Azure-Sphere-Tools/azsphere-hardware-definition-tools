@@ -299,8 +299,16 @@ documents.onDidChangeContent(async (change) => {
 });
 
 documents.onDidSave(async (save) => {
-  if (save.document.uri.endsWith(".json")) {
-    const hwDefintionUri = await validateTextDocument(save.document);
+  await hwDefinitionHeaderGen(save.document);
+});
+
+documents.onDidOpen(async(open) => {
+  await hwDefinitionHeaderGen(open.document);
+});
+
+const hwDefinitionHeaderGen = async(file: TextDocument) => {
+  if (file.uri.endsWith(".json")) {
+    const hwDefintionUri = await validateTextDocument(file);
 
     // Hardware Definition header generation
     if (hwDefintionUri) {
@@ -311,7 +319,7 @@ documents.onDidSave(async (save) => {
       });
     }
   }
-});
+};
 
 async function validateTextDocument(textDocument: TextDocument): Promise<string | undefined> {
   const settings = await getDocumentSettings(textDocument.uri);
