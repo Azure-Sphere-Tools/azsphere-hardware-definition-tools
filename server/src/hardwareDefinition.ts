@@ -3,7 +3,7 @@ import { Range, Position } from 'vscode-languageserver-textdocument';
 export class HardwareDefinition {
 	constructor(
 		public uri: string,
-		public schema: string | undefined,
+		public schema?: string,
 		public pinMappings: PinMapping[] = [],
 		public imports: HardwareDefinition[] = [],
 		public unknownImports: UnknownImport[] = []
@@ -49,8 +49,7 @@ export interface UnknownImport {
 	fileName: string,
 	sdkPath: string,
 	hwDefinitionFilePath: string,
-	start: number,
-	end: number
+	range: Range
 }
 
 export function toRange(text: string, start: number, end: number): Range {

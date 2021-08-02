@@ -31,7 +31,7 @@ import { quickfix } from "./codeActionProvider";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { TextDocument, Range } from "vscode-languageserver-textdocument";
 import { validateNamesAndMappings, findUnknownImports, validatePinBlock, getAppManifestValue } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
@@ -440,7 +440,7 @@ async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promis
   const diagnostics: Diagnostic[] = [];
   diagnostics.push(...validateNamesAndMappings(hwDefinition, hasDiagnosticRelatedInformationCapability));
   diagnostics.push(...validatePinBlock(hwDefinition, hasDiagnosticRelatedInformationCapability));
-  diagnostics.push(...findUnknownImports(hwDefinition, textDocument));
+  diagnostics.push(...findUnknownImports(hwDefinition));
 
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
@@ -470,10 +470,6 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
     const unknownImports: UnknownImport[] = [];
     const validImports: HardwareDefinition[] = [];
     if (Array.isArray(Imports)) {
-      const importsNode = jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Imports"]) as jsonc.Node;
-      const importsNodeStart = importsNode.offset;
-      const importsNodeEnd = importsNodeStart + importsNode.length;
-
       for (const { Path } of Imports) {
         if (typeof Path == "string") {
           const hwDefinitionFilePath = URI.parse(path.dirname(hwDefinitionFileUri)).fsPath;
@@ -491,13 +487,25 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
               }
             }
           } else {
-            unknownImports.push({
-              fileName: Path,
-              hwDefinitionFilePath: hwDefinitionFilePath,
-              sdkPath: sdkPath,
-              start: importsNodeStart,
-              end: importsNodeEnd,
-            });
+            const importsNode = jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Imports"]) as jsonc.Node;
+
+            let range = toRange(hwDefinitionFileText, importsNode.offset, importsNode.offset + importsNode.length);
+
+            const unknownImport = importsNode.children?.find(child => 
+                 child.children != undefined 
+              && child.children[0].children != undefined 
+              && child.children[0].children[1].value == Path);
+
+            if (unknownImport != undefined &&
+                unknownImport.children != undefined &&
+                unknownImport.children[0].children != undefined) {
+              const offset = unknownImport.children[0].children[1].offset;
+              const length = unknownImport.children[0].children[1].length;
+
+              range = toRange(hwDefinitionFileText, offset, offset + length);
+            }
+
+            unknownImports.push({ fileName: Path, hwDefinitionFilePath, sdkPath, range });
           }
         }
       }

@@ -1,14 +1,7 @@
-import {
-	Diagnostic,
-	integer,
-} from 'vscode-languageserver/node';
-
-import { TextDocument } from 'vscode-languageserver-textdocument';
-import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
+import { Diagnostic } from 'vscode-languageserver/node';
+import { HardwareDefinition, PinMapping } from './hardwareDefinition';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
 import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning } from "./diagnostics";
-
-const EXTENSION_SOURCE = 'az sphere';
 
 interface FlatPinMapping {
 	pinMapping: PinMapping,
@@ -122,13 +115,13 @@ function flatten(hwDefinition: HardwareDefinition): FlatPinMapping[] {
 	return pins;
 }
 
-export function findUnknownImports(hwDefinition: HardwareDefinition, textDocument: TextDocument): Diagnostic[] {
-	const diagnostics: Diagnostic[] = [];
-	for (const unknownImport of hwDefinition.unknownImports) {
-		const diagnostic = unknownImportWarning(unknownImport, toRange(textDocument.getText(), unknownImport.start, unknownImport.end));
-		diagnostics.push(diagnostic);
-	}
-	return diagnostics;
+/**
+ * Convert hwDefinitions unknown imports into a list of Unknown Import diagnostics
+ * @param hwDefinition HW Definition to parse
+ * @returns Diagnostics with the Hardware Definition's underlying unknown imports
+ */
+export function findUnknownImports(hwDefinition: HardwareDefinition): Diagnostic[] {
+	return hwDefinition.unknownImports.map(unknownImportWarning);
 }
 
 /**
