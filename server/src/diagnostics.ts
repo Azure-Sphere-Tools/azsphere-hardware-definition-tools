@@ -13,19 +13,20 @@ export const PIN_BLOCK_CONFLICT_WARNING_CODE = "AST6";
 
 
 export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
+
 /**
  * 
  * @param badMapping The faulty pin mapping which uses the same name as another mapped pin
- * @param pinMappingUri The uri of the hardware definition in which 'badMapping' is declared
+ * @param badMappingUri The uri of the hardware definition in which 'badMapping' is declared
  * @param existingMapping The pin mapping which used the pin name before 'badMapping' 
  * @param existingMappingUri The uri of the hardware definition in which 'existingMapping' is declared
  * @param includeRelatedInfo If the IDE supports the 'relatedInformation' property
  */
-export function duplicateNameError(badMapping: PinMapping, pinMappingUri: string, existingMapping: PinMapping, existingMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
+export function duplicateNameError(badMapping: PinMapping, badMappingUri: string, existingMapping: PinMapping, existingMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: DUPLICATE_NAME_ERROR_CODE,
-    message: `${badMapping.name.value.text} is already used by another pin mapping`,
-    range: badMapping.range,
+    message: `Peripheral name ${badMapping.name.value.text} is used multiple times.`,
+    range: badMapping.name.value.range,
     severity: DiagnosticSeverity.Error,
     source: EXTENSION_SOURCE
   };
@@ -34,27 +35,26 @@ export function duplicateNameError(badMapping: PinMapping, pinMappingUri: string
       {
         location: {
           uri: existingMappingUri,
-          range: existingMapping.range
+          range: existingMapping.name.value.range
         },
-        message: `Duplicate peripheral mapping declared`
+        message: `Duplicate peripheral name`
       }
     ];
   } else {
-    const relatedInfoPosition = existingMapping.range.start;
-    addRelatedInfoAsDiagnosticMessage(diagnostic, pinMappingUri, relatedInfoPosition, existingMappingUri);
+    const relatedInfoPosition = existingMapping.name.value.range.start;
+    addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, badMappingUri != existingMappingUri ? existingMappingUri : undefined);
   }
   return diagnostic;
 }
 
 /**
  * @param badMapping The pin mapping which maps to a pin that does not exist
- * @param nonexistentMappingName The name of the pin which does not exist
  */
-export function nonexistentMappingError(badMapping: PinMapping, nonexistentMappingName: string): Diagnostic {
+export function nonexistentMappingError(badMapping: PinMapping): Diagnostic {
   return {
     code: NONEXISTENT_MAPPING_ERROR_CODE,
-    message: `Mapping ${nonexistentMappingName} is invalid. There is no imported pin mapping with that name.`,
-    range: badMapping.range,
+    message: `Peripheral ${badMapping.mapping?.value.text} not found.`,
+    range: badMapping.mapping?.value.range || badMapping.range,
     severity: DiagnosticSeverity.Error,
     source: EXTENSION_SOURCE
   };
@@ -62,55 +62,69 @@ export function nonexistentMappingError(badMapping: PinMapping, nonexistentMappi
 
 /**
  * 
- * @param duplicateMappingName The name of the pin mapping which was already reserved by 'existingMapping'
- * @param badMappingRange The location of the pin mapping which maps to an already used mapping
- * @param existingMappingRange The location of  the pin mapping which reserved 'reservedMapping' first
- * @param hardwareDefinitionUri The uri of the hardware definition in which the pin mappings are declared
+ * @param duplicateMapping1 First peripheral mapping to the same peripheral
+ * @param duplicateMapping2 Second peripheral mapping to the same peripheral
+ * @param duplicateUri The uri of the hardware definition in which second peripheral is declared
  * @param includeRelatedInfo If the IDE supports the 'relatedInformation' property
  */
-export function duplicateMappingWarning(duplicateMappingName: string, badMappingRange: Range, existingMappingRange: Range, hardwareDefinitionUri: string, includeRelatedInfo: boolean): Diagnostic {
+export function duplicateMappingWarning(duplicateMapping1: PinMapping, duplicateMapping2: PinMapping, duplicateUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: DUPLICATE_MAPPING_WARNING_CODE,
     severity: DiagnosticSeverity.Warning,
-    range: badMappingRange,
-    message: `"${duplicateMappingName}" is already mapped`,
+    range: duplicateMapping1.mapping?.value.range || duplicateMapping1.range,
+    message: `${duplicateMapping1.mapping?.value.text} is also mapped to ${duplicateMapping2.name.value.text}.`,
     source: EXTENSION_SOURCE
   };
   if (includeRelatedInfo) {
     diagnostic.relatedInformation = [
       {
         location: {
-          uri: hardwareDefinitionUri,
-          range: existingMappingRange
+          uri: duplicateUri,
+          range: duplicateMapping2.mapping?.value.range || duplicateMapping2.range
         },
-        message: `Duplicate peripheral mapping declared`
+        message: `Duplicate peripheral mapping`
       }
     ];
   } else {
-    const relatedInfoPosition = existingMappingRange.start;
-    addRelatedInfoAsDiagnosticMessage(diagnostic, hardwareDefinitionUri, relatedInfoPosition, hardwareDefinitionUri);
+    const relatedInfoPosition = duplicateMapping2.mapping 
+      ? duplicateMapping2.mapping.value.range.start 
+      : duplicateMapping2.range.start;
+    addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition);
   }
   return diagnostic;
 }
 
-
 /**
  * 
- * @param indirectMappingName The name of the pin mapping which is indirectly imported
- * @param badMappingRange The location of the pin mapping which references to the indirect mapping
+ * @param badMapping The pin which maps to an indirectly imported peripheral
+ * @param indirectMapping The indirectly imported pin
  * @param indirectMappingUri The uri of the hardware definition file in which the indirect pin mapping is declared
+ * @param includeRelatedInfo If the IDE supports the 'relatedInformation' property
  */
-export function indirectMappingWarning(indirectMappingName: string, badMappingRange: Range, indirectMappingUri: string): Diagnostic {
+export function indirectMappingWarning(badMapping: PinMapping, indirectMapping: PinMapping, indirectMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: INDIRECT_MAPPING_WARNING_CODE,
-    message: `${indirectMappingName} is indirectly imported from ${URI.parse(indirectMappingUri).fsPath}.`,
-    range: badMappingRange,
+    message: `${badMapping.mapping?.value.text} is indirectly imported from ${URI.parse(indirectMappingUri).fsPath}.`,
+    range: badMapping.mapping?.value.range || badMapping.range,
     severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE
   };
+  if (includeRelatedInfo) {
+    diagnostic.relatedInformation = [
+      {
+        location: {
+          uri: indirectMappingUri,
+          range: indirectMapping.range
+        },
+        message: `Indirect import`
+      }
+    ];
+  } else {
+    const relatedInfoPosition = indirectMapping.range.start;
+    addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, indirectMappingUri);
+  }
   return diagnostic;
 }
-
 
 /**
  * 
@@ -167,7 +181,7 @@ export function pinBlockConflictWarning(badMapping: PinMapping, existingMapping:
     ];
   } else {
     const relatedInfoPosition = existingMapping.range.start;
-    addRelatedInfoAsDiagnosticMessage(diagnostic, hwDefinitionUri, relatedInfoPosition, hwDefinitionUri);
+    addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, hwDefinitionUri);
   }
   return diagnostic;
 }
@@ -186,14 +200,13 @@ export function unknownImportWarning(unknownImport: UnknownImport, unknownImport
  * @param diagnostic Adds a diagnostic's related information directly in its message under the form (line x, char y)
  * - useful for IDEs that don't support a diagnostic's 'relatedInformation' property.
  * If the related information is in a different file than the diagnostic, "in {filepath}" is appended to the message 
- * @param diagnosticUri The uri of the file where the diagnostic will appear 
  * @param relatedInfoPosition The position in the document that the related information would appear
  * @param relatedInfoUri The uri of the file containing the related information
  */
-function addRelatedInfoAsDiagnosticMessage(diagnostic: Diagnostic, diagnosticUri: string, relatedInfoPosition: Position, relatedInfoUri: string) {
+function addRelatedInfoAsDiagnosticMessage(diagnostic: Diagnostic, relatedInfoPosition: Position, relatedInfoUri?: string) {
   // line and char are incremented by 1 since we start counting lines from 1 in text files (not 0)
   diagnostic.message += ` (line ${relatedInfoPosition.line + 1}, char ${relatedInfoPosition.character + 1}`;
-  if (diagnosticUri != relatedInfoUri) {
+  if (relatedInfoUri != undefined) {
     // mention the related info's file uri if it wasn't defined in the current hw definition file  
     diagnostic.message += ` in ${URI.file(relatedInfoUri).fsPath}`;
   }
