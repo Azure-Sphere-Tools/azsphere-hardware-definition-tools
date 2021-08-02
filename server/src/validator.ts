@@ -165,7 +165,7 @@ function memoize(fn: Function): Function {
  * @param hwDefinitions A list of hardware definitions to look in. (Imports)
  * @returns AppManifestValue if mapping (directly or indirectly) leads to one, otherwise undefined
  */
-function getAppManifestValue(name: string, hwDefinitions: HardwareDefinition[]): number | string | undefined {
+export function getAppManifestValue(name: string, hwDefinitions: HardwareDefinition[]): number | string | undefined {
 	let mapping: PinMapping | undefined;
 	let definition: HardwareDefinition | undefined;
 

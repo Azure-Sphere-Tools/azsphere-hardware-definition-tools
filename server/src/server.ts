@@ -32,7 +32,7 @@ import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
+import { validateNamesAndMappings, findUnknownImports, validatePinBlock, getAppManifestValue } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
@@ -151,14 +151,16 @@ connection.onInitialized(() => {
 // The extension settings
 interface ExtensionSettings {
   SdkPath: string;
+  partnerApplicationsSetting: Map<string, AppManifest>;
 }
 const defaultSettings: ExtensionSettings = {
   SdkPath: process.platform == "linux" ? "/opt/azurespheresdk" : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
+  partnerApplicationsSetting: new Map(),
 };
 
 function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
   if (!settingsToValidate?.SdkPath || settingsToValidate.SdkPath == "") {
-    return { SdkPath: defaultSettings.SdkPath };
+    return { SdkPath: defaultSettings.SdkPath, partnerApplicationsSetting: defaultSettings.partnerApplicationsSetting};
   }
   return settingsToValidate;
 }
@@ -179,7 +181,7 @@ connection.onDidChangeConfiguration((change) => {
   }
 
   // Revalidate all open text documents
-  documents.all().forEach(validateTextDocument);
+  documents.all().forEach(validateDocument);
 });
 
 function getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
@@ -240,7 +242,7 @@ documents.onDidOpen(async (change) => {
     return;
   }
 
-  if (textDocument.uri.endsWith(".json")) {
+  if (isHardwareDefinitionFile(textDocument.uri)) {
     const hwDefinition = tryParseHardwareDefinitionFile(text, textDocument.uri, settings.SdkPath);
 
     if (!hwDefinition) {
@@ -280,10 +282,16 @@ documents.onDidClose((e) => {
 
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
-documents.onDidChangeContent(async (change) => {
-  const textDocument = change.document;
+documents.onDidChangeContent(async (change) => validateDocument(change.document));
 
-  if (textDocument.uri.endsWith("app_manifest.json") && settingsPath) {
+async function validateDocument(textDocument: TextDocument) {
+
+  if (isAppManifestFile(textDocument.uri) && settingsPath) {
+    const appManifest = tryParseAppManifestFile(textDocument.getText());
+    if(!appManifest){
+      return;
+    }
+   
     const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
     const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
     if (detectedPartnerApplications.length > 0) {
@@ -292,16 +300,135 @@ documents.onDidChangeContent(async (change) => {
         type: MessageType.Warning,
       };
       connection.sendNotification(ShowMessageNotification.type, msg);
+    }
+
+    await validateAppManifestDoc(textDocument, appManifest);
+  }
+
+  if (isHardwareDefinitionFile(textDocument.uri)) {
+    await validateHardwareDefinitionDoc(textDocument);
+  }
+}
+
+export class AppManifest {
+	constructor(
+		public ComponentId: string,
+		public Capabilities: AppPin,
+	) { }
+}
+
+export class AppPin {
+	constructor(
+		public Gpio: [string | number] | undefined,
+		public I2cMaster: [string] | undefined,
+		public Pwm: [string] | undefined,
+		public Uart: [string] | undefined,
+		public SpiMaster: [string] | undefined,
+		public Adc: [string] | undefined,
+		public AllowedApplicationConnections: [string] | undefined
+	) { }
+}
+
+export function tryParseAppManifestFile(AppManifestFileText: string): AppManifest | undefined {
+  try {
+    const parseErrors: jsonc.ParseError[] = [];
+
+    const AppManifestFileRootNode = jsonc.parseTree(AppManifestFileText, parseErrors);
+
+    if (parseErrors.length > 0) {
+      connection.console.warn("Encountered errors while parsing json file: ");
+      parseErrors.forEach((e) => connection.console.warn(`${e.offset} to ${e.offset + e.length}: ${jsonc.printParseErrorCode(e.error)}`));
+    }
+    if (!AppManifestFileRootNode) {
       return;
     }
+
+    const { ComponentId, Capabilities } = jsonc.getNodeValue(AppManifestFileRootNode);
+    const { Gpio, I2cMaster, Pwm, Uart, SpiMaster, Adc, AllowedApplicationConnections } = Capabilities;
+    const appPin = new AppPin(Gpio, I2cMaster, Pwm, Uart, SpiMaster, Adc, AllowedApplicationConnections);
+    return new AppManifest(ComponentId, appPin);
+  } catch (error) {
+    connection.console.log("Cannot parse application manifest file as JSON");
+    return;
+  }
+}
+
+async function validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
+  const settings = await getDocumentSettings(textDocument.uri);
+  settings.partnerApplicationsSetting.set(appManifest.ComponentId,appManifest);
+  const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
+  const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
+  if (!hwDefinitionPath) {
+    return;
+  }
+  const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
+  const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
+
+  if (!hwDefinition) {
+    return;
   }
 
-  if (textDocument.uri.endsWith(".json")) {
-    await validateTextDocument(textDocument);
-  }
-});
+  for(const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]){
+    if(settings.partnerApplicationsSetting.has(partner)){
+      const partnerAppManifest = settings.partnerApplicationsSetting.get(partner);
 
-async function validateTextDocument(textDocument: TextDocument): Promise<void> {
+      const appManifest_Gpio = findAppManifestValue(hwDefinition, appManifest.Capabilities.Gpio as [string]);
+      const partner_Gpio = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Gpio as [string]);
+      const intersection_Gpio = appManifest_Gpio.filter(element => partner_Gpio.includes(element));
+      connection.console.log([...new Set(intersection_Gpio)].toString());
+
+      const appManifest_I2cMaster = findAppManifestValue(hwDefinition, appManifest.Capabilities.I2cMaster as [string]);
+      const partner_I2cMaster = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.I2cMaster as [string]);
+      const intersection_I2cMaster = appManifest_I2cMaster.filter(element => partner_I2cMaster.includes(element));
+      connection.console.log([...new Set(intersection_I2cMaster)].toString());
+
+      const appManifest_Pwm = findAppManifestValue(hwDefinition, appManifest.Capabilities.Pwm as [string]);
+      const partner_Pwm = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Pwm as [string]);
+      const intersection_Pwm = appManifest_Pwm.filter(element => partner_Pwm.includes(element));
+      connection.console.log([...new Set(intersection_Pwm)].toString());
+
+      const appManifest_Uart = findAppManifestValue(hwDefinition, appManifest.Capabilities.Uart as [string]);
+      const partner_Uart = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Uart as [string]);
+      const intersection_Uart = appManifest_Uart.filter(element => partner_Uart.includes(element));
+      connection.console.log([...new Set(intersection_Uart)].toString());
+
+      const appManifest_SpiMaster = findAppManifestValue(hwDefinition, appManifest.Capabilities.SpiMaster as [string]);
+      const partner_SpiMastert = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.SpiMaster as [string]);
+      const intersection_SpiMaster = appManifest_SpiMaster.filter(element => partner_SpiMastert.includes(element));
+      connection.console.log([...new Set(intersection_SpiMaster)].toString());
+
+      const appManifest_Adc = findAppManifestValue(hwDefinition, appManifest.Capabilities.Adc as [string]);
+      const partner_Adc = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Adc as [string]);
+      const intersection_Adc = appManifest_Adc.filter(element => partner_Adc.includes(element));
+      connection.console.log([...new Set(intersection_Adc)].toString());
+    }
+  }
+  
+  const diagnostics: Diagnostic[] = [];
+  // Send the computed diagnostics to VSCode.
+  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+}
+
+function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): string[] {
+  const result = [];
+  if (typeArray) {
+    for (const name of typeArray) {
+      if (name.toString().includes("$")) {
+        const pinName = name.replace('$', '');
+        const appManifestValue = getAppManifestValue(pinName, [hwDefinition]);
+        result.push(appManifestValue as string);
+      } else {
+        result.push(name);
+      }
+    }
+  }
+  return result;
+}
+
+
+
+
+async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
   const text = textDocument.getText();
 
@@ -375,7 +502,6 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
         }
       }
     }
-    
     const pinMappings: PinMapping[] = [];
     
     for (let i = 0; i < Peripherals.length; i++) {
@@ -452,24 +578,29 @@ const setSettingPath = (ide: string | undefined) => {
 
 connection.onCodeAction(provideCodeActions);
 async function provideCodeActions(parms: CodeActionParams): Promise<CodeAction[]> {
-  const hwDefinitionFileUri = parms.textDocument.uri;
-  const hwDefinition = await getHardwareDefinition(hwDefinitionFileUri);
-  if (!hwDefinition) {
-    return [];
+  const docUri = parms.textDocument.uri;
+  if (isHardwareDefinitionFile(docUri)) {
+    const hwDefinition = await getHardwareDefinition(docUri);
+    if (!hwDefinition) {
+      return [];
+    }
+    return quickfix(hwDefinition, parms);
   }
-  return quickfix(hwDefinition, parms);
+  return [];
 }
 
 connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams): Promise<CompletionItem[]> => {
-  const hwDefinitionFileUri = textDocumentPosition.textDocument.uri;
+  const docUri = textDocumentPosition.textDocument.uri;
+  if (isHardwareDefinitionFile(docUri)) {
+    const hwDefinition = await getHardwareDefinition(docUri);
+    if (!hwDefinition) {
+      return [];
+    }
 
-  const hwDefinition = await getHardwareDefinition(hwDefinitionFileUri);
-  if (!hwDefinition) {
-    return [];
+    const caretPosition = textDocumentPosition.position;
+    return pinMappingCompletionItemsAtPosition(hwDefinition, caretPosition);
   }
-
-  const caretPosition = textDocumentPosition.position;
-  return pinMappingCompletionItemsAtPosition(hwDefinition, caretPosition);
+  return [];
 });
 
 // This handler resolves additional information for the item selected in
@@ -486,6 +617,14 @@ async function getFileText(uri: string): Promise<string> {
     fileText = await readFile(URI.parse(uri).fsPath, { encoding: "utf8" });
   }
   return fileText;
+}
+
+function isHardwareDefinitionFile(uri: string) {
+  return uri.endsWith(".json") && !isAppManifestFile(uri);
+}
+
+function isAppManifestFile(uri: string) {
+  return uri.endsWith("app_manifest.json");
 }
 
 // Make the text document manager listen on the connection
