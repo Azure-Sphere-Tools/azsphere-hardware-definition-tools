@@ -1,7 +1,7 @@
 import { Diagnostic } from 'vscode-languageserver/node';
 
 import * as assert from 'assert';
-import { HardwareDefinition, PinMapping, toRange } from '../hardwareDefinition';
+import { HardwareDefinition, PinMapping } from '../hardwareDefinition';
 import { asURI, getRange, getDummyPinMapping } from "./testUtils";
 import * as mockfs from 'mock-fs';
 import * as fs from 'fs';
@@ -12,30 +12,9 @@ import { validateNamesAndMappings, validatePinBlock } from '../validator';
 suite('validateNamesAndMappings', () => {
 
 	test('Validate Indirect Mapping', () => {
-		// {"Name": "LED_GPIO0", "Type": "Gpio", "Mapping": "GPIO0"}
-		const indirectPin = getDummyPinMapping({ 
-			name: {
-				value: {
-					range: getRange(0, 9, 0, 20),
-					text: 'LED_GPIO0'
-				}
-			},
-			type: 'Gpio', 
-			mapping: 'GPIO0' 
-		});
-		// {"Name": "ODM_GPIO0", "Type": "Gpio", "Mapping": "GPIO0"}
-		const pinWithSameMapping = getDummyPinMapping({ 
-			name: 'ODM_GPIO0', 
-			type: 'Gpio', 
-			mapping: 'GPIO0' 
-		});
-		// {"Name": "GPIO0", "Type": "Gpio", "AppManifestValue": 0}
-		const sourcePin = getDummyPinMapping({ 
-			range: getRange(0, 0, 0, 56), 
-			name: 'GPIO0', 
-			type: 'Gpio', 
-			appManifestValue: 0 
-		});
+		const indirectPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'LED_GPIO0', type: 'Gpio', mapping: 'GPIO0' });
+		const pinWithSameMapping = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'ODM_GPIO0', type: 'Gpio', mapping: 'GPIO0' });
+		const sourcePin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'GPIO0', type: 'Gpio', appManifestValue: 0 });
 
 		const hwDefFilePathWithIndirectPin = 'my_app/hardwareDef.json';
 		const hwDefFilePathFalseImported = 'my_app/odm.json';
@@ -46,316 +25,58 @@ suite('validateNamesAndMappings', () => {
 		const hwDefWithIndirectPin = new HardwareDefinition(asURI(hwDefFilePathWithIndirectPin), undefined, [indirectPin], [hwDefFalseImported]);
 
 		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefWithIndirectPin, true);
+		const actualDiagnostic = warningDiagnostics[0];
 
-		assert.strictEqual(warningDiagnostics.length, 2);
-
-		assert.strictEqual(warningDiagnostics[0].message, indirectPin.mapping?.value.text + ' is indirectly imported from ' + URI.parse(hwDefWithSourcePin.uri).fsPath + '.');
-		assert.deepStrictEqual(warningDiagnostics[0].range, indirectPin.mapping?.value.range);
-		assert.strictEqual(warningDiagnostics[0].severity, 2);
-		assert.strictEqual(warningDiagnostics[0].source, 'az sphere');
-		assert.strictEqual(warningDiagnostics[0].code, 'AST4');
-		assert.ok(warningDiagnostics[0].relatedInformation);
-		assert.deepStrictEqual(warningDiagnostics[0].relatedInformation[0].location.uri, hwDefWithSourcePin.uri);
-		assert.deepStrictEqual(warningDiagnostics[0].relatedInformation[0].location.range, sourcePin.range);
-		assert.strictEqual(warningDiagnostics[0].relatedInformation[0].message, 'Indirect import');
+		assert.strictEqual(actualDiagnostic.message, indirectPin.mapping?.value.text + ' is indirectly imported from ' + URI.parse(hwDefWithSourcePin.uri).fsPath + '.');
+		assert.deepStrictEqual(actualDiagnostic.range, indirectPin.range);
+		assert.strictEqual(actualDiagnostic.severity, 2);
+		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 	});
 
 	test('Validate Duplicate Names', () => {
-		// {"Name": "PWM", "Type": "Pwm", "AppManifestValue": "PWM-CONTROLLER-0"}
-		const pinWithNoDuplicateLocalName = getDummyPinMapping({ 
-			name: { 
-				value: { 
-					range: getRange(0, 9, 0, 14), 
-					text: 'PWM' 
-				} 
-			}, 
-			type: 'Pwm', 
-			appManifestValue: 'PWM-CONTROLLER-0'
-		});
-		// {"Name": "LED", "Type": "Gpio", "AppManifestValue": 0}
-		const pinWithDuplicateLocalName_1 = getDummyPinMapping({ 
-			name: { 
-				value: { 
-					range: getRange(1, 9, 1, 14), 
-					text: 'LED' 
-				} 
-			}, 
-			type: 'Gpio', 
-			appManifestValue: 0 
-		});
-		// {"Name": "LED", "Type": "Gpio", "AppManifestValue": 1}
-		const pinWithDuplicateLocalName_2 = getDummyPinMapping({ 
-			name: {
-				value: {
-					range: getRange(2, 9, 2, 14),
-					text: pinWithDuplicateLocalName_1.name.value.text
-				}
-			},
-			type: 'Gpio', 
-			appManifestValue: 1 
-		});
-		// {"Name": "MT3620_GPIO3", "Type": "Gpio", "AppManifestValue": 3}
-		const validImportedPin = getDummyPinMapping({
-			name: {
-				value: {
-					range: getRange(0, 9, 0, 14),
-					text: 'MT3620_GPIO3'
-				}
-			},
-			type: 'Gpio',
-			appManifestValue: 3
-		});
-		// {"Name": "MT3620_GPIO3", "Type": "Gpio", "AppManifestValue": 2}
-		const pinWithDuplicateImportedName = getDummyPinMapping({ 
-			name: {
-				value: {
-					range: getRange(3, 9, 3, 23),
-					text: validImportedPin.name.value.text
-				}
-			},
-			type: 'Gpio', 
-			appManifestValue: 2
-		});
+		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'LED', type: 'Gpio', appManifestValue: 0 });
+		const pinWithDuplicateName = getDummyPinMapping({ range: getRange(1, 2, 1, 8), name: validPin.name.value.text, type: 'Gpio', appManifestValue: 1 });
 
-		const importedHwDef = new HardwareDefinition(asURI('sdk/mt3620.json'), undefined, [validImportedPin]);
-		const hwDefinitionWithDuplicateNames = new HardwareDefinition(
-			asURI('my_app/hardwareDef.json'),
-			undefined, 
-			[pinWithNoDuplicateLocalName, pinWithDuplicateLocalName_1, pinWithDuplicateLocalName_2, pinWithDuplicateImportedName],
-			[importedHwDef]
-		);
+		const hwDefFilePath = 'my_app/hardwareDef.json';
+		const hwDefinitionWithDuplicateNames = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, pinWithDuplicateName]);
 
 		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionWithDuplicateNames, true);
+		const actualDiagnostic = warningDiagnostics[0];
 
-		assert.strictEqual(warningDiagnostics.length, 3);
-		
-		assert.strictEqual(warningDiagnostics[0].message, `Peripheral name ${pinWithDuplicateLocalName_1.name.value.text} is used multiple times.`);
-		assert.deepStrictEqual(warningDiagnostics[0].range, pinWithDuplicateLocalName_1.name.value.range);
-		assert.strictEqual(warningDiagnostics[0].severity, 1);
-		assert.strictEqual(warningDiagnostics[0].source, 'az sphere');
-		assert.strictEqual(warningDiagnostics[0].code, 'AST1');
-		assert.ok(warningDiagnostics[0].relatedInformation);
-		assert.deepStrictEqual(warningDiagnostics[0].relatedInformation[0].location.uri, hwDefinitionWithDuplicateNames.uri);
-		assert.deepStrictEqual(warningDiagnostics[0].relatedInformation[0].location.range, pinWithDuplicateLocalName_2.name.value.range);
-		assert.strictEqual(warningDiagnostics[0].relatedInformation[0].message, 'Duplicate peripheral name');
+		assert.strictEqual(actualDiagnostic.message, pinWithDuplicateName.name.value.text + ' is already used by another pin mapping');
+		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
+		assert.strictEqual(actualDiagnostic.severity, 1);
+		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 
-		assert.strictEqual(warningDiagnostics[1].message, `Peripheral name ${pinWithDuplicateLocalName_2.name.value.text} is used multiple times.`);
-		assert.deepStrictEqual(warningDiagnostics[1].range, pinWithDuplicateLocalName_2.name.value.range);
-		assert.strictEqual(warningDiagnostics[1].severity, 1);
-		assert.strictEqual(warningDiagnostics[1].source, 'az sphere');
-		assert.strictEqual(warningDiagnostics[1].code, 'AST1');
-		assert.ok(warningDiagnostics[1].relatedInformation);
-		assert.deepStrictEqual(warningDiagnostics[1].relatedInformation[0].location.uri, hwDefinitionWithDuplicateNames.uri);
-		assert.deepStrictEqual(warningDiagnostics[1].relatedInformation[0].location.range, pinWithDuplicateLocalName_1.name.value.range);
-		assert.strictEqual(warningDiagnostics[1].relatedInformation[0].message, 'Duplicate peripheral name');
-
-		assert.strictEqual(warningDiagnostics[2].message, `Peripheral name ${pinWithDuplicateImportedName.name.value.text} is used multiple times.`);
-		assert.deepStrictEqual(warningDiagnostics[2].range, pinWithDuplicateImportedName.name.value.range);
-		assert.strictEqual(warningDiagnostics[2].severity, 1);
-		assert.strictEqual(warningDiagnostics[2].source, 'az sphere');
-		assert.strictEqual(warningDiagnostics[2].code, 'AST1');
-		assert.ok(warningDiagnostics[2].relatedInformation);
-		assert.deepStrictEqual(warningDiagnostics[2].relatedInformation[0].location.uri, importedHwDef.uri);
-		assert.deepStrictEqual(warningDiagnostics[2].relatedInformation[0].location.range, validImportedPin.name.value.range);
-		assert.strictEqual(warningDiagnostics[2].relatedInformation[0].message, 'Duplicate peripheral name');
+		assert.ok(actualDiagnostic.relatedInformation);
+		assert.deepStrictEqual(actualDiagnostic.relatedInformation[0].location.range, validPin.range);
 	});
 
-	test('Validate Nonexistent Mappings', () => {
-		const existingMapping = 'GPIO0';
+	test('Validate Non-existent Mappings', () => {
+		const existingMapping = "GPIO0";
 
-		// {"Name": "GPIO0", "Type": "Gpio", "AppManifestValue": 0}
-		const importedPin = getDummyPinMapping({ 
-			name: existingMapping, 
-			type: 'Gpio', 
-			appManifestValue: 0 
-		});
-		// {"Name": "LED", "Type": "Gpio", "Mapping": "GPIO0"}
-		const validPin = getDummyPinMapping({ 
-			name: 'LED', 
-			type: 'Gpio', 
-			mapping: existingMapping 
-		});
+		const importedPin = getDummyPinMapping({ name: existingMapping, type: 'Gpio', appManifestValue: 0 });
+		const validPin = getDummyPinMapping({ name: 'LED', type: 'Gpio', mapping: existingMapping });
 
-		const nonExistentMapping = 'GPIO28';
-		// {"Name": "BUTTON", "Type": "Gpio", "Mapping": "GPIO28"}
-		const pinWithInvalidMapping = getDummyPinMapping({ 
-			range: getRange(1, 2, 1, 8), 
-			name: 'BUTTON', 
-			type: 'Gpio', 
-			mapping: {
-				value: {
-					range: getRange(1, 46, 1, 54),
-					text: nonExistentMapping
-				}
-			} 
-		});
+		const nonExistentMapping = "GPIO28";
+		const pinWithInvalidMapping = getDummyPinMapping({ range: getRange(1, 2, 1, 8), name: 'BUTTON', type: 'Gpio', mapping: nonExistentMapping });
+
 
 		const importedHwDefinition = new HardwareDefinition(asURI('my_app/mt3620.json'), undefined, [importedPin]);
 		const hwDefinition = new HardwareDefinition(asURI('my_app/appliance.json'), undefined, [validPin, pinWithInvalidMapping], [importedHwDefinition]);
 
 		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinition, true);
+		const actualDiagnostic = warningDiagnostics[0];
 
-		assert.strictEqual(warningDiagnostics.length, 1);
-
-		assert.strictEqual(warningDiagnostics[0].message, `Peripheral ${nonExistentMapping} not found.`);
-		assert.deepStrictEqual(warningDiagnostics[0].range, pinWithInvalidMapping.mapping?.value.range);
-		assert.strictEqual(warningDiagnostics[0].severity, 1);
-		assert.strictEqual(warningDiagnostics[0].source, 'az sphere');
-		assert.strictEqual(warningDiagnostics[0].code, 'AST2');
-	});
-
-	test('Validate Duplicate Mapping', () => {
-		// {"Name": "MT3620_GPIO0", "Type": "Gpio", "AppManifestValue": 0}
-		const mt3620_peripheral_0 = getDummyPinMapping({
-			name: 'MT3620_GPIO0',
-			type: 'Gpio',
-			appManifestValue: 0
-		});
-		// {"Name": "MT3620_GPIO1", "Type": "Gpio", "AppManifestValue": 1}
-		const mt3620_peripheral_1 = getDummyPinMapping({
-			name: 'MT3620_GPIO1',
-			type: 'Gpio',
-			appManifestValue: 1
-		});
-		// {"Name": "MT3620_GPIO2", "Type": "Gpio", "AppManifestValue": 2}
-		const mt3620_peripheral_2 = getDummyPinMapping({
-			name: 'MT3620_GPIO2',
-			type: 'Gpio',
-			appManifestValue: 2
-		});
-
-		// {"Name": "AVNET_GPIO0", "Type": "Gpio", "Mapping": "MT3620_GPIO0"}
-		const avnet_peripheral_0 = getDummyPinMapping({
-			name: 'AVNET_GPIO0',
-			type: 'Gpio',
-			mapping: {
-				value: {
-					range: getRange(0, 51, 0, 65),
-					text: 'MT3620_GPIO0'
-				}
-			}
-		});
-		// {"Name": "AVNET_GPIO1", "Type": "Gpio", "Mapping": "MT3620_GPIO1"}
-		const avnet_peripheral_1 = getDummyPinMapping({
-			name: 'AVNET_GPIO1',
-			type: 'Gpio',
-			mapping: {
-				value: {
-					range: getRange(1, 51, 1, 65),
-					text: 'MT3620_GPIO1'
-				}
-			}
-		});
-
-		// {"Name": "LED_OK", "Type": "Gpio", "Mapping": "AVNET_GPIO0"}
-		const peripheralWithNoDuplicate = getDummyPinMapping({
-			name: 'LED_OK',
-			type: 'Gpio',
-			mapping: {
-				value: {
-					range: getRange(0, 46, 0, 54),
-					text: 'AVNET_GPIO0'
-				}
-			}
-		});
-		// {"Name": "LED_DUPLICATE_0", "Type": "Gpio", "Mapping": "AVNET_GPIO1"}
-		const peripheralWithDuplicate0 = getDummyPinMapping({
-			name: 'LED_DUPLICATE_0',
-			type: 'Gpio',
-			mapping: {
-				value: {
-					range: getRange(1, 55, 1, 63),
-					text: 'AVNET_GPIO1'
-				}
-			}
-		});
-		// {"Name": "LED_DUPLICATE_1", "Type": "Gpio", "Mapping": "AVNET_GPIO1"}
-		const peripheralWithDuplicate1 = getDummyPinMapping({
-			name: 'LED_DUPLICATE_1',
-			type: 'Gpio',
-			mapping: {
-				value: {
-					range: getRange(2, 55, 2, 63),
-					text: 'AVNET_GPIO1'
-				}
-			}
-		});
-		// {"Name": "LED_IMPORTED_DUPLICATE", "Type": "Gpio", "Mapping": "MT3620_GPIO0"}
-		const peripheralWithImportedDuplicate = getDummyPinMapping({
-			name: 'LED_IMPORTED_DUPLICATE',
-			type: 'Gpio',
-			mapping: {
-				value: {
-					range: getRange(3, 62, 3, 76),
-					text: 'MT3620_GPIO0'
-				}
-			}
-		});
-
-		const mt3620 = new HardwareDefinition('mt3620.json', undefined, [mt3620_peripheral_0, mt3620_peripheral_1, mt3620_peripheral_2]);
-		const avnet = new HardwareDefinition('avnet.json', undefined, [avnet_peripheral_0, avnet_peripheral_1], [mt3620]);
-		const application = new HardwareDefinition('application.json', undefined, [peripheralWithNoDuplicate, peripheralWithDuplicate0, peripheralWithDuplicate1, peripheralWithImportedDuplicate], [avnet]);
-
-		const diagnostics = validateNamesAndMappings(application, true);
-
-		assert.strictEqual(diagnostics.length, 4);
-
-		assert.strictEqual(diagnostics[0].message, `${peripheralWithDuplicate0.mapping?.value.text} is also mapped to ${peripheralWithDuplicate1.name.value.text}.`);
-		assert.deepStrictEqual(diagnostics[0].range, peripheralWithDuplicate0.mapping?.value.range);
-		assert.strictEqual(diagnostics[0].severity, 2);
-		assert.strictEqual(diagnostics[0].source, 'az sphere');
-		assert.strictEqual(diagnostics[0].code, 'AST3');
-		assert.ok(diagnostics[0].relatedInformation);
-		assert.deepStrictEqual(diagnostics[0].relatedInformation[0].location.uri, application.uri);
-		assert.deepStrictEqual(diagnostics[0].relatedInformation[0].location.range, peripheralWithDuplicate1.mapping?.value.range);
-		assert.strictEqual(diagnostics[0].relatedInformation[0].message, 'Duplicate peripheral mapping');
-
-		assert.strictEqual(diagnostics[1].message, `${peripheralWithDuplicate1.mapping?.value.text} is also mapped to ${peripheralWithDuplicate0.name.value.text}.`);
-		assert.deepStrictEqual(diagnostics[1].range, peripheralWithDuplicate1.mapping?.value.range);
-		assert.strictEqual(diagnostics[1].severity, 2);
-		assert.strictEqual(diagnostics[1].source, 'az sphere');
-		assert.strictEqual(diagnostics[1].code, 'AST3');
-		assert.ok(diagnostics[1].relatedInformation);
-		assert.deepStrictEqual(diagnostics[1].relatedInformation[0].location.uri, application.uri);
-		assert.deepStrictEqual(diagnostics[1].relatedInformation[0].location.range, peripheralWithDuplicate0.mapping?.value.range);
-		assert.strictEqual(diagnostics[1].relatedInformation[0].message, 'Duplicate peripheral mapping');
-
-		assert.strictEqual(diagnostics[3].message, `${peripheralWithImportedDuplicate.mapping?.value.text} is also mapped to ${avnet_peripheral_0.name.value.text}.`);
-		assert.deepStrictEqual(diagnostics[3].range, peripheralWithImportedDuplicate.mapping?.value.range);
-		assert.strictEqual(diagnostics[3].severity, 2);
-		assert.strictEqual(diagnostics[3].source, 'az sphere');
-		assert.strictEqual(diagnostics[3].code, 'AST3');
-		assert.ok(diagnostics[3].relatedInformation);
-		assert.deepStrictEqual(diagnostics[3].relatedInformation[0].location.uri, avnet.uri);
-		assert.deepStrictEqual(diagnostics[3].relatedInformation[0].location.range, avnet_peripheral_0.mapping?.value.range);
-		assert.strictEqual(diagnostics[3].relatedInformation[0].message, 'Duplicate peripheral mapping');
+		assert.strictEqual(actualDiagnostic.message, 'Mapping ' + nonExistentMapping + ' is invalid. There is no imported pin mapping with that name.');
+		assert.deepStrictEqual(actualDiagnostic.range, pinWithInvalidMapping.range);
+		assert.strictEqual(actualDiagnostic.severity, 1);
+		assert.strictEqual(actualDiagnostic.source, 'az sphere');
 	});
 
 	test('Includes Related Information in Diagnostic Message if "includeRelatedInfo" = false', () => {
-		// { "Name": "LED", "Type": "Gpio", "AppManifestValue": 0 }
-		const validPin = getDummyPinMapping({ 
-			name: {
-				value: {
-					range: getRange(0, 0, 0, 5),
-					text: 'LED'
-				}
-			},
-			type: 'Gpio', 
-			appManifestValue: 0 
-		});
-		// { "Name": "LED", "Type": "Gpio", "AppManifestValue": 1 }
-		const pinWithDuplicateName = getDummyPinMapping({ 
-			range: getRange(1, 2, 1, 8), 
-			name: {
-				value: {
-					range: getRange(1, 2, 1, 8),
-					text: validPin.name.value.text,
-				}
-			},
-			type: 'Gpio', 
-			appManifestValue: 1 
-		});
-
+		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: 'LED', type: 'Gpio', appManifestValue: 0 });
+		const pinWithDuplicateName = getDummyPinMapping({ range: getRange(1, 2, 1, 8), name: validPin.name.value.text, type: 'Gpio', appManifestValue: 1 });
 		const hwDefFilePath = 'my_app/hardwareDef.json';
 		const hwDefinitionWithDuplicateNames = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, pinWithDuplicateName]);
 
@@ -363,12 +84,12 @@ suite('validateNamesAndMappings', () => {
 		const actualDiagnostic = warningDiagnostics[0];
 
 		// we expect line and char to be incremented by 1 since we start counting lines from 1 in text files (not 0)
-		const relatedInfoStartLine = pinWithDuplicateName.name.value.range.start.line + 1;
-		const relatedInfoStartChar = pinWithDuplicateName.name.value.range.start.character + 1;
-		const baseMessage = `Peripheral name ${validPin.name.value.text} is used multiple times.`;
+		const relatedInfoStartLine = validPin.range.start.line + 1;
+		const relatedInfoStartChar = validPin.range.start.character + 1;
+		const baseMessage = `${pinWithDuplicateName.name.value.text} is already used by another pin mapping`;
 		const expectedMessage = `${baseMessage} (line ${relatedInfoStartLine}, char ${relatedInfoStartChar})`;
 		assert.strictEqual(actualDiagnostic.message, expectedMessage);
-		assert.deepStrictEqual(actualDiagnostic.range, validPin.name.value.range);
+		assert.deepStrictEqual(actualDiagnostic.range, pinWithDuplicateName.range);
 	});
 });
 

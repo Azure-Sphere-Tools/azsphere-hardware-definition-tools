@@ -38,7 +38,7 @@ namespace AZSphereHardwareDefinitionTools.Tests
       var dte = await TestUtils.GetDTEAsync();
 
       await TestUtils.OpenTestFixtureFileAsync("diagnostics.json");
-      int expectedDiagnosticsCount = 5;
+      int expectedDiagnosticsCount = 4;
       int maxAttempts = 5;
       int attempts = 0;
       var errors = await TestUtils.GetErrorsAsync(dte, serviceProvider);
@@ -52,16 +52,14 @@ namespace AZSphereHardwareDefinitionTools.Tests
       Assert.Equal(expectedDiagnosticsCount, errors.Count);
 
       string[] expectedMessages = new string[] {
-        "Peripheral USER_BUTTON_A not found.",
-        "Peripheral USER_BUTTON_A not found.",
-        "Peripheral USER_BUTTON_B not found.",
-        "USER_BUTTON_A is also mapped to SAMPLE_BUTTON_2. (line 19, char 18)",
-        "USER_BUTTON_A is also mapped to SAMPLE_BUTTON_1. (line 14, char 18)",
+        "\"USER_BUTTON_A\" is already mapped",
+        "Mapping USER_BUTTON_A is invalid. There is no imported pin mapping with that name.",
+        "Mapping USER_BUTTON_A is invalid. There is no imported pin mapping with that name.",
+        "Mapping USER_BUTTON_B is invalid. There is no imported pin mapping with that name."
       };
-
       foreach (string expectedMessage in expectedMessages)
       {
-        Assert.Contains(errors, e => e.GetText().Equals(expectedMessage));
+        Assert.Contains(errors, e => e.GetText().Contains(expectedMessage));
       }
     }
   }
