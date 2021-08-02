@@ -33,7 +33,7 @@ import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { validateNamesAndMappings, findUnknownImports, validatePinBlock, getAppManifestValue } from "./validator";
+import { validateNamesAndMappings, findUnknownImports, validatePinBlock, getAppManifestValue, getController } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { AppManifest, AppPin } from "./applicationFile";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
@@ -377,7 +377,7 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
 async function validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
   settings.partnerApplicationsSetting.set(appManifest.ComponentId,appManifest);
-  
+
   const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
   const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
   if (!hwDefinitionPath) {
@@ -432,6 +432,46 @@ async function validateAppManifestDoc(textDocument: TextDocument, appManifest: A
           }
         }
       }
+
+      // for the pin block conflict
+      const partnerController: Map<string, Map<string,string >> = new Map();
+      for(const [key, value] of partnerMap){
+        const partnerValue = partnerMap.get(key)?.value.text as [string];
+        const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
+
+        for (let index = 0; index < partnerAppManifest_key.length; index++) {
+          const controller = getController(key, partnerAppManifest_key[index]);
+          partnerController.set(controller.name, new Map([["key", key],["value",partnerValue[index]]]));
+        }
+      }
+
+      for(const [key, value] of appManifestMap){
+        if(partnerMap.has(key)){
+          // const partnerValue = partnerMap.get(key)?.value.text as [string];
+          const appValue= value?.value.text as [string];
+          const appManifest_key = findAppManifestValue(hwDefinition, appValue);
+          // const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
+
+          for (let index = 0; index < appManifest_key.length; index++) {
+            const controller = getController(key, appManifest_key[index]);
+            connection.console.log(controller.name);
+            const existingControllerSetup = partnerController.get(controller.name);
+            
+            if(existingControllerSetup?.get('key') != undefined &&
+              existingControllerSetup?.get('key') != key){
+              const diagnostic: Diagnostic = {
+                code: "AST-48",
+                message: `${appValue[index]} configured as ${existingControllerSetup?.get('key')} by ${existingControllerSetup?.get('value')}`,
+                range: value?.value.range,
+                severity: DiagnosticSeverity.Error,
+                source: 'az sphere'
+              };
+              diagnostics.push(diagnostic);
+            }
+          }
+        }
+      }
+
     }
   }
   // Send the computed diagnostics to VSCode.

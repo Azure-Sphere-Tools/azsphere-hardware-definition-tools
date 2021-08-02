@@ -204,7 +204,7 @@ function _getController(type: string, appManifestValue: number | string): Contro
 	);
 }
 
-const getController = memoize(_getController);
+export const getController = memoize(_getController);
 
 /**
  * Checks that the given Hardware Definition:
