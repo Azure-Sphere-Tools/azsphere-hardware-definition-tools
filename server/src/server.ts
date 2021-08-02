@@ -377,6 +377,7 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
 async function validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
   settings.partnerApplicationsSetting.set(appManifest.ComponentId,appManifest);
+  
   const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
   const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
   if (!hwDefinitionPath) {
@@ -389,43 +390,50 @@ async function validateAppManifestDoc(textDocument: TextDocument, appManifest: A
     return;
   }
 
+  const diagnostics: Diagnostic[] = [];
   for(const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]){
     if(settings.partnerApplicationsSetting.has(partner)){
       const partnerAppManifest = settings.partnerApplicationsSetting.get(partner);
+      const appManifestMap = new Map();
+      const partnerMap = new Map();
 
-      const appManifest_Gpio = findAppManifestValue(hwDefinition, appManifest.Capabilities.Gpio?.value.text as [string]);
-      const partner_Gpio = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Gpio?.value.text as [string]);
-      const intersection_Gpio = appManifest_Gpio.filter(element => partner_Gpio.includes(element));
-      connection.console.log([...new Set(intersection_Gpio)].toString());
+      appManifestMap.set("gpio", appManifest.Capabilities.Gpio);
+      partnerMap.set("gpio", partnerAppManifest?.Capabilities.Gpio);
+      appManifestMap.set("i2cmaster", appManifest.Capabilities.I2cMaster);
+      partnerMap.set("i2cmaster", partnerAppManifest?.Capabilities.I2cMaster);
+      appManifestMap.set("pwm", appManifest.Capabilities.Pwm);
+      partnerMap.set("pwm", partnerAppManifest?.Capabilities.Pwm);
+      appManifestMap.set("uart", appManifest.Capabilities.Uart);
+      partnerMap.set("uart", partnerAppManifest?.Capabilities.Uart);
+      appManifestMap.set("spimaster", appManifest.Capabilities.SpiMaster);
+      partnerMap.set("spimaster", partnerAppManifest?.Capabilities.SpiMaster);
+      appManifestMap.set("adc", appManifest.Capabilities.Adc);
+      partnerMap.set("adc", partnerAppManifest?.Capabilities.Adc);
 
-      const appManifest_I2cMaster = findAppManifestValue(hwDefinition, appManifest.Capabilities.I2cMaster?.value.text as [string]);
-      const partner_I2cMaster = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.I2cMaster?.value.text as [string]);
-      const intersection_I2cMaster = appManifest_I2cMaster.filter(element => partner_I2cMaster.includes(element));
-      connection.console.log([...new Set(intersection_I2cMaster)].toString());
+      // for the same pin and find the conflict
+      for(const [key, value] of appManifestMap){
+        if(partnerMap.has(key)){
+          const partnerValue = partnerMap.get(key)?.value.text as [string];
+          const appValue= value?.value.text as [string];
+          const appManifest_key = findAppManifestValue(hwDefinition, appValue);
+          const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
 
-      const appManifest_Pwm = findAppManifestValue(hwDefinition, appManifest.Capabilities.Pwm?.value.text as [string]);
-      const partner_Pwm = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Pwm?.value.text as [string]);
-      const intersection_Pwm = appManifest_Pwm.filter(element => partner_Pwm.includes(element));
-      connection.console.log([...new Set(intersection_Pwm)].toString());
-
-      const appManifest_Uart = findAppManifestValue(hwDefinition, appManifest.Capabilities.Uart?.value.text as [string]);
-      const partner_Uart = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Uart?.value.text as [string]);
-      const intersection_Uart = appManifest_Uart.filter(element => partner_Uart.includes(element));
-      connection.console.log([...new Set(intersection_Uart)].toString());
-
-      const appManifest_SpiMaster = findAppManifestValue(hwDefinition, appManifest.Capabilities.SpiMaster?.value.text as [string]);
-      const partner_SpiMastert = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.SpiMaster?.value.text as [string]);
-      const intersection_SpiMaster = appManifest_SpiMaster.filter(element => partner_SpiMastert.includes(element));
-      connection.console.log([...new Set(intersection_SpiMaster)].toString());
-
-      const appManifest_Adc = findAppManifestValue(hwDefinition, appManifest.Capabilities.Adc?.value.text as [string]);
-      const partner_Adc = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Adc?.value.text as [string]);
-      const intersection_Adc = appManifest_Adc.filter(element => partner_Adc.includes(element));
-      connection.console.log([...new Set(intersection_Adc)].toString());
+          for (let index = 0; index < appManifest_key.length; index++) {
+            if(partnerAppManifest_key.includes(appManifest_key[index])){
+              const diagnostic: Diagnostic = {
+                code: "AST-48",
+                message: `${appValue[index]} is used multiple times.`,
+                range: value?.value.range,
+                severity: DiagnosticSeverity.Error,
+                source: 'az sphere'
+              };
+              diagnostics.push(diagnostic);
+            }
+          }
+        }
+      }
     }
   }
-  
-  const diagnostics: Diagnostic[] = [];
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
 }
@@ -445,9 +453,6 @@ function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: strin
   }
   return result;
 }
-
-
-
 
 async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<void> {
   const settings = await getDocumentSettings(textDocument.uri);
