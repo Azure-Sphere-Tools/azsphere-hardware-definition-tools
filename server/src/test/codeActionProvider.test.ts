@@ -4,7 +4,7 @@ import { HardwareDefinition, PinMapping } from "../hardwareDefinition";
 import { findPinMappingRange, quickfix } from "../codeActionProvider";
 import { asURI, getRange, getDummyPinMapping } from "./testUtils";
 import { CodeActionParams, Diagnostic, Range } from "vscode-languageserver";
-import { findDuplicateMappings, validateNamesAndMappings, validatePinBlock } from "../validator";
+import { validateNamesAndMappings, validatePinBlock } from "../validator";
 import * as mockfs from 'mock-fs';
 import { tryParseHardwareDefinitionFile } from "../server";
 import * as fs from 'fs';
@@ -61,7 +61,7 @@ suite("quickfix", () => {
     };
 
     const text = textDocument.getText();
-    const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinitionFile, text, textDocument, true);
+    const diagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionFile, true);
     
     const params: CodeActionParams = {
       context: {diagnostics: diagnostics},
