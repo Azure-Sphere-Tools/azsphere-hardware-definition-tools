@@ -20,6 +20,7 @@ interface FlatPinMapping {
  * - Don't have pin mappings with duplicate names
  * - Don't have pin mappings which map to target mappings that don't exist
  * - Don't have indirectly imported pin mappings 
+ * - Don't have multiple mappings to the same peripheral
  * @param hwDefinition The Hardware Definition to validate
  * @param includeRelatedInfo If the client IDE supports adding diagnostic related information
  * @returns Diagnostics with the Hardware Definition's underlying issues
@@ -37,6 +38,7 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 			if (conflictingNamePeripheral != undefined) {
 				const diagnostic = duplicateNameError(
 					currentPeripheral,
+					hwDefinition.uri,
 					conflictingNamePeripheral.pinMapping,
 					conflictingNamePeripheral.hardwareDefinitionUri,
 					includeRelatedInfo
@@ -69,7 +71,6 @@ export function validateNamesAndMappings(hwDefinition: HardwareDefinition, inclu
 				}
 			} else if (mappedPeripherals.length > 1) {
 				// TODO: (DOBO) mapping to an imported peripheral with duplicate name exists
-				console.log('');
 			}
 
 			const filteredByMapping = allPeripherals.filter(({ pinMapping }) => currentPeripheral.mapping?.value.text == pinMapping.mapping?.value.text);

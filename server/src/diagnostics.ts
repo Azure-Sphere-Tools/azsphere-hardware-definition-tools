@@ -17,11 +17,12 @@ export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
 /**
  * 
  * @param badMapping The faulty pin mapping which uses the same name as another mapped pin
+ * @param badMappingUri The uri of the hardware definition in which 'badMapping' is declared
  * @param existingMapping The pin mapping which used the pin name before 'badMapping' 
  * @param existingMappingUri The uri of the hardware definition in which 'existingMapping' is declared
  * @param includeRelatedInfo If the IDE supports the 'relatedInformation' property
  */
-export function duplicateNameError(badMapping: PinMapping, existingMapping: PinMapping, existingMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
+export function duplicateNameError(badMapping: PinMapping, badMappingUri: string, existingMapping: PinMapping, existingMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
     code: DUPLICATE_NAME_ERROR_CODE,
     message: `Peripheral name ${badMapping.name.value.text} is used multiple times.`,
@@ -41,7 +42,7 @@ export function duplicateNameError(badMapping: PinMapping, existingMapping: PinM
     ];
   } else {
     const relatedInfoPosition = existingMapping.name.value.range.start;
-    addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition);
+    addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, badMappingUri != existingMappingUri ? existingMappingUri : undefined);
   }
   return diagnostic;
 }
