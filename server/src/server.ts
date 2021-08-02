@@ -296,14 +296,15 @@ documents.onDidChangeContent(async (change) => {
       return;
     }
   }
+});
 
-  if (textDocument.uri.endsWith(".json")) {
-    const hwDefintionUri = await validateTextDocument(textDocument);
+documents.onDidSave(async (save) => {
+  if (save.document.uri.endsWith(".json")) {
+    const hwDefintionUri = await validateTextDocument(save.document);
 
     // Hardware Definition header generation
     if (hwDefintionUri) {
       exec(`azsphere hardware-definition generate-header --hardware-definition-file ${URI.parse(hwDefintionUri).fsPath}`, (err, stdout, stderr) => {
-        console.log(URI.parse(path.dirname(hwDefintionUri)).fsPath);
         if (err) return connection.sendNotification(ShowMessageNotification.type, { message: `Header file generation error: ${err.message}`, type: MessageType.Error });
         if (stderr) return connection.sendNotification(ShowMessageNotification.type, { message: `Header file generation stderr: ${stderr}`, type: MessageType.Error });
         if (stdout) return connection.sendNotification(ShowMessageNotification.type, { message: stdout, type: MessageType.Info });
