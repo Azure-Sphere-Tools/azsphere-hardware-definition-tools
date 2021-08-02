@@ -32,7 +32,7 @@ import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { findDuplicateMappings, validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
+import { validateNamesAndMappings, findUnknownImports, validatePinBlock } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
@@ -310,18 +310,10 @@ async function validateTextDocument(textDocument: TextDocument): Promise<void> {
     return;
   }
 
-  const diagnostics: Diagnostic[] = findDuplicateMappings(hwDefinition, text, textDocument, hasDiagnosticRelatedInformationCapability);
-  const duplicateNamesDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinition, hasDiagnosticRelatedInformationCapability);
-  const pinBlockDiagnostics: Diagnostic[] = validatePinBlock(hwDefinition, hasDiagnosticRelatedInformationCapability);
-  for (const duplicateNameDiagnostic of duplicateNamesDiagnostics) {
-    diagnostics.push(duplicateNameDiagnostic);
-  }
-  for (const importDiagnostic of findUnknownImports(hwDefinition, textDocument)) {
-    diagnostics.push(importDiagnostic);
-  }
-  for (const pinBlockDiagnostic of pinBlockDiagnostics) {
-    diagnostics.push(pinBlockDiagnostic);
-  }
+  const diagnostics: Diagnostic[] = [];
+  diagnostics.push(...validateNamesAndMappings(hwDefinition, hasDiagnosticRelatedInformationCapability));
+  diagnostics.push(...validatePinBlock(hwDefinition, hasDiagnosticRelatedInformationCapability));
+  diagnostics.push(...findUnknownImports(hwDefinition, textDocument));
 
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
@@ -383,9 +375,6 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
         }
       }
     }
-
-
-
     
     const pinMappings: PinMapping[] = [];
     
