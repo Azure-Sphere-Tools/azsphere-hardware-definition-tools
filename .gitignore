@@ -17,6 +17,12 @@ language-server.tar.gz
 *.userosscache
 *.sln.docstates
 
+###################
+# NYC code coverage
+###################
+/coverage/
+/.nyc_output/
+
 # Build results
 [Dd]ebug/
 [Dd]ebugPublic/
