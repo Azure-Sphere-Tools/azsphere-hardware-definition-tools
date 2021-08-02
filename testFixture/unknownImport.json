@@ -1,0 +1,19 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+  "Metadata": {
+    "Type": "Azure Sphere Hardware Definition",
+    "Version": 1
+  },
+  "Description": {
+    "Name": "MT3620 Reference Development Board (RDB)"
+  },
+  "Imports": [
+    {
+      "Path": "mt3620.json"
+    },
+    {
+      "Path": "nonexistent.json"
+    }
+  ],
+  "Peripherals": []
+}
