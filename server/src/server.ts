@@ -37,6 +37,7 @@ import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwa
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
+import { hwDefinitionHeaderGen } from "./hardwareDefinitionHeaderGeneration";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -44,7 +45,7 @@ const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere
 // when fixed, remove IPCMessageReader/Writer from server.ts and LANGUAGE_SERVER_MODE from .vscode/settings.json
 const runningTests = process.env.LANGUAGE_SERVER_MODE == "TEST";
 // avoid referencing connection in other files/modules as it is expensive to create and can prevent tests from running in parallel
-const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
+export const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
 
 // Create a simple text document manager.
 const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
@@ -273,6 +274,8 @@ documents.onDidOpen(async (change) => {
         }
       });
     }
+
+    await hwDefinitionHeaderGen(textDocument);
   }
 });
 // Only keep settings for open documents
@@ -280,18 +283,19 @@ documents.onDidClose((e) => {
   documentSettings.delete(e.document.uri);
 });
 
+documents.onDidSave(async (save) => {
+  await hwDefinitionHeaderGen(save.document);
+});
+
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(async (change) => validateDocument(change.document));
 
-async function validateDocument(textDocument: TextDocument) {
-
+export const validateDocument = async (textDocument: TextDocument): Promise<string | undefined> => {
   if (isAppManifestFile(textDocument.uri) && settingsPath) {
     const appManifest = tryParseAppManifestFile(textDocument.getText());
-    if(!appManifest){
-      return;
-    }
-   
+    if(!appManifest) return;
+
     const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
     const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
     if (detectedPartnerApplications.length > 0) {
@@ -308,7 +312,8 @@ async function validateDocument(textDocument: TextDocument) {
   if (isHardwareDefinitionFile(textDocument.uri)) {
     await validateHardwareDefinitionDoc(textDocument);
   }
-}
+  return textDocument.uri;
+};
 
 export class AppManifest {
 	constructor(
