@@ -1,7 +1,5 @@
-import { homedir } from "os";
 import * as path from "path";
-import * as fs from "fs";
-import { workspace, ExtensionContext, ExtensionMode, commands, window, InputBoxOptions, QuickPickItem } from "vscode";
+import { workspace, ExtensionContext, ExtensionMode, commands, window, QuickPickItem, Uri, ViewColumn } from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from "vscode-languageclient/node";
 
 let client: LanguageClient;
@@ -60,97 +58,35 @@ export function activate(context: ExtensionContext) {
   );
 
   context.subscriptions.push(
-    commands.registerCommand("azsphere-hardware-definition-tools.porting", () => {
-      const from = window.activeTextEditor.document.uri.path;
-      let to: string;
-
-      const hwDefinitions = getAvailableHwDefinitions();
-
-      const quickPickItems = hwDefinitions.map(value => { 
-        return {
-          label: value.name,
-          detail: value.filePath
-        };
-      });
-      quickPickItems.push({ label: 'Open new', detail: '' });
-      
-      window.showQuickPick(quickPickItems)
-        .then(chosenItem => {
-          if (chosenItem == quickPickItems[quickPickItems.length - 1]) {
-            window.showOpenDialog({
-              canSelectMany: false,
-              filters: {
-                "HardwareDefinition": ["json"]
-              }
-            })
-              .then(choice => {
-                to = choice[0].path;
-
-                if (from === to) {
-                  window.showErrorMessage('Same file!');
-                  return;
-                }
-
-                commands.executeCommand('porting', [{ from, to }]);
-              });
-          } else {
-            to = hwDefinitions.find(hwDefinition => hwDefinition.name === chosenItem).filePath;
-
-            if (from === to) {
-              window.showErrorMessage('Same file!');
-              return;
-            }
-
-            commands.executeCommand('porting', [{ from, to }]);
-          }
-        });
-    })
+    commands.registerCommand("azsphere-hardware-definition-tools.porting", portHwDefinition)
   );
 }
 
-function getSDKPath() {
-  const sdkPaths = [
-    '/opt/azurespheresdk',
-    'C:\\Program Files (x86)\\Microsoft Azure Sphere SDK'
-  ];
-
-  for (let i = 0; i < sdkPaths.length; i++) {
-    if (fs.existsSync(sdkPaths[i])) {
-      return sdkPaths[i];
-    }
+async function portHwDefinition() {
+  const odmHwDefinitions: {name: string, path: string}[] = await commands.executeCommand("getAvailableOdmHardwareDefinitions");
+  const odmHwDefItems: OdmHardwareDefinitionItem[] = [];
+  for (const hwDef of odmHwDefinitions) {
+    odmHwDefItems.push({label: hwDef.name, path: hwDef.path, detail: hwDef.path});
   }
 
-  return undefined;
+  window.showQuickPick(odmHwDefItems)
+        .then(async pickedOdmHwDef => {
+          const currentlyOpenFilePath: string = window.activeTextEditor?.document.uri.fsPath;
+          const hwDefFileName = path.basename(currentlyOpenFilePath);
+
+          const portedPath = await commands.executeCommand("portHardwareDefinition", currentlyOpenFilePath, pickedOdmHwDef.path);
+          if ( typeof portedPath === "string") {
+            const doc = await workspace.openTextDocument(Uri.file(path.resolve(portedPath)));
+            await window.showTextDocument(doc, ViewColumn.Active, false);
+            window.showInformationMessage(`Successfully ported ${hwDefFileName}`);
+          } else {
+            window.showErrorMessage("Failed to port hardware definition file " + hwDefFileName);
+          }
+        });
 }
 
-function getAvailableHwDefinitions() {
-  const sdkPath = getSDKPath();
-
-  if (sdkPath === undefined) {
-    return [];
-  }
-
-  const hwDefinitions = [];
-
-  const fileNames = fs.readdirSync(path.join(sdkPath, "HardwareDefinitions"), { withFileTypes: true });
-  fileNames.forEach(fileName => {
-    if (fileName.isFile()) {
-      const filePath = path.join(sdkPath, "HardwareDefinitions", fileName.name);
-      const fileContent = fs.readFileSync(filePath, { encoding: "utf-8" });
-
-      try {
-        const name = JSON.parse(fileContent)["Description"]["Name"];
-
-        if (name !== undefined) {
-          hwDefinitions.push({ name, filePath });
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-  });
-
-  return hwDefinitions;
+interface OdmHardwareDefinitionItem extends QuickPickItem {
+  path: string
 }
 
 const generatePinMappings = async () => {

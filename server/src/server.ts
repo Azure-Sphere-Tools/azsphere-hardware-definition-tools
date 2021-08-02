@@ -39,6 +39,7 @@ import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
 import { hwDefinitionHeaderGen } from "./hwDefHeaderGeneration";
+import { listOdmHardwareDefinitions } from "./porting";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -85,7 +86,7 @@ connection.onInitialize((params: InitializeParams) => {
       },
       // Commands requested from the client to the server
       executeCommandProvider: {
-        commands: ["getAvailablePins", "getAvailablePinTypes", "postPinAmountToGenerate", "porting"],
+        commands: ["getAvailablePins", "getAvailablePinTypes", "postPinAmountToGenerate", "getAvailableOdmHardwareDefinitions", "portHardwareDefinition"],
       },
     },
   };
@@ -145,10 +146,20 @@ connection.onInitialized(() => {
           addPinMappings(pinsToAdd, pinType, hwDefUri, await getFileText(hwDefUri));
         }
         break;
-      case "porting":
+      case "getAvailableOdmHardwareDefinitions":
         if (event.arguments) {
-          const { from, to } = event.arguments[0];
-          porting(from, to);
+          const currentDocumentUri = event.arguments[0];
+          const sdkPath = (await getDocumentSettings(currentDocumentUri)).SdkPath;
+          return listOdmHardwareDefinitions(sdkPath);
+        }
+        break;
+      case "portHardwareDefinition":
+        if (event.arguments) {
+          const openHwDefPath = event.arguments[0];
+          const targetHwDefPath = event.arguments[1];
+          // TODO[OB] port hardware definition and return its path
+          const portedPath = undefined;
+          return portedPath;
         }
         break;
       default:
@@ -156,12 +167,6 @@ connection.onInitialized(() => {
     }
   });
 });
-
-function porting(from: string, to: string): void {
-  // TODO: (DOBO)
-  console.log(from);
-  console.log(to);
-}
 
 // The extension settings
 interface ExtensionSettings {
