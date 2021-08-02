@@ -2,7 +2,6 @@ import { CompletionItem, CompletionItemKind } from "vscode-languageserver/node";
 
 import { Position } from "vscode-languageserver-textdocument";
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
-import { validateNamesAndMappings } from "./validator";
 
 export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinType?: string): string[] {
   let allPinMappings: PinMapping[] = [];
@@ -11,10 +10,10 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
     allPinMappings = allPinMappings.concat(imported.pinMappings);
   }
   const usedPinNames = new Set(hwDefinition.pinMappings.map((p) => p.mapping?.value.text));
-  const invalidPinMappings = new Set(validateNamesAndMappings(hwDefinition, true).map((diagnostic) => <PinMapping>diagnostic.data));
 
   for (const pinMapping of allPinMappings) {
-    const validPins = !invalidPinMappings.has(pinMapping) && !usedPinNames.has(pinMapping.name.value.text);
+    // TODO[OB] Check if pinblock configured as different type
+    const validPins = !usedPinNames.has(pinMapping.name.value.text);
     if (pinType && pinMapping.type.value.text == pinType && validPins) {
       validPinMappings.push(pinMapping.name.value.text);
     }
