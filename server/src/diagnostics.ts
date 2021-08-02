@@ -40,7 +40,7 @@ export function duplicateNameError(badMapping: PinMapping, existingMapping: PinM
       }
     ];
   } else {
-    const relatedInfoPosition = existingMapping.range.start;
+    const relatedInfoPosition = existingMapping.name.value.range.start;
     addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition);
   }
   return diagnostic;
@@ -85,7 +85,9 @@ export function duplicateMappingWarning(duplicateMapping1: PinMapping, duplicate
       }
     ];
   } else {
-    const relatedInfoPosition = duplicateMapping2.range.start;
+    const relatedInfoPosition = duplicateMapping2.mapping 
+      ? duplicateMapping2.mapping.value.range.start 
+      : duplicateMapping2.range.start;
     addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition);
   }
   return diagnostic;
