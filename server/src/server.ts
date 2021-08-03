@@ -35,7 +35,7 @@ import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { validateNamesAndMappings, findUnknownImports, validatePinBlock, validateAppPinConflict } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
-import { AppManifest, AppPin } from "./applicationFile";
+import { AppManifest, AppPin } from "./applicationManifest";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";

@@ -200,20 +200,20 @@ export function unknownImportWarning(unknownImport: UnknownImport, unknownImport
   };
 }
 
-export function appConflictPinBlock(appValue: string[], range: Range, existingControllerSetup: Map<string,string >, index: number) {
+export function appConflictPinBlock(conflictPinName: string, partnerComponentId: string, range: Range, existingControllerSetup: {pinType: string, pinName: string}) {
   return{
     code: APP_PIN_BLOCK_CONFLICT_WARNING_CODE,
-    message: `${appValue[index]} configured as ${existingControllerSetup?.get('key')} by ${existingControllerSetup?.get('value')}`,
+    message: `${conflictPinName} configured as ${existingControllerSetup?.pinType} by ${existingControllerSetup?.pinName} in partner app ${partnerComponentId}.`,
     range: range,
     severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE
   };
 }
 
-export function appConflictDuplicateName(appValue: string[], range: Range, index: number) {
+export function appConflictDuplicateName(conflictPinName: string, partnerComponentId: string, range: Range) {
   return{
     code: APP_DUPLICATE_NAME_WARNING_CODE,
-    message: `${appValue[index]} is used multiple times.`,
+    message: `${conflictPinName} is also declared in partner app ${partnerComponentId}.`,
     range: range,
     severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE

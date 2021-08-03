@@ -7,7 +7,7 @@ import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
 import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning, appConflictPinBlock, appConflictDuplicateName } from "./diagnostics";
-import { AppManifest } from "./applicationFile";
+import { AppManifest } from "./applicationManifest";
 
 const EXTENSION_SOURCE = 'az sphere';
 
@@ -263,39 +263,39 @@ export const validateAppPinConflict = (hwDefinition: HardwareDefinition, appMani
 	const appManifestMap = appManifest.Capabilities.RecordMap;
 	const partnerMap = partnerAppManifest.Capabilities.RecordMap;
 
-	const partnerController: Map<string, Map<string,string >> = new Map();
-	for(const [key, value] of partnerMap){
-		const partnerValue = partnerMap.get(key)?.value.text as [string];
-		const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
+	const partnerController: Map<string, {pinType: string, pinName: string}> = new Map();
+	for(const [pinType, value] of partnerMap){
+		const partnerPinNames = partnerMap.get(pinType)?.value.text as string[];
+		const partnerAppManifestValues = findAppManifestValue(hwDefinition, partnerPinNames);
 
-		for (let index = 0; index < partnerAppManifest_key.length; index++) {
-			const controller = getController(key, partnerAppManifest_key[index]);
-			partnerController.set(controller.name, new Map([["key", key],["value",partnerValue[index]]]));
+		for (let index = 0; index < partnerAppManifestValues.length; index++) {
+			const controller = getController(pinType, partnerAppManifestValues[index]);
+			partnerController.set(controller.name, {pinType: pinType, pinName: partnerPinNames[index]});
 		}
 	}
 
-	for(const [key, value] of appManifestMap){
-		if(partnerMap.has(key)){
-			const partnerValue = partnerMap.get(key)?.value.text as [string];
-			const appValue= value?.value.text as [string];
-			const appManifest_key = findAppManifestValue(hwDefinition, appValue);
-			const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
+	for(const [pinType, value] of appManifestMap){
+		if(partnerMap.has(pinType)){
+			const partnerPinNames = partnerMap.get(pinType)?.value.text as string[];
+			const appPinNames = value?.value.text as string[];
+			const appManifestValues = findAppManifestValue(hwDefinition, appPinNames);
+			const partnerAppManifestValues = findAppManifestValue(hwDefinition, partnerPinNames);
 
-			for (let index = 0; index < appManifest_key.length; index++) {
+			for (let index = 0; index < appManifestValues.length; index++) {
 				// find the pin conflict base on the pin block
-				const controller = getController(key, appManifest_key[index]);
+				const controller = getController(pinType, appManifestValues[index]);
 				const existingControllerSetup = partnerController.get(controller.name);
-				if(existingControllerSetup?.get('key') != undefined &&
-					existingControllerSetup?.get('key') != key){
+				if(existingControllerSetup?.pinType != undefined &&
+					existingControllerSetup?.pinType != pinType){
 					const range = value?.value.range;
-					const diagnostic: Diagnostic = appConflictPinBlock(appValue, range, existingControllerSetup, index);
+					const diagnostic: Diagnostic = appConflictPinBlock(appPinNames[index], partnerAppManifest.ComponentId,range, existingControllerSetup);
 					warningDiagnostics.push(diagnostic);
 				}
 				
 				// find the pin conflic for duplicate name
-				if(partnerAppManifest_key.includes(appManifest_key[index])){
+				if(partnerAppManifestValues.includes(appManifestValues[index])){
 					const range = value?.value.range;
-					const diagnostic: Diagnostic = appConflictDuplicateName(appValue, range, index);
+					const diagnostic: Diagnostic = appConflictDuplicateName(appPinNames[index], partnerAppManifest.ComponentId,range);
 					warningDiagnostics.push(diagnostic);
 				}
 			}
