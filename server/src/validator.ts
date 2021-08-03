@@ -6,7 +6,8 @@ import {
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
-import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning } from "./diagnostics";
+import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning, appConflictPinBlock, appConflictDuplicateName } from "./diagnostics";
+import { AppManifest } from "./applicationManifest";
 
 const EXTENSION_SOURCE = 'az sphere';
 
@@ -204,7 +205,7 @@ function _getController(type: string, appManifestValue: number | string): Contro
 	);
 }
 
-const getController = memoize(_getController);
+export const getController = memoize(_getController);
 
 /**
  * Checks that the given Hardware Definition:
@@ -243,4 +244,87 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 	}
 
 	return warningDiagnostics;
+}
+
+
+/**
+ * Checks that the opening app_manifest file:
+ * - Record all pin type and corresponding appManifest
+ * - Record the partner pin conroller information for finding pin block conflict
+ *
+ * @param hwDefinition The Hardware Definition to validate
+ * @param appManifest Record the information of opening app_manifest file
+ * @param partnerAppManifest Record the information of partner app_manifest file
+ * @returns Diagnostics with the app_manifest file underlying pin conflicts
+ */
+export const validateAppPinConflict = (hwDefinition: HardwareDefinition, appManifest: AppManifest, partnerAppManifest: AppManifest ): Diagnostic[] => {
+	const warningDiagnostics: Diagnostic[] = [];
+
+	const appManifestMap = appManifest.Capabilities.RecordMap;
+	const partnerMap = partnerAppManifest.Capabilities.RecordMap;
+
+	const partnerController: Map<string, {pinType: string, pinName: string}> = new Map();
+	for(const [pinType, value] of partnerMap){
+		const partnerPinNames = partnerMap.get(pinType)?.value.text as string[];
+		const partnerAppManifestValues = findAppManifestValue(hwDefinition, partnerPinNames);
+
+		for (let index = 0; index < partnerAppManifestValues.length; index++) {
+			const controller = getController(pinType, partnerAppManifestValues[index]);
+			partnerController.set(controller.name, {pinType: pinType, pinName: partnerPinNames[index]});
+		}
+	}
+
+	for(const [pinType, value] of appManifestMap){
+		if(partnerMap.has(pinType)){
+			const partnerPinNames = partnerMap.get(pinType)?.value.text as string[];
+			const appPinNames = value?.value.text as string[];
+			const appManifestValues = findAppManifestValue(hwDefinition, appPinNames);
+			const partnerAppManifestValues = findAppManifestValue(hwDefinition, partnerPinNames);
+
+			for (let index = 0; index < appManifestValues.length; index++) {
+				// find the pin conflict base on the pin block
+				const controller = getController(pinType, appManifestValues[index]);
+				const existingControllerSetup = partnerController.get(controller.name);
+				if(existingControllerSetup?.pinType != undefined &&
+					existingControllerSetup?.pinType != pinType){
+					const range = value?.value.range;
+					const diagnostic: Diagnostic = appConflictPinBlock(appPinNames[index], partnerAppManifest.ComponentId,range, existingControllerSetup);
+					warningDiagnostics.push(diagnostic);
+				}
+				
+				// find the pin conflic for duplicate name
+				if(partnerAppManifestValues.includes(appManifestValues[index])){
+					const range = value?.value.range;
+					const diagnostic: Diagnostic = appConflictDuplicateName(appPinNames[index], partnerAppManifest.ComponentId,range);
+					warningDiagnostics.push(diagnostic);
+				}
+			}
+		}
+	}
+	return warningDiagnostics;
+};
+
+/**
+ * Checks that the given Hardware Definition:
+ * - Pin name is "$SAMPLE_LED_RED1" o remove the "$" or "PWM-CONTROLLER-0"
+ * - Uses getAppManifestValue function to help find each pin's appmanifest value
+ *
+ * @param hwDefinition The Hardware Definition to find the appmanifest value
+ * @param typeArray The pin array that needs to find the appmanifest value
+ * @returns appmanifest value array for the pin array
+ */
+export function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): string[] {
+  const result = [];
+  if (typeArray) {
+    for (const name of typeArray) {
+      if (name.toString().includes("$")) {
+        const pinName = name.replace('$', '');
+        const appManifestValue = getAppManifestValue(pinName, [hwDefinition]);
+        result.push(appManifestValue as string);
+      } else {
+        result.push(name);
+      }
+    }
+  }
+  return result;
 }
