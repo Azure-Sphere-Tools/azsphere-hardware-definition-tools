@@ -21,6 +21,7 @@ import {
   CodeActionKind,
   CodeActionParams,
   CodeAction,
+  DiagnosticSeverity,
 } from "vscode-languageserver/node";
 
 import { addAppManifestPathsToSettings } from "./appManifestPaths";
@@ -32,12 +33,15 @@ import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { validateNamesAndMappings, findUnknownImports, validatePinBlock, getAppManifestValue } from "./validator";
+import { validateNamesAndMappings, findUnknownImports, validatePinBlock, validateAppPinConflict } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
+import { AppManifest, AppPin } from "./applicationManifest";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
 import { hwDefinitionHeaderGen } from "./hardwareDefinitionHeaderGeneration";
+
+import { Range } from "vscode-languageserver-textdocument";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -314,21 +318,34 @@ export const validateDocument = async (textDocument: TextDocument): Promise<stri
   return textDocument.uri;
 };
 
-export class AppManifest {
-  constructor(public ComponentId: string, public Capabilities: AppPin) {}
-}
+const validateAppManifestDoc = async (textDocument: TextDocument, appManifest: AppManifest): Promise<void> => {
+  const settings = await getDocumentSettings(textDocument.uri);
+  settings.partnerApplicationsSetting.set(appManifest.ComponentId, appManifest);
 
-export class AppPin {
-  constructor(
-    public Gpio: [string | number] | undefined,
-    public I2cMaster: [string] | undefined,
-    public Pwm: [string] | undefined,
-    public Uart: [string] | undefined,
-    public SpiMaster: [string] | undefined,
-    public Adc: [string] | undefined,
-    public AllowedApplicationConnections: [string] | undefined
-  ) {}
-}
+  const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
+  const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
+  if (!hwDefinitionPath) {
+    return;
+  }
+  const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
+  const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
+
+  if (!hwDefinition) {
+    return;
+  }
+
+  const diagnostics: Diagnostic[] = [];
+  for (const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]) {
+    if (settings.partnerApplicationsSetting.has(partner)) {
+      const partnerAppManifest = settings.partnerApplicationsSetting.get(partner);
+      if (partnerAppManifest) {
+        diagnostics.push(...validateAppPinConflict(hwDefinition, appManifest, partnerAppManifest));
+      }
+    }
+  }
+  // Send the computed diagnostics to VSCode.
+  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+};
 
 export function tryParseAppManifestFile(AppManifestFileText: string): AppManifest | undefined {
   try {
@@ -346,84 +363,50 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
 
     const { ComponentId, Capabilities } = jsonc.getNodeValue(AppManifestFileRootNode);
     const { Gpio, I2cMaster, Pwm, Uart, SpiMaster, Adc, AllowedApplicationConnections } = Capabilities;
-    const appPin = new AppPin(Gpio, I2cMaster, Pwm, Uart, SpiMaster, Adc, AllowedApplicationConnections);
+    const temptValue = new Map([
+      ["Gpio", Gpio],
+      ["I2cMaster", I2cMaster],
+      ["Pwm", Pwm],
+      ["Uart", Uart],
+      ["SpiMaster", SpiMaster],
+      ["Adc", Adc],
+    ]);
+
+    const CapabilitiesAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(AppManifestFileRootNode, ["Capabilities"]);
+
+    const values: Map<string, any> = new Map();
+    CapabilitiesAsJsonNode.children?.forEach((keyValue) => {
+      if (keyValue.children) {
+        values.set(keyValue.children[0].value, {
+          range: toRange(AppManifestFileText, keyValue.offset, keyValue.offset + keyValue.length),
+          key: {
+            range: toRange(AppManifestFileText, keyValue.children[0].offset, keyValue.children[0].offset + keyValue.children[0].length),
+            text: keyValue.children[0].value,
+          },
+          value: {
+            range: toRange(AppManifestFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length),
+            text: temptValue.get(keyValue.children[0].value),
+          },
+        });
+      }
+    });
+
+    const appPin = new AppPin(
+      values.get("Gpio"),
+      values.get("I2cMaster"),
+      values.get("Pwm"),
+      values.get("Uart"),
+      values.get("SpiMaster"),
+      values.get("Adc"),
+      AllowedApplicationConnections,
+      values
+    );
+
     return new AppManifest(ComponentId, appPin);
   } catch (error) {
     connection.console.log("Cannot parse application manifest file as JSON");
     return;
   }
-}
-
-async function validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
-  const settings = await getDocumentSettings(textDocument.uri);
-  settings.partnerApplicationsSetting.set(appManifest.ComponentId, appManifest);
-  const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
-  const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
-  if (!hwDefinitionPath) {
-    return;
-  }
-  const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
-  const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
-
-  if (!hwDefinition) {
-    return;
-  }
-
-  for (const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]) {
-    if (settings.partnerApplicationsSetting.has(partner)) {
-      const partnerAppManifest = settings.partnerApplicationsSetting.get(partner);
-
-      const appManifest_Gpio = findAppManifestValue(hwDefinition, appManifest.Capabilities.Gpio as [string]);
-      const partner_Gpio = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Gpio as [string]);
-      const intersection_Gpio = appManifest_Gpio.filter((element) => partner_Gpio.includes(element));
-      connection.console.log([...new Set(intersection_Gpio)].toString());
-
-      const appManifest_I2cMaster = findAppManifestValue(hwDefinition, appManifest.Capabilities.I2cMaster as [string]);
-      const partner_I2cMaster = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.I2cMaster as [string]);
-      const intersection_I2cMaster = appManifest_I2cMaster.filter((element) => partner_I2cMaster.includes(element));
-      connection.console.log([...new Set(intersection_I2cMaster)].toString());
-
-      const appManifest_Pwm = findAppManifestValue(hwDefinition, appManifest.Capabilities.Pwm as [string]);
-      const partner_Pwm = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Pwm as [string]);
-      const intersection_Pwm = appManifest_Pwm.filter((element) => partner_Pwm.includes(element));
-      connection.console.log([...new Set(intersection_Pwm)].toString());
-
-      const appManifest_Uart = findAppManifestValue(hwDefinition, appManifest.Capabilities.Uart as [string]);
-      const partner_Uart = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Uart as [string]);
-      const intersection_Uart = appManifest_Uart.filter((element) => partner_Uart.includes(element));
-      connection.console.log([...new Set(intersection_Uart)].toString());
-
-      const appManifest_SpiMaster = findAppManifestValue(hwDefinition, appManifest.Capabilities.SpiMaster as [string]);
-      const partner_SpiMastert = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.SpiMaster as [string]);
-      const intersection_SpiMaster = appManifest_SpiMaster.filter((element) => partner_SpiMastert.includes(element));
-      connection.console.log([...new Set(intersection_SpiMaster)].toString());
-
-      const appManifest_Adc = findAppManifestValue(hwDefinition, appManifest.Capabilities.Adc as [string]);
-      const partner_Adc = findAppManifestValue(hwDefinition, partnerAppManifest?.Capabilities.Adc as [string]);
-      const intersection_Adc = appManifest_Adc.filter((element) => partner_Adc.includes(element));
-      connection.console.log([...new Set(intersection_Adc)].toString());
-    }
-  }
-
-  const diagnostics: Diagnostic[] = [];
-  // Send the computed diagnostics to VSCode.
-  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-}
-
-function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): string[] {
-  const result = [];
-  if (typeArray) {
-    for (const name of typeArray) {
-      if (name.toString().includes("$")) {
-        const pinName = name.replace("$", "");
-        const appManifestValue = getAppManifestValue(pinName, [hwDefinition]);
-        result.push(appManifestValue as string);
-      } else {
-        result.push(name);
-      }
-    }
-  }
-  return result;
 }
 
 async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<void> {
