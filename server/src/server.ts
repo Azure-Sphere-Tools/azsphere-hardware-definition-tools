@@ -273,10 +273,6 @@ documents.onDidOpen(async (change) => {
         }
       });
     }
-
-    // Hardware Definition header generation
-    const uri = await validateDocument(textDocument);
-    if (uri) displayNotification(await hwDefinitionHeaderGen(uri));
   }
 });
 // Only keep settings for open documents
@@ -286,7 +282,7 @@ documents.onDidClose((e) => {
 
 documents.onDidSave(async (save) => {
   // Hardware Definition header generation
-  const uri = await validateDocument(save.document);
+  const uri = await validateHardwareDefinitionDoc(save.document);
   if (uri) displayNotification(await hwDefinitionHeaderGen(uri));
 });
 
@@ -315,7 +311,6 @@ export const validateDocument = async (textDocument: TextDocument): Promise<stri
   if (isHardwareDefinitionFile(textDocument.uri)) {
     await validateHardwareDefinitionDoc(textDocument);
   }
-  return textDocument.uri;
 };
 
 const validateAppManifestDoc = async (textDocument: TextDocument, appManifest: AppManifest): Promise<void> => {
@@ -409,7 +404,7 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
   }
 }
 
-async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<void> {
+async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<string | undefined> {
   const settings = await getDocumentSettings(textDocument.uri);
   const text = textDocument.getText();
 
@@ -425,6 +420,8 @@ async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promis
 
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+
+  return textDocument.uri;
 }
 
 export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefinitionFileUri: string, sdkPath: string): HardwareDefinition | undefined {
