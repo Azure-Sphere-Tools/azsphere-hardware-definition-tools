@@ -39,8 +39,9 @@ import { AppManifest, AppPin } from "./applicationManifest";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
+import { hwDefinitionHeaderGen } from "./hwDefHeaderGeneration";
 
-import { Range } from 'vscode-languageserver-textdocument';
+import { Range } from "vscode-languageserver-textdocument";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -132,7 +133,7 @@ connection.onInitialized(() => {
       case "getAvailablePins":
         if (event.arguments) {
           const [hwDefUri, pinTypeSelected] = event.arguments;
-          
+
           const hwDefinition = await getHardwareDefinition(hwDefUri);
 
           if (hwDefinition && pinTypeSelected) {
@@ -164,7 +165,7 @@ const defaultSettings: ExtensionSettings = {
 
 function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
   if (!settingsToValidate?.SdkPath || settingsToValidate.SdkPath == "") {
-    return { SdkPath: defaultSettings.SdkPath, partnerApplicationsSetting: defaultSettings.partnerApplicationsSetting};
+    return { SdkPath: defaultSettings.SdkPath, partnerApplicationsSetting: defaultSettings.partnerApplicationsSetting };
   }
   return settingsToValidate;
 }
@@ -212,20 +213,15 @@ async function getHardwareDefinition(hwDefUri: any): Promise<HardwareDefinition 
   try {
     const hwDefText = await getFileText(hwDefUri);
     const hwDef = tryParseHardwareDefinitionFile(hwDefText, hwDefUri, settings.SdkPath);
-    return hwDef;    
+    return hwDef;
   } catch (e) {
     connection.console.error(`Failed to get hw definition file ${hwDefUri} - ${e}`);
     return;
   }
 }
 
-export const displayErrorNotification = (message: string) => {
-  const msg: ShowMessageParams = {
-    message,
-    type: MessageType.Error,
-  };
-  connection.sendNotification(ShowMessageNotification.type, msg);
-  return;
+export const displayNotification = (notification: ShowMessageParams | undefined) => {
+  if (notification) return connection.sendNotification(ShowMessageNotification.type, notification);
 };
 
 documents.onDidOpen(async (change) => {
@@ -284,18 +280,21 @@ documents.onDidClose((e) => {
   documentSettings.delete(e.document.uri);
 });
 
+documents.onDidSave(async (save) => {
+  // Hardware Definition header generation
+  const uri = await validateHardwareDefinitionDoc(save.document);
+  if (uri) displayNotification(await hwDefinitionHeaderGen(uri));
+});
+
 // The content of a text document has changed. This event is emitted
 // when the text document first opened or when its content has changed.
 documents.onDidChangeContent(async (change) => validateDocument(change.document));
 
-async function validateDocument(textDocument: TextDocument) {
+export const validateDocument = async (textDocument: TextDocument): Promise<string | undefined> => {
   if (isAppManifestFile(textDocument.uri) && settingsPath) {
     const appManifest = tryParseAppManifestFile(textDocument.getText());
-    
-    if(!appManifest){
-      return;
-    }
-   
+    if (!appManifest) return;
+
     const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
     const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
     if (detectedPartnerApplications.length > 0) {
@@ -312,11 +311,11 @@ async function validateDocument(textDocument: TextDocument) {
   if (isHardwareDefinitionFile(textDocument.uri)) {
     await validateHardwareDefinitionDoc(textDocument);
   }
-}
+};
 
-const validateAppManifestDoc = async(textDocument: TextDocument, appManifest: AppManifest): Promise<void> => {
+const validateAppManifestDoc = async (textDocument: TextDocument, appManifest: AppManifest): Promise<void> => {
   const settings = await getDocumentSettings(textDocument.uri);
-  settings.partnerApplicationsSetting.set(appManifest.ComponentId,appManifest);
+  settings.partnerApplicationsSetting.set(appManifest.ComponentId, appManifest);
 
   const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
   const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
@@ -331,10 +330,10 @@ const validateAppManifestDoc = async(textDocument: TextDocument, appManifest: Ap
   }
 
   const diagnostics: Diagnostic[] = [];
-  for(const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]){
-    if(settings.partnerApplicationsSetting.has(partner)){
+  for (const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]) {
+    if (settings.partnerApplicationsSetting.has(partner)) {
       const partnerAppManifest = settings.partnerApplicationsSetting.get(partner);
-      if(partnerAppManifest){
+      if (partnerAppManifest) {
         diagnostics.push(...validateAppPinConflict(hwDefinition, appManifest, partnerAppManifest));
       }
     }
@@ -365,13 +364,13 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
       ["Pwm", Pwm],
       ["Uart", Uart],
       ["SpiMaster", SpiMaster],
-      ["Adc", Adc]
-    ]); 
+      ["Adc", Adc],
+    ]);
 
     const CapabilitiesAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(AppManifestFileRootNode, ["Capabilities"]);
-   
+
     const values: Map<string, any> = new Map();
-    CapabilitiesAsJsonNode.children?.forEach(keyValue => {
+    CapabilitiesAsJsonNode.children?.forEach((keyValue) => {
       if (keyValue.children) {
         values.set(keyValue.children[0].value, {
           range: toRange(AppManifestFileText, keyValue.offset, keyValue.offset + keyValue.length),
@@ -382,20 +381,21 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
           value: {
             range: toRange(AppManifestFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length),
             text: temptValue.get(keyValue.children[0].value),
-          }
+          },
         });
       }
     });
 
     const appPin = new AppPin(
-      values.get('Gpio'),
-      values.get('I2cMaster'),
-      values.get('Pwm'),
-      values.get('Uart'),
-      values.get('SpiMaster'),
-      values.get('Adc'),
+      values.get("Gpio"),
+      values.get("I2cMaster"),
+      values.get("Pwm"),
+      values.get("Uart"),
+      values.get("SpiMaster"),
+      values.get("Adc"),
       AllowedApplicationConnections,
-      values);
+      values
+    );
 
     return new AppManifest(ComponentId, appPin);
   } catch (error) {
@@ -404,7 +404,7 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
   }
 }
 
-async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<void> {
+async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<string | undefined> {
   const settings = await getDocumentSettings(textDocument.uri);
   const text = textDocument.getText();
 
@@ -420,6 +420,8 @@ async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promis
 
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+
+  return textDocument.uri;
 }
 
 export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwDefinitionFileUri: string, sdkPath: string): HardwareDefinition | undefined {
@@ -479,21 +481,20 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
       }
     }
     const pinMappings: PinMapping[] = [];
-    
+
     for (let i = 0; i < Peripherals.length; i++) {
       const { Name, Type, Mapping, AppManifestValue } = Peripherals[i];
       const hasMappingOrAppManifestValue = typeof Mapping == "string" || typeof AppManifestValue == "string" || typeof AppManifestValue == "number";
       const isPinMapping = typeof Name == "string" && typeof Type == "string" && hasMappingOrAppManifestValue;
-      
+
       if (isPinMapping) {
         const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
-        
+
         const values: Map<string, any> = new Map();
         const range = toRange(hwDefinitionFileText, mappingAsJsonNode.offset, mappingAsJsonNode.offset + mappingAsJsonNode.length);
 
-        mappingAsJsonNode.children?.forEach(keyValue => {
+        mappingAsJsonNode.children?.forEach((keyValue) => {
           if (keyValue.children) {
-
             values.set(keyValue.children[0].value.toLowerCase(), {
               range: toRange(hwDefinitionFileText, keyValue.offset, keyValue.offset + keyValue.length),
               key: {
@@ -502,23 +503,16 @@ export function tryParseHardwareDefinitionFile(hwDefinitionFileText: string, hwD
               },
               value: {
                 range: toRange(hwDefinitionFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length),
-                text: keyValue.children[1].value
-              }
+                text: keyValue.children[1].value,
+              },
             });
           }
         });
 
-        pinMappings.push(new PinMapping(
-          range,
-          values.get('name'),
-          values.get('type'),
-          values.get('mapping'),
-          values.get('appmanifestvalue'),
-          values.get('comment')
-        ));
+        pinMappings.push(new PinMapping(range, values.get("name"), values.get("type"), values.get("mapping"), values.get("appmanifestvalue"), values.get("comment")));
       }
     }
-    
+
     return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports);
   } catch (error) {
     connection.console.log("Cannot parse Hardware Definition file as JSON");
@@ -586,7 +580,6 @@ connection.onCompletion(async (textDocumentPosition: TextDocumentPositionParams)
 connection.onCompletionResolve((item: CompletionItem): CompletionItem => {
   return item;
 });
-
 
 async function getFileText(uri: string): Promise<string> {
   let fileText = documents.get(uri)?.getText();
