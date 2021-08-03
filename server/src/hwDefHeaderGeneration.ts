@@ -1,5 +1,6 @@
 import { exec } from "child_process";
 import { MessageType, ShowMessageParams } from "vscode-languageserver";
+import { URI } from "vscode-uri";
 
 /**
  *
@@ -10,7 +11,7 @@ import { MessageType, ShowMessageParams } from "vscode-languageserver";
 export const hwDefinitionHeaderGen = async (uri: string, command?: string): Promise<ShowMessageParams | undefined> => {
   // Hardware Definition header generation
   return new Promise((resolve) => {
-    exec(`${command || "azsphere hardware-definition generate-header --hardware-definition-file"} ${uri}`, (err, stdout, stderr) => {
+    exec(`${command || "azsphere hardware-definition generate-header --hardware-definition-file"} ${URI.parse(uri).fsPath}`, (err, stdout, stderr) => {
       if (stderr) return resolve({ message: `Header file generation error (stderr): ${stderr}`, type: MessageType.Error });
       if (err) return resolve({ message: `Header file generation error: ${err.message}`, type: MessageType.Error });
       return resolve({ message: stdout, type: MessageType.Info });
