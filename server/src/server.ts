@@ -33,7 +33,7 @@ import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { validateNamesAndMappings, findUnknownImports, validatePinBlock, getAppManifestValue, getController } from "./validator";
+import { validateNamesAndMappings, findUnknownImports, validatePinBlock, validateAppPinConflict } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { AppManifest, AppPin } from "./applicationFile";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
@@ -314,6 +314,35 @@ async function validateDocument(textDocument: TextDocument) {
   }
 }
 
+async function validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
+  const settings = await getDocumentSettings(textDocument.uri);
+  settings.partnerApplicationsSetting.set(appManifest.ComponentId,appManifest);
+
+  const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
+  const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
+  if (!hwDefinitionPath) {
+    return;
+  }
+  const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
+  const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
+
+  if (!hwDefinition) {
+    return;
+  }
+
+  const diagnostics: Diagnostic[] = [];
+  for(const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]){
+    if(settings.partnerApplicationsSetting.has(partner)){
+      const partnerAppManifest = settings.partnerApplicationsSetting.get(partner);
+      if(partnerAppManifest){
+        diagnostics.push(...validateAppPinConflict(hwDefinition, appManifest, partnerAppManifest));
+      }
+    }
+  }
+  // Send the computed diagnostics to VSCode.
+  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
+}
+
 export function tryParseAppManifestFile(AppManifestFileText: string): AppManifest | undefined {
   try {
     const parseErrors: jsonc.ParseError[] = [];
@@ -372,126 +401,6 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
     connection.console.log("Cannot parse application manifest file as JSON");
     return;
   }
-}
-
-async function validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
-  const settings = await getDocumentSettings(textDocument.uri);
-  settings.partnerApplicationsSetting.set(appManifest.ComponentId,appManifest);
-
-  const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
-  const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
-  if (!hwDefinitionPath) {
-    return;
-  }
-  const hwDefinitionText: string = fs.readFileSync(hwDefinitionPath).toString();
-  const hwDefinition = tryParseHardwareDefinitionFile(hwDefinitionText, hwDefinitionPath, settings.SdkPath);
-
-  if (!hwDefinition) {
-    return;
-  }
-
-  const diagnostics: Diagnostic[] = [];
-  for(const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]){
-    if(settings.partnerApplicationsSetting.has(partner)){
-      const partnerAppManifest = settings.partnerApplicationsSetting.get(partner);
-      const appManifestMap = new Map();
-      const partnerMap = new Map();
-
-      appManifestMap.set("gpio", appManifest.Capabilities.Gpio);
-      partnerMap.set("gpio", partnerAppManifest?.Capabilities.Gpio);
-      appManifestMap.set("i2cmaster", appManifest.Capabilities.I2cMaster);
-      partnerMap.set("i2cmaster", partnerAppManifest?.Capabilities.I2cMaster);
-      appManifestMap.set("pwm", appManifest.Capabilities.Pwm);
-      partnerMap.set("pwm", partnerAppManifest?.Capabilities.Pwm);
-      appManifestMap.set("uart", appManifest.Capabilities.Uart);
-      partnerMap.set("uart", partnerAppManifest?.Capabilities.Uart);
-      appManifestMap.set("spimaster", appManifest.Capabilities.SpiMaster);
-      partnerMap.set("spimaster", partnerAppManifest?.Capabilities.SpiMaster);
-      appManifestMap.set("adc", appManifest.Capabilities.Adc);
-      partnerMap.set("adc", partnerAppManifest?.Capabilities.Adc);
-
-      // for the same pin and find the conflict
-      for(const [key, value] of appManifestMap){
-        if(partnerMap.has(key)){
-          const partnerValue = partnerMap.get(key)?.value.text as [string];
-          const appValue= value?.value.text as [string];
-          const appManifest_key = findAppManifestValue(hwDefinition, appValue);
-          const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
-
-          for (let index = 0; index < appManifest_key.length; index++) {
-            if(partnerAppManifest_key.includes(appManifest_key[index])){
-              const diagnostic: Diagnostic = {
-                code: "AST-48",
-                message: `${appValue[index]} is used multiple times.`,
-                range: value?.value.range,
-                severity: DiagnosticSeverity.Error,
-                source: 'az sphere'
-              };
-              diagnostics.push(diagnostic);
-            }
-          }
-        }
-      }
-
-      // for the pin block conflict
-      const partnerController: Map<string, Map<string,string >> = new Map();
-      for(const [key, value] of partnerMap){
-        const partnerValue = partnerMap.get(key)?.value.text as [string];
-        const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
-
-        for (let index = 0; index < partnerAppManifest_key.length; index++) {
-          const controller = getController(key, partnerAppManifest_key[index]);
-          partnerController.set(controller.name, new Map([["key", key],["value",partnerValue[index]]]));
-        }
-      }
-
-      for(const [key, value] of appManifestMap){
-        if(partnerMap.has(key)){
-          // const partnerValue = partnerMap.get(key)?.value.text as [string];
-          const appValue= value?.value.text as [string];
-          const appManifest_key = findAppManifestValue(hwDefinition, appValue);
-          // const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
-
-          for (let index = 0; index < appManifest_key.length; index++) {
-            const controller = getController(key, appManifest_key[index]);
-            connection.console.log(controller.name);
-            const existingControllerSetup = partnerController.get(controller.name);
-            
-            if(existingControllerSetup?.get('key') != undefined &&
-              existingControllerSetup?.get('key') != key){
-              const diagnostic: Diagnostic = {
-                code: "AST-48",
-                message: `${appValue[index]} configured as ${existingControllerSetup?.get('key')} by ${existingControllerSetup?.get('value')}`,
-                range: value?.value.range,
-                severity: DiagnosticSeverity.Error,
-                source: 'az sphere'
-              };
-              diagnostics.push(diagnostic);
-            }
-          }
-        }
-      }
-
-    }
-  }
-  // Send the computed diagnostics to VSCode.
-  connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-}
-
-function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): string[] {
-  const result = [];
-  if (typeArray) {
-    for (const name of typeArray) {
-      if (name.toString().includes("$")) {
-        const pinName = name.replace('$', '');
-        const appManifestValue = getAppManifestValue(pinName, [hwDefinition]);
-        result.push(appManifestValue as string);
-      } else {
-        result.push(name);
-      }
-    }
-  }
-  return result;
 }
 
 async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<void> {

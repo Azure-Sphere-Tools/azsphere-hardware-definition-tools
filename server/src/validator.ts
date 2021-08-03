@@ -6,7 +6,8 @@ import {
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
-import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning } from "./diagnostics";
+import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning, appConflictPinBlock, appConflictDuplicateName } from "./diagnostics";
+import { AppManifest } from "./applicationFile";
 
 const EXTENSION_SOURCE = 'az sphere';
 
@@ -243,4 +244,99 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 	}
 
 	return warningDiagnostics;
+}
+
+
+/**
+ * Checks that the opening app_manifest file:
+ * - Record all pin type and corresponding appManifest
+ * - Record the partner pin conroller information for finding pin block conflict
+ *
+ * @param hwDefinition The Hardware Definition to validate
+ * @param appManifest Record the information of opening app_manifest file
+ * @param partnerAppManifest Record the information of partner app_manifest file
+ * @returns Diagnostics with the app_manifest file underlying pin conflicts
+ */
+export function validateAppPinConflict(hwDefinition: HardwareDefinition, appManifest: AppManifest, partnerAppManifest: AppManifest ): Diagnostic[] {
+	const warningDiagnostics: Diagnostic[] = [];
+
+	const appManifestMap = new Map();
+	const partnerMap = new Map();
+	appManifestMap.set("gpio", appManifest.Capabilities.Gpio);
+	partnerMap.set("gpio", partnerAppManifest?.Capabilities.Gpio);
+	appManifestMap.set("i2cmaster", appManifest.Capabilities.I2cMaster);
+	partnerMap.set("i2cmaster", partnerAppManifest?.Capabilities.I2cMaster);
+	appManifestMap.set("pwm", appManifest.Capabilities.Pwm);
+	partnerMap.set("pwm", partnerAppManifest?.Capabilities.Pwm);
+	appManifestMap.set("uart", appManifest.Capabilities.Uart);
+	partnerMap.set("uart", partnerAppManifest?.Capabilities.Uart);
+	appManifestMap.set("spimaster", appManifest.Capabilities.SpiMaster);
+	partnerMap.set("spimaster", partnerAppManifest?.Capabilities.SpiMaster);
+	appManifestMap.set("adc", appManifest.Capabilities.Adc);
+	partnerMap.set("adc", partnerAppManifest?.Capabilities.Adc);
+
+	const partnerController: Map<string, Map<string,string >> = new Map();
+	for(const [key, value] of partnerMap){
+		const partnerValue = partnerMap.get(key)?.value.text as [string];
+		const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
+
+		for (let index = 0; index < partnerAppManifest_key.length; index++) {
+			const controller = getController(key, partnerAppManifest_key[index]);
+			partnerController.set(controller.name, new Map([["key", key],["value",partnerValue[index]]]));
+		}
+	}
+
+	for(const [key, value] of appManifestMap){
+		if(partnerMap.has(key)){
+			const partnerValue = partnerMap.get(key)?.value.text as [string];
+			const appValue= value?.value.text as [string];
+			const appManifest_key = findAppManifestValue(hwDefinition, appValue);
+			const partnerAppManifest_key = findAppManifestValue(hwDefinition, partnerValue);
+
+			for (let index = 0; index < appManifest_key.length; index++) {
+				// find the pin conflict base on the pin block
+				const controller = getController(key, appManifest_key[index]);
+				const existingControllerSetup = partnerController.get(controller.name);
+				if(existingControllerSetup?.get('key') != undefined &&
+					existingControllerSetup?.get('key') != key){
+					const range = value?.value.range;
+					const diagnostic: Diagnostic = appConflictPinBlock(appValue, range, existingControllerSetup, index);
+					warningDiagnostics.push(diagnostic);
+				}
+				
+				// find the pin conflic for duplicate name
+				if(partnerAppManifest_key.includes(appManifest_key[index])){
+					const range = value?.value.range;
+					const diagnostic: Diagnostic = appConflictDuplicateName(appValue, range, index);
+					warningDiagnostics.push(diagnostic);
+				}
+			}
+		}
+	}
+	return warningDiagnostics;
+}
+
+/**
+ * Checks that the given Hardware Definition:
+ * - Pin name is "$SAMPLE_LED_RED1" o remove the "$" or "PWM-CONTROLLER-0"
+ * - Uses getAppManifestValue function to help find each pin's appmanifest value
+ *
+ * @param hwDefinition The Hardware Definition to find the appmanifest value
+ * @param typeArray The pin array that needs to find the appmanifest value
+ * @returns appmanifest value array for the pin array
+ */
+function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): string[] {
+  const result = [];
+  if (typeArray) {
+    for (const name of typeArray) {
+      if (name.toString().includes("$")) {
+        const pinName = name.replace('$', '');
+        const appManifestValue = getAppManifestValue(pinName, [hwDefinition]);
+        result.push(appManifestValue as string);
+      } else {
+        result.push(name);
+      }
+    }
+  }
+  return result;
 }

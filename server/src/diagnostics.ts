@@ -13,6 +13,10 @@ export const PIN_BLOCK_CONFLICT_WARNING_CODE = "AST6";
 
 
 export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
+export const APP_PIN_BLOCK_CONFLICT_WARNING_CODE = "AST11";
+export const APP_DUPLICATE_NAME_WARNING_CODE = "AST12";
+
+
 
 /**
  * 
@@ -195,6 +199,27 @@ export function unknownImportWarning(unknownImport: UnknownImport, unknownImport
     source: EXTENSION_SOURCE
   };
 }
+
+export function appConflictPinBlock(appValue: string[], range: Range, existingControllerSetup: Map<string,string >, index: number) {
+  return{
+    code: APP_PIN_BLOCK_CONFLICT_WARNING_CODE,
+    message: `${appValue[index]} configured as ${existingControllerSetup?.get('key')} by ${existingControllerSetup?.get('value')}`,
+    range: range,
+    severity: DiagnosticSeverity.Error,
+    source: EXTENSION_SOURCE
+  };
+}
+
+export function appConflictDuplicateName(appValue: string[], range: Range, index: number) {
+  return{
+    code: APP_DUPLICATE_NAME_WARNING_CODE,
+    message: `${appValue[index]} is used multiple times.`,
+    range: range,
+    severity: DiagnosticSeverity.Error,
+    source: EXTENSION_SOURCE
+  };
+}
+
 
 /**
  * @param diagnostic Adds a diagnostic's related information directly in its message under the form (line x, char y)
