@@ -289,9 +289,9 @@ documents.onDidClose((e) => {
 documents.onDidChangeContent(async (change) => validateDocument(change.document));
 
 async function validateDocument(textDocument: TextDocument) {
-
   if (isAppManifestFile(textDocument.uri) && settingsPath) {
     const appManifest = tryParseAppManifestFile(textDocument.getText());
+    
     if(!appManifest){
       return;
     }
@@ -314,7 +314,7 @@ async function validateDocument(textDocument: TextDocument) {
   }
 }
 
-async function validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
+const validateAppManifestDoc = async(textDocument: TextDocument, appManifest: AppManifest): Promise<void> => {
   const settings = await getDocumentSettings(textDocument.uri);
   settings.partnerApplicationsSetting.set(appManifest.ComponentId,appManifest);
 
@@ -341,7 +341,7 @@ async function validateAppManifestDoc(textDocument: TextDocument, appManifest: A
   }
   // Send the computed diagnostics to VSCode.
   connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-}
+};
 
 export function tryParseAppManifestFile(AppManifestFileText: string): AppManifest | undefined {
   try {

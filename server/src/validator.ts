@@ -257,7 +257,7 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
  * @param partnerAppManifest Record the information of partner app_manifest file
  * @returns Diagnostics with the app_manifest file underlying pin conflicts
  */
-export function validateAppPinConflict(hwDefinition: HardwareDefinition, appManifest: AppManifest, partnerAppManifest: AppManifest ): Diagnostic[] {
+export const validateAppPinConflict = (hwDefinition: HardwareDefinition, appManifest: AppManifest, partnerAppManifest: AppManifest ): Diagnostic[] => {
 	const warningDiagnostics: Diagnostic[] = [];
 
 	const appManifestMap = new Map();
@@ -314,7 +314,7 @@ export function validateAppPinConflict(hwDefinition: HardwareDefinition, appMani
 		}
 	}
 	return warningDiagnostics;
-}
+};
 
 /**
  * Checks that the given Hardware Definition:
