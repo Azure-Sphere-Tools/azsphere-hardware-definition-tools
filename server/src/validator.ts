@@ -260,20 +260,8 @@ export function validatePinBlock(hwDefinition: HardwareDefinition, includeRelate
 export const validateAppPinConflict = (hwDefinition: HardwareDefinition, appManifest: AppManifest, partnerAppManifest: AppManifest ): Diagnostic[] => {
 	const warningDiagnostics: Diagnostic[] = [];
 
-	const appManifestMap = new Map();
-	const partnerMap = new Map();
-	appManifestMap.set("gpio", appManifest.Capabilities.Gpio);
-	partnerMap.set("gpio", partnerAppManifest?.Capabilities.Gpio);
-	appManifestMap.set("i2cmaster", appManifest.Capabilities.I2cMaster);
-	partnerMap.set("i2cmaster", partnerAppManifest?.Capabilities.I2cMaster);
-	appManifestMap.set("pwm", appManifest.Capabilities.Pwm);
-	partnerMap.set("pwm", partnerAppManifest?.Capabilities.Pwm);
-	appManifestMap.set("uart", appManifest.Capabilities.Uart);
-	partnerMap.set("uart", partnerAppManifest?.Capabilities.Uart);
-	appManifestMap.set("spimaster", appManifest.Capabilities.SpiMaster);
-	partnerMap.set("spimaster", partnerAppManifest?.Capabilities.SpiMaster);
-	appManifestMap.set("adc", appManifest.Capabilities.Adc);
-	partnerMap.set("adc", partnerAppManifest?.Capabilities.Adc);
+	const appManifestMap = appManifest.Capabilities.RecordMap;
+	const partnerMap = partnerAppManifest.Capabilities.RecordMap;
 
 	const partnerController: Map<string, Map<string,string >> = new Map();
 	for(const [key, value] of partnerMap){

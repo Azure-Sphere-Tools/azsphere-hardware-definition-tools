@@ -15,7 +15,8 @@ export class AppPin {
 		public Uart: AppPinKey<[string]> | undefined,
 		public SpiMaster: AppPinKey<[string]> | undefined,
 		public Adc: AppPinKey<[string]> | undefined,
-		public AllowedApplicationConnections: [string] | undefined
+		public AllowedApplicationConnections: [string] | undefined,
+		public RecordMap: Map<string, any>
 	) { }
 }
 

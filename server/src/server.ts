@@ -394,7 +394,8 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
       values.get('Uart'),
       values.get('SpiMaster'),
       values.get('Adc'),
-      AllowedApplicationConnections);
+      AllowedApplicationConnections,
+      values);
 
     return new AppManifest(ComponentId, appPin);
   } catch (error) {
