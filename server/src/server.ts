@@ -39,7 +39,7 @@ import { AppManifest, AppPin } from "./applicationManifest";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
-import { hwDefinitionHeaderGen } from "./hardwareDefinitionHeaderGeneration";
+import { hwDefinitionHeaderGen } from "./hwDefHeaderGeneration";
 
 import { Range } from "vscode-languageserver-textdocument";
 

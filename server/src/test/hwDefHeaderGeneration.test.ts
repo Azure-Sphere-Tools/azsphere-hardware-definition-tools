@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { hwDefinitionHeaderGen } from "../hardwareDefinitionHeaderGeneration";
+import { hwDefinitionHeaderGen } from "../hwDefHeaderGeneration";
 
 suite("hardwareDefinitionHeaderGeneration", () => {
   test("Valid command execution", async () => {
