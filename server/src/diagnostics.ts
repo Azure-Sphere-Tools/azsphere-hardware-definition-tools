@@ -205,7 +205,7 @@ export function appConflictPinBlock(appValue: string[], range: Range, existingCo
     code: APP_PIN_BLOCK_CONFLICT_WARNING_CODE,
     message: `${appValue[index]} configured as ${existingControllerSetup?.get('key')} by ${existingControllerSetup?.get('value')}`,
     range: range,
-    severity: DiagnosticSeverity.Error,
+    severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE
   };
 }
@@ -215,7 +215,7 @@ export function appConflictDuplicateName(appValue: string[], range: Range, index
     code: APP_DUPLICATE_NAME_WARNING_CODE,
     message: `${appValue[index]} is used multiple times.`,
     range: range,
-    severity: DiagnosticSeverity.Error,
+    severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE
   };
 }
