@@ -7,7 +7,8 @@ import * as mockfs from 'mock-fs';
 import * as fs from 'fs';
 import { URI } from 'vscode-uri';
 import { tryParseHardwareDefinitionFile } from '../server';
-import { validateNamesAndMappings, validatePinBlock } from '../validator';
+import { validateNamesAndMappings, validatePinBlock, findAppManifestValue, validateAppPinConflict } from '../validator';
+import { AppManifest, AppPin } from "../applicationManifest";
 
 suite('validateNamesAndMappings', () => {
 
@@ -461,5 +462,248 @@ suite('validatePinBlock', () => {
 		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);
 		const actualDiagnostic = warningDiagnostics[0];
 		assert.strictEqual(actualDiagnostic, undefined);
+	});
+});
+
+suite('validateApplicationManifest', () => {
+
+	// unmock the file system after each test
+	teardown(mockfs.restore);
+
+	test('Validate that the correct AppManifestValue is found', () => {
+		const gpioPin = getDummyPinMapping({ range: getRange(0, 0, 0, 12), name: 'MT3620_GPIO4', type: 'Gpio', appManifestValue: 4 });
+		const pwmPin = getDummyPinMapping({ range: getRange(1, 0, 1, 21), name: 'MT3620_PWM_CONTROLLER1', type: 'Pwm', appManifestValue: "PWM-CONTROLLER-1" });
+    const importedhwDefFilePath = "my_app/importedHardwareDef.json";
+    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin, pwmPin]);
+
+    const hwDefFilePath = "my_app/hardwareDef.json";
+		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 6), name: 'MY_LED', type: 'Gpio', mapping: "MT3620_GPIO4" });
+		const warningPin = getDummyPinMapping({ range: getRange(1, 0, 1, 18), name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: "MT3620_PWM_CONTROLLER1" });
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
+
+		const appManifestArray = findAppManifestValue(hwDefinitionFile, ['$MY_LED', '$MY_PWM_CONTROLLER0']);
+		assert.strictEqual(appManifestArray[0], 4);
+		assert.strictEqual(appManifestArray[1], "PWM-CONTROLLER-1");
+	});
+
+	test('Validate The Application Pin Conflict', () => {
+		const appValues: Map<string, any> = new Map();
+		appValues.set('Gpio', {
+			range: getRange(1,0,1,22),
+			key: {
+				range: getRange(1,0,1,5),
+				text: 'Gpio',
+			},
+			value: {
+				range: getRange(1,6,1,22),
+				text: ["$SAMPLE_LED_RED2"],
+			}
+		});
+
+		appValues.set('I2cMaster', {
+			range: getRange(2,0,2,23),
+			key: {
+				range: getRange(2,0,2,10),
+				text: 'I2cMaster',
+			},
+			value: {
+				range: getRange(2,11,2,23),
+				text: ["$SAMPLE_I2C1"],
+			}
+		});
+
+		appValues.set('Pwm', {
+			range: getRange(3,0,3,17),
+			key: {
+				range: getRange(3,0,3,4),
+				text: 'Pwm',
+			},
+			value: {
+				range: getRange(3,5,3,17),
+				text: ["$SAMPLE_Pwm2"],
+			}
+		});
+
+		appValues.set('Uart', {
+			range: getRange(4,0,4,19),
+			key: {
+				range: getRange(4,0,4,5),
+				text: 'Uart',
+			},
+			value: {
+				range: getRange(4,6,4,19),
+				text: ["$SAMPLE_UART2"],
+			}
+		});
+
+		appValues.set('SpiMaster', {
+			range: getRange(5,0,5,14),
+			key: {
+				range: getRange(5,0,5,9),
+				text: 'SpiMaster',
+			},
+			value: {
+				range: getRange(5,10,5,14),
+				text: ["ISU1"],
+			}
+		});
+
+		appValues.set('Adc', {
+			range: getRange(6,0,6,20),
+			key: {
+				range: getRange(6,0,6,3),
+				text: 'Adc',
+			},
+			value: {
+				range: getRange(6,4,6,20),
+				text: ["ADC-CONTROLLER-0"],
+			}
+		});
+		const appPin = new AppPin(
+      appValues.get('Gpio'),
+      appValues.get('I2cMaster'),
+      appValues.get('Pwm'),
+      appValues.get('Uart'),
+      appValues.get('SpiMaster'),
+      appValues.get('Adc'),
+      ["FGHIJ"],
+      appValues);
+
+
+			const partnerValues: Map<string, any> = new Map();
+			partnerValues.set('Gpio', {
+				range: getRange(1,0,1,22),
+				key: {
+					range: getRange(1,0,1,5),
+					text: 'Gpio',
+				},
+				value: {
+					range: getRange(1,6,1,22),
+					text: ["$SAMPLE_LED_RED1"],
+				}
+			});
+	
+			partnerValues.set('I2cMaster', {
+				range: getRange(2,0,2,23),
+				key: {
+					range: getRange(2,0,2,10),
+					text: 'I2cMaster',
+				},
+				value: {
+					range: getRange(2,11,2,23),
+					text: ["$SAMPLE_I2C1"],
+				}
+			});
+	
+			partnerValues.set('Pwm', {
+				range: getRange(3,0,3,17),
+				key: {
+					range: getRange(3,0,3,4),
+					text: 'Pwm',
+				},
+				value: {
+					range: getRange(3,5,3,17),
+					text: ["$SAMPLE_Pwm1"],
+				}
+			});
+	
+			partnerValues.set('Uart', {
+				range: getRange(4,0,4,19),
+				key: {
+					range: getRange(4,0,4,5),
+					text: 'Uart',
+				},
+				value: {
+					range: getRange(4,6,4,19),
+					text: ["$SAMPLE_UART1"],
+				}
+			});
+	
+			partnerValues.set('SpiMaster', {
+				range: getRange(5,0,5,14),
+				key: {
+					range: getRange(5,0,5,9),
+					text: 'SpiMaster',
+				},
+				value: {
+					range: getRange(5,10,5,28),
+					text: ["$SAMPLE_SpiMaster1"],
+				}
+			});
+	
+			partnerValues.set('Adc', {
+				range: getRange(6,0,6,20),
+				key: {
+					range: getRange(6,0,6,3),
+					text: 'Adc',
+				},
+				value: {
+					range: getRange(6,4,6,27),
+					text: ["$SAMPLE_ADC_CONTROLLER0"],
+				}
+			});
+			const partnerPin = new AppPin(
+				partnerValues.get('Gpio'),
+				partnerValues.get('I2cMaster'),
+				partnerValues.get('Pwm'),
+				partnerValues.get('Uart'),
+				partnerValues.get('SpiMaster'),
+				partnerValues.get('Adc'),
+				["ABCDE"],
+				partnerValues);
+			
+		const appManifest = new AppManifest("ABCDE", appPin);
+		const partnerAppManifest = new AppManifest("FGHIJ", partnerPin);
+
+		const gpioPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 12), name: 'MT3620_GPIO5', type: 'Gpio', appManifestValue: 5 });
+		const gpioPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 13), name: 'MT3620_GPIO60', type: 'Gpio', appManifestValue: 60 });
+		const I2cMasterPin1 = getDummyPinMapping({ range: getRange(2, 0, 2, 15), name: 'MT3620_ISU0_I2C', type: 'I2cMaster', appManifestValue: "ISU0" });
+		const I2cMasterPin2 = getDummyPinMapping({ range: getRange(3, 0, 3, 15), name: 'MT3620_ISU1_I2C', type: 'I2cMaster', appManifestValue: "ISU1" });		
+		const PwmPin1 = getDummyPinMapping({ range: getRange(4, 0, 4, 22), name: 'MT3620_PWM_CONTROLLER0', type: 'Pwm', appManifestValue: "PWM-CONTROLLER-0" });
+		const PwmPin2 = getDummyPinMapping({ range: getRange(5, 0, 5, 22), name: 'MT3620_PWM_CONTROLLER1', type: 'Pwm', appManifestValue: "PWM-CONTROLLER-1" });	
+		const UartPin1 = getDummyPinMapping({ range: getRange(6, 0, 6, 16), name: 'MT3620_ISU2_UART', type: 'Uart', appManifestValue: "ISU2" });
+		const UartPin2 = getDummyPinMapping({ range: getRange(7, 0, 7, 16), name: 'MT3620_ISU3_UART', type: 'Uart', appManifestValue: "ISU3" });	
+		const SpiMasterPin = getDummyPinMapping({ range: getRange(8, 0, 8, 15), name: 'MT3620_ISU4_SPI', type: 'SpiMaster', appManifestValue: "ISU4" });
+		const AdcPin = getDummyPinMapping({ range: getRange(9, 0, 9, 22), name: 'MT3620_ADC_CONTROLLER0', type: 'Adc', appManifestValue: "ADC-CONTROLLER-0" });
+    const importedhwDefFilePath = "my_app/importedHardwareDef.json";
+		const pinArray = [gpioPin1, gpioPin2, I2cMasterPin1, I2cMasterPin2, PwmPin1, PwmPin2, UartPin1, UartPin2, SpiMasterPin, AdcPin];
+    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, pinArray);
+
+		const hwGpioPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 15), name: 'SAMPLE_LED_RED1', type: 'Gpio', mapping: "MT3620_GPIO5" });
+		const hwGpioPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 15), name: 'SAMPLE_LED_RED2', type: 'Gpio', mapping: "MT3620_GPIO60" });
+		const hwI2cMasterPin1 = getDummyPinMapping({ range: getRange(2, 0, 2, 11), name: 'SAMPLE_I2C1', type: 'I2cMaster', mapping: "MT3620_ISU0_I2C" });
+		const hwI2cMasterPin2 = getDummyPinMapping({ range: getRange(3, 0, 3, 11), name: 'SAMPLE_I2C2', type: 'I2cMaster', mapping: "MT3620_ISU1_I2C" });
+		const hwPwmPin1 = getDummyPinMapping({ range: getRange(4, 0, 4, 11), name: 'SAMPLE_Pwm1', type: 'Pwm', mapping: "MT3620_PWM_CONTROLLER0" });
+		const hwPwmPin2 = getDummyPinMapping({ range: getRange(5, 0, 5, 11), name: 'SAMPLE_Pwm2', type: 'Pwm', mapping: "MT3620_PWM_CONTROLLER1" });
+		const hwUartPin1 = getDummyPinMapping({ range: getRange(6, 0, 6, 12), name: 'SAMPLE_UART1', type: 'Uart', mapping: "MT3620_ISU2_UART" });
+		const hwUartPin2 = getDummyPinMapping({ range: getRange(7, 0, 7, 12), name: 'SAMPLE_UART2', type: 'Uart', mapping: "MT3620_ISU3_UART" });
+		const hwSpiMasterPin = getDummyPinMapping({ range: getRange(8, 0, 8, 17), name: 'SAMPLE_SpiMaster1', type: 'SpiMaster', mapping: "MT3620_ISU4_SPI" });
+		const hwAdcPin = getDummyPinMapping({ range: getRange(9, 0, 9, 22), name: 'SAMPLE_ADC_CONTROLLER0', type: 'Adc', mapping: "MT3620_ADC_CONTROLLER0" });
+    const hwDefFilePath = "my_app/hardwareDef.json";
+		const hwPinArray = [hwGpioPin1, hwGpioPin2, hwI2cMasterPin1, hwI2cMasterPin2, hwPwmPin1, hwPwmPin2, hwUartPin1, hwUartPin2, hwSpiMasterPin, hwAdcPin];
+		const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, hwPinArray, [importedhwDefinitionFile]);
+
+		const warningDiagnostics = validateAppPinConflict(hwDefinitionFile, appManifest, partnerAppManifest);
+		
+		assert.strictEqual(warningDiagnostics.length, 3);
+		
+		assert.strictEqual(warningDiagnostics[0].message, "$SAMPLE_I2C1 is also declared in partner app FGHIJ.");
+		assert.deepStrictEqual(warningDiagnostics[0].range, getRange(2,11,2,23));
+		assert.strictEqual(warningDiagnostics[0].severity, 2);
+		assert.strictEqual(warningDiagnostics[0].source, 'az sphere');
+		assert.strictEqual(warningDiagnostics[0].code, 'AST12');
+
+		assert.strictEqual(warningDiagnostics[1].message, "$SAMPLE_Pwm2 configured as Gpio by $SAMPLE_LED_RED1 in partner app FGHIJ.");
+		assert.deepStrictEqual(warningDiagnostics[1].range, getRange(3,5,3,17));
+		assert.strictEqual(warningDiagnostics[1].severity, 2);
+		assert.strictEqual(warningDiagnostics[1].source, 'az sphere');
+		assert.strictEqual(warningDiagnostics[1].code, 'AST11');
+
+		assert.strictEqual(warningDiagnostics[2].message, "ADC-CONTROLLER-0 is also declared in partner app FGHIJ.");
+		assert.deepStrictEqual(warningDiagnostics[2].range, getRange(6,4,6,20));
+		assert.strictEqual(warningDiagnostics[2].severity, 2);
+		assert.strictEqual(warningDiagnostics[2].source, 'az sphere');
+		assert.strictEqual(warningDiagnostics[2].code, 'AST12');
+		
 	});
 });

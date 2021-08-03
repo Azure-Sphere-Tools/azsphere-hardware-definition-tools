@@ -313,7 +313,7 @@ export const validateAppPinConflict = (hwDefinition: HardwareDefinition, appMani
  * @param typeArray The pin array that needs to find the appmanifest value
  * @returns appmanifest value array for the pin array
  */
-function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): string[] {
+export function findAppManifestValue(hwDefinition: HardwareDefinition, typeArray: string[]): string[] {
   const result = [];
   if (typeArray) {
     for (const name of typeArray) {
