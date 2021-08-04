@@ -1,6 +1,8 @@
 ﻿using Microsoft.VisualStudio.LanguageServer.Client;
+using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Microsoft.VisualStudio.Threading;
 using Microsoft.VisualStudio.Utilities;
+using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
 using System;
 using System.Collections.Generic;
@@ -18,6 +20,8 @@ namespace AZSphereHardwareDefinitionTools
   [Export(typeof(ILanguageClient))]
   public class HardwareDefinitionLanguageClient : ILanguageClient, ILanguageClientCustomMessage2
   {
+    public static HardwareDefinitionLanguageClient Instance;
+
 
     private const string EXTENSION_DIRECTORY = "visualstudio-extension";
 
@@ -36,6 +40,7 @@ namespace AZSphereHardwareDefinitionTools
 
     public object CustomMessageTarget => null;
 
+    public JsonRpc Rpc { get; private set; }
 
     public async Task<Connection> ActivateAsync(CancellationToken token)
     {
@@ -92,11 +97,33 @@ namespace AZSphereHardwareDefinitionTools
 
     public Task OnServerInitializedAsync()
     {
+      Instance = this;
       return Task.CompletedTask;
     }
     public Task AttachForCustomMessageAsync(JsonRpc rpc)
     {
+      this.Rpc = rpc;
       return Task.CompletedTask;
+    }
+
+    public async Task<string[]> GetAvailablePinTypesAsync(string hwDefUri)
+    {
+      object[] args = { hwDefUri };
+      var response = await Rpc.InvokeWithParameterObjectAsync<JToken>(Methods.WorkspaceExecuteCommandName, new ExecuteCommandParams { Command = "getAvailablePinTypes", Arguments = args });
+      return response != null ? response.ToObject<string[]>() : new string[] { };
+    }
+
+    public async Task<string[]> GetAvailablePinsAsync(string hwDefUri, string pinTypeSelected)
+    {
+      object[] args = { hwDefUri, pinTypeSelected };
+      var response = await Rpc.InvokeWithParameterObjectAsync<JToken>(Methods.WorkspaceExecuteCommandName, new ExecuteCommandParams { Command = "getAvailablePins", Arguments = args });
+      return response != null ? response.ToObject<string[]>() : new string[] { };
+    }
+
+    public async Task PostPinAmountToGenerateAsync(string hwDefUri, string[] pinsToAdd, string pinTypeSelected)
+    {
+      object[] args = { hwDefUri, pinsToAdd, pinTypeSelected };
+      await Rpc.InvokeWithParameterObjectAsync<JToken>(Methods.WorkspaceExecuteCommandName, new ExecuteCommandParams { Command = "postPinAmountToGenerate", Arguments = args }); 
     }
 
     /// <summary>

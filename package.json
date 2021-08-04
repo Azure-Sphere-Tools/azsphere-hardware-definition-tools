@@ -3,10 +3,11 @@
 	"description": "Root package.json which defines common dev tools for the vscode extension and language server projects",
 	"version": "1.0.0",
 	"scripts": {
-		"build": "tsc -b --clean && tsc -b",
+		"build": "rimraf ./server/dist/ ./vscode-extension/dist/ && tsc -b --clean && tsc -b",
 		"watch": "tsc -b -w",
 		"postinstall": "cd vscode-extension && npm install && cd ../server && npm install && cd ..",
-		"test": "sh ./scripts/e2e.sh"
+		"test": "sh ./scripts/e2e.sh",
+		"coverage": "nyc ./scripts/e2e.sh ONLY_UNIT_TESTS && nyc report --reporter=html"
 	},
 	"devDependencies": {
 		"@types/mocha": "^8.2.2",
@@ -15,7 +16,9 @@
 		"@typescript-eslint/parser": "^4.23.0",
 		"eslint": "^7.26.0",
 		"mocha": "^9.0.2",
-		"typescript": "^4.3.2",
-		"source-map-support": "^0.5.19"
+		"nyc": "^15.1.0",
+		"rimraf": "^3.0.2",
+		"source-map-support": "^0.5.19",
+		"typescript": "^4.3.2"
 	}
 }

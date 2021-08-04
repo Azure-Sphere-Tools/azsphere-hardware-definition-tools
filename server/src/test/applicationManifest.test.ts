@@ -1,4 +1,4 @@
-import { addAppManifestPathsToSettings } from "../appManifestPaths";
+import { addAppManifestPathsToSettings } from "../applicationManifest";
 import * as assert from "assert";
 import * as mockfs from "mock-fs";
 import * as path from "path";
@@ -36,7 +36,7 @@ suite("addAppManifestPathsToSettings", async () => {
 
   test("partnerApplications fully filled", async () => {
     const initialSettings = jsonc.parse(fs.readFileSync(settingsPath, { encoding: "utf8" }));
-    const actualSettings = await getActualSettings();
+    const actualSettings = await addAppManifestPathsAndReturnSettings();
 
     if (actualSettings) {
       assert.deepStrictEqual(actualSettings, initialSettings);
@@ -45,12 +45,13 @@ suite("addAppManifestPathsToSettings", async () => {
     }
   });
 
-  test("Missing partnerApplications", async () => {
+  test("Fills 'partnerApplications' if missing", async () => {
     const [initialSettings, settings] = getSettings();
 
     delete settings["AzureSphere.partnerApplications"];
+    saveSettings(settings);
 
-    const actualSettings = await getActualSettings();
+    const actualSettings = await addAppManifestPathsAndReturnSettings();
 
     if (actualSettings) {
       assert.deepStrictEqual(actualSettings["AzureSphere.partnerApplications"], initialSettings["AzureSphere.partnerApplications"]);
@@ -59,13 +60,14 @@ suite("addAppManifestPathsToSettings", async () => {
     }
   });
 
-  test("Missing app_manifest ComponentId item", async () => {
+  test("Adds app_manifest's 'ComponentId' if not listed in 'partnerApplications'", async () => {
     const [initialSettings, settings] = getSettings();
 
     // remove componentId entry
     delete settings["AzureSphere.partnerApplications"]["app-id-a"];
+    saveSettings(settings);
 
-    const actualSettings = await getActualSettings();
+    const actualSettings = await addAppManifestPathsAndReturnSettings();
 
     if (actualSettings["AzureSphere.partnerApplications"]) {
       assert.deepStrictEqual(actualSettings["AzureSphere.partnerApplications"], initialSettings["AzureSphere.partnerApplications"]);
@@ -74,31 +76,31 @@ suite("addAppManifestPathsToSettings", async () => {
     }
   });
 
-  test("Missing app_manifest ComponentId path", async () => {
-    const [initialSettings, settings] = getSettings();
-
-    // remove componentId entry
-    delete settings["AzureSphere.partnerApplications"]["app-id-a"];
-
-    const actualSettings = await getActualSettings();
-
-    if (actualSettings["AzureSphere.partnerApplications"]) {
-      assert.deepStrictEqual(actualSettings["AzureSphere.partnerApplications"], initialSettings["AzureSphere.partnerApplications"]);
-    } else {
-      assert.fail("settings.json missing app_manifest ComponentId path");
-    }
-  });
-
-  test("Missing an AllowedApplicationConnections ComponentId key", async () => {
+  test("Adds app ids from app manifest if not listed under 'partnerApplications'", async () => {
     const [initialSettings, settings] = getSettings();
 
     // remove AllowedApplicationConnections key
     delete settings["AzureSphere.partnerApplications"]["app-id-c"];
+    saveSettings(settings);
 
-    const actualSettings = await getActualSettings();
+    const actualSettings = await addAppManifestPathsAndReturnSettings();
 
     if (actualSettings["AzureSphere.partnerApplications"]) {
       assert.deepStrictEqual(actualSettings["AzureSphere.partnerApplications"], initialSettings["AzureSphere.partnerApplications"]);
+    } else {
+      assert.fail("settings.json did not contain all the AllowedApplicationConnections specified in the app_manifest");
+    }
+  });
+
+  test("Does not update partner app ids already listed in settings file", async () => {
+    const [expectedSettings, _] = getSettings();
+    expectedSettings["AzureSphere.partnerApplications"]["app-id-c"] = "path/to/some/appmanifest.json";
+    saveSettings(expectedSettings);
+
+    const actualSettings = await addAppManifestPathsAndReturnSettings();
+
+    if (actualSettings["AzureSphere.partnerApplications"]) {
+      assert.deepStrictEqual(actualSettings["AzureSphere.partnerApplications"], expectedSettings["AzureSphere.partnerApplications"]);
     } else {
       assert.fail("settings.json did not contain all the AllowedApplicationConnections specified in the app_manifest");
     }
@@ -110,7 +112,7 @@ suite("addAppManifestPathsToSettings", async () => {
     // delete settings file
     await rm(settingsPath);
 
-    const actualSettings = await getActualSettings();
+    const actualSettings = await addAppManifestPathsAndReturnSettings();
 
     if (actualSettings["AzureSphere.partnerApplications"]) {
       assert.deepStrictEqual(actualSettings["AzureSphere.partnerApplications"], expectedSettings["AzureSphere.partnerApplications"]);
@@ -127,7 +129,19 @@ function getSettings(): any[] {
   return [initialSettings, settings];
 }
 
-async function getActualSettings(): Promise<any> {
+/**
+ * Tries to add app manifest paths to the settings under settingsPath
+ * @returns the actual settings that were modified
+ */
+async function addAppManifestPathsAndReturnSettings(): Promise<any> {
   await addAppManifestPathsToSettings(app_manifestUri.toString(), path.resolve(settingsPath));
   return jsonc.parse(fs.readFileSync(settingsPath, { encoding: "utf8" }));
+}
+
+/**
+ * Saves settings under settingsPath
+ * @param modifiedSettings The settings to save under settingsPath
+ */
+function saveSettings(modifiedSettings: any) {
+  fs.writeFileSync(settingsPath, JSON.stringify(modifiedSettings), {encoding: "utf8"});
 }

@@ -24,7 +24,6 @@ import {
   DiagnosticSeverity,
 } from "vscode-languageserver/node";
 
-import { addAppManifestPathsToSettings } from "./appManifestPaths";
 import { parseCommandsParams } from "./cMakeLists";
 
 import { pinMappingCompletionItemsAtPosition, getPinMappingSuggestions } from "./suggestions";
@@ -35,13 +34,11 @@ import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
 import { validateNamesAndMappings, findUnknownImports, validatePinBlock, validateAppPinConflict } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
-import { AppManifest, AppPin } from "./applicationManifest";
+import { addAppManifestPathsToSettings, AppManifest, AppPin } from "./applicationManifest";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
 import { hwDefinitionHeaderGen } from "./hwDefHeaderGeneration";
-
-import { Range } from "vscode-languageserver-textdocument";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -63,8 +60,9 @@ let settingsPath: string;
 connection.onInitialize((params: InitializeParams) => {
   const capabilities = params.capabilities;
 
-  // Set setting.json path
-  setSettingPath(params.clientInfo?.name);
+  // Set settings.json path
+  const projectRootUri: URI = URI.parse(params.workspaceFolders ? params.workspaceFolders[0].uri : params.rootUri ?? "");
+  setSettingPath(projectRootUri, params.clientInfo?.name);
 
   // Does the client support the `workspace/configuration` request?
   // If not, we fall back using global settings.
@@ -156,18 +154,29 @@ connection.onInitialized(() => {
 // The extension settings
 interface ExtensionSettings {
   SdkPath: string;
-  partnerApplicationsSetting: Map<string, AppManifest>;
+  partnerApplicationPaths: Map<string, string>;
 }
 const defaultSettings: ExtensionSettings = {
   SdkPath: process.platform == "linux" ? "/opt/azurespheresdk" : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
-  partnerApplicationsSetting: new Map(),
+  partnerApplicationPaths: new Map(),
 };
 
 function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
-  if (!settingsToValidate?.SdkPath || settingsToValidate.SdkPath == "") {
-    return { SdkPath: defaultSettings.SdkPath, partnerApplicationsSetting: defaultSettings.partnerApplicationsSetting };
+  let sdkPath = settingsToValidate?.SdkPath; 
+  if (!sdkPath || sdkPath == "") {
+    sdkPath = defaultSettings.SdkPath;
   }
-  return settingsToValidate;
+  
+  const partnerAppPaths = new Map<string, string>();
+  const partnerAppsFromSettings = settingsToValidate.partnerApplications;
+  if (partnerAppsFromSettings && typeof partnerAppsFromSettings === "object") {
+    for (const appId in partnerAppsFromSettings) {
+      const partnerAppManifest = partnerAppsFromSettings[appId];
+      partnerAppPaths.set(appId, partnerAppManifest);
+    }
+  }
+
+  return { SdkPath: sdkPath, partnerApplicationPaths: partnerAppPaths};
 }
 
 // The global settings, used when the `workspace/configuration` request is not supported by the client.
@@ -282,8 +291,10 @@ documents.onDidClose((e) => {
 
 documents.onDidSave(async (save) => {
   // Hardware Definition header generation
-  const uri = await validateHardwareDefinitionDoc(save.document);
-  if (uri) displayNotification(await hwDefinitionHeaderGen(uri));
+  if(isHardwareDefinitionFile(save.document.uri)) {
+    const uri = await validateHardwareDefinitionDoc(save.document);
+    if (uri) displayNotification(await hwDefinitionHeaderGen(uri));
+  }
 });
 
 // The content of a text document has changed. This event is emitted
@@ -293,16 +304,21 @@ documents.onDidChangeContent(async (change) => validateDocument(change.document)
 export const validateDocument = async (textDocument: TextDocument): Promise<string | undefined> => {
   if (isAppManifestFile(textDocument.uri) && settingsPath) {
     const appManifest = tryParseAppManifestFile(textDocument.getText());
-    if (!appManifest) return;
-
-    const absoluteSettingsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), settingsPath));
+    
+    if (!appManifest) {
+      return;
+    }
+    const existingPartnerAppPaths = (await getDocumentSettings(textDocument.uri)).partnerApplicationPaths;
+    const absoluteSettingsPath = path.resolve(settingsPath);
     const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, connection.console.error);
-    if (detectedPartnerApplications.length > 0) {
+    const newPartnerApplications = detectedPartnerApplications.filter(appId => !existingPartnerAppPaths.has(appId));
+    if (newPartnerApplications.length > 0) {
       const msg: ShowMessageParams = {
-        message: `Partner applications ${detectedPartnerApplications.join(", ")} detected, please open their app_manifest.json`,
+        message: `Partner applications ${newPartnerApplications.join(", ")} detected, add their app_manifest.json paths ` 
+          + `to your ${path.basename(settingsPath)} to enable cross-application conflict detection`,
         type: MessageType.Warning,
       };
-      connection.sendNotification(ShowMessageNotification.type, msg);
+      displayNotification(msg);
     }
 
     await validateAppManifestDoc(textDocument, appManifest);
@@ -315,7 +331,6 @@ export const validateDocument = async (textDocument: TextDocument): Promise<stri
 
 const validateAppManifestDoc = async (textDocument: TextDocument, appManifest: AppManifest): Promise<void> => {
   const settings = await getDocumentSettings(textDocument.uri);
-  settings.partnerApplicationsSetting.set(appManifest.ComponentId, appManifest);
 
   const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
   const hwDefinitionPath = parseCommandsParams(CMakeListsPath, connection.console.log);
@@ -331,10 +346,21 @@ const validateAppManifestDoc = async (textDocument: TextDocument, appManifest: A
 
   const diagnostics: Diagnostic[] = [];
   for (const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]) {
-    if (settings.partnerApplicationsSetting.has(partner)) {
-      const partnerAppManifest = settings.partnerApplicationsSetting.get(partner);
-      if (partnerAppManifest) {
-        diagnostics.push(...validateAppPinConflict(hwDefinition, appManifest, partnerAppManifest));
+    if (settings.partnerApplicationPaths.has(partner)) {
+      const partnerAppManifestPath = <string>settings.partnerApplicationPaths.get(partner);
+      if (fs.existsSync(partnerAppManifestPath)) {
+        const partnerAppManifestText = await getFileText(URI.file(path.resolve(partnerAppManifestPath)).toString());
+        const partnerAppManifest = tryParseAppManifestFile(partnerAppManifestText);
+        
+        if(partnerAppManifest){
+          diagnostics.push(...validateAppPinConflict(hwDefinition, appManifest, partnerAppManifest));
+        }
+      } else {
+        displayNotification({
+          message: `Could not find partner app ${partner} under path "${partnerAppManifestPath}".\n`
+            + `Please check your ${path.basename(settingsPath)} to fix the path to the partner app manifest.`, 
+          type: MessageType.Error
+        });
       }
     }
   }
@@ -539,12 +565,14 @@ export function findFullPath(relativeImportPath: string, hwDefinitionFilePath: s
   }
 }
 
-const setSettingPath = (ide: string | undefined) => {
+const setSettingPath = (projectRootUri: URI, ide: string | undefined) => {
+  let settingsRelativeLocation: string;
   if (ide && ide.includes("Visual Studio Code")) {
-    settingsPath = ".vscode/settings.json";
+    settingsRelativeLocation = ".vscode/settings.json";
   } else {
-    settingsPath = ".vs/VSWorkspaceSettings.json";
+    settingsRelativeLocation = ".vs/VSWorkspaceSettings.json";
   }
+  settingsPath = path.join(projectRootUri.fsPath, settingsRelativeLocation);
 };
 
 connection.onCodeAction(provideCodeActions);

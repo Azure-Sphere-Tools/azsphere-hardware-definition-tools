@@ -4,6 +4,7 @@ import { URI } from "vscode-uri";
 import { HardwareDefinition } from "./hardwareDefinition";
 import { displayNotification } from "./server";
 import { MessageType } from "vscode-languageserver";
+import { getPinMappingSuggestions } from "./suggestions";
 
 function checkHwDefinition(importedHwDef: HardwareDefinition): Set<string> {
   const pinTypes = new Set<string>();
@@ -26,7 +27,7 @@ export async function getPinTypes(hwDefinition: HardwareDefinition): Promise<str
         const pinTypesInImport = checkHwDefinition(hwDefImport);
         pinTypesInImport.forEach((p) => pinTypes.add(p));
       }
-      return Array.from(pinTypes);
+      return Array.from(pinTypes).filter(pinType => getPinMappingSuggestions(hwDefinition, pinType).length > 0);
     } else {
       displayNotification({ message: "Hardware Definition file does not have any imports to generate pins from.", type: MessageType.Error });
     }

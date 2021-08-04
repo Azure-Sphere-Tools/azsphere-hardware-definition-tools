@@ -5,7 +5,8 @@ import { getPinTypes, addPinMappings } from "../pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import * as fs from "fs";
 import { tryParseHardwareDefinitionFile } from "../server";
-import { asURI } from "./testUtils";
+import { asURI, getDummyPinMapping } from "./testUtils";
+import { HardwareDefinition } from "../hardwareDefinition";
 
 suite("pinMappingGeneration", () => {
   const text = `{"Imports":[{ "Path": "odm.json" }],"Peripherals": [{ "Name": "TEMPLATE_LED", "Type": "Gpio", "Mapping": "SEEED_MT3620_MDB_USER_LED" }], "Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 }}`;
@@ -31,6 +32,16 @@ suite("pinMappingGeneration", () => {
     } else {
       assert.fail("Wrong pin type detected");
     }
+  });
+
+  test("Does not suggest types whose pins have all been assigned", async () => {
+    const importedwDef = new HardwareDefinition("anyuri", undefined, [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })]);
+    const hwDefinition = new HardwareDefinition("anyUri", undefined, [getDummyPinMapping({ name: "LED", mapping: "GPIO1" })], [importedwDef]);
+    
+    const actualPinTypesCount = (await getPinTypes(hwDefinition))?.length;
+    const expectedPinTypesCount = 0;
+
+    assert.strictEqual(actualPinTypesCount, expectedPinTypesCount);
   });
 
   test("Add pin mappings to file under 'Peripherals'", async () => {
