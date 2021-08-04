@@ -291,8 +291,10 @@ documents.onDidClose((e) => {
 
 documents.onDidSave(async (save) => {
   // Hardware Definition header generation
-  const uri = await validateHardwareDefinitionDoc(save.document);
-  if (uri) displayNotification(await hwDefinitionHeaderGen(uri));
+  if(isHardwareDefinitionFile(save.document.uri)) {
+    const uri = await validateHardwareDefinitionDoc(save.document);
+    if (uri) displayNotification(await hwDefinitionHeaderGen(uri));
+  }
 });
 
 // The content of a text document has changed. This event is emitted
