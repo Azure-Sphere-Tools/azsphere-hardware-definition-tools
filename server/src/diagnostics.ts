@@ -233,7 +233,7 @@ function addRelatedInfoAsDiagnosticMessage(diagnostic: Diagnostic, relatedInfoPo
   diagnostic.message += ` (line ${relatedInfoPosition.line + 1}, char ${relatedInfoPosition.character + 1}`;
   if (relatedInfoUri != undefined) {
     // mention the related info's file uri if it wasn't defined in the current hw definition file  
-    diagnostic.message += ` in ${URI.file(relatedInfoUri).fsPath}`;
+    diagnostic.message += ` in ${URI.parse(relatedInfoUri).fsPath}`;
   }
   diagnostic.message += ')';
 }
