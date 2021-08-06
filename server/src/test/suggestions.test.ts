@@ -40,20 +40,22 @@ suite("getPinMappingSuggestions", () => {
     assert.strictEqual(suggestedPinMappings.includes(basePin2.name.value.text), false);
   });
 
-  test("Gets Pin Mapping Suggestions of different types if pinType is undefined", () => {
-    const gpioPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
-    const gpioPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 5), name: "GPIO1", type: "Gpio", appManifestValue: 1 });
-    const pinWithDifferentType = getDummyPinMapping({ range: getRange(2, 0, 2, 5), name: "PWM0", type: "Pwm", appManifestValue: 28 });
+  test("Does not suggest Pin Mappings that cause pin block conflicts", () => {
+    const gpioPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
+    const gpioPinSharingPinBlock = getDummyPinMapping({ range: getRange(1, 0, 1, 5), name: "GPIO4", type: "Gpio", appManifestValue: 4 });
+    const pwmPinSharingPinBlock = getDummyPinMapping({ range: getRange(1, 0, 1, 5), name: "PWM1", type: "PWM", appManifestValue: "PWM-CONTROLLER-1" });
+
     const importedhwDefFilePath = "my_app/importedHardwareDef.json";
-    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin1, gpioPin2, pinWithDifferentType]);
+    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin, gpioPinSharingPinBlock, pwmPinSharingPinBlock]);
 
     const hwDefFilePath = "my_app/hardwareDef.json";
-    const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "LED", type: "Gpio", mapping: "GPIO1" });
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin], [importedhwDefinitionFile]);
+    const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [pwmPinSharingPinBlock], [importedhwDefinitionFile]);
 
-    const validPinMappings = getPinMappingSuggestions(hwDefinitionFile);
+    const validPinMappings = getPinMappingSuggestions(hwDefinition, "Gpio");
 
-    assert.strictEqual(validPinMappings.length, 2);
+    assert.strictEqual(validPinMappings.length, 1);
+    assert.strictEqual(validPinMappings[0], gpioPin.name.value.text);
+    assert.notStrictEqual(validPinMappings[0], gpioPinSharingPinBlock.name.value.text);
   });
 });
 
