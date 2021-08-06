@@ -21,7 +21,8 @@
   "activationEvents": [
     "onLanguage:json",
     "onLanguage:plaintext",
-    "onLanguage:cmake"
+    "onLanguage:cmake",
+    "onCommand:azsphere-hardware-definition-tools.porting"
   ],
   "main": "./dist/extension",
   "contributes": {

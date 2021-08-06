@@ -1,5 +1,5 @@
 import * as path from "path";
-import { workspace, ExtensionContext, ExtensionMode, commands, window, QuickPickItem, Uri, ViewColumn } from "vscode";
+import { workspace, ExtensionContext, ExtensionMode, commands, window, Uri, ViewColumn } from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from "vscode-languageclient/node";
 
 let client: LanguageClient;
@@ -63,19 +63,25 @@ export function activate(context: ExtensionContext) {
 }
 
 async function portHwDefinition() {
-  const odmHwDefinitions: {name: string, path: string}[] = await commands.executeCommand("getAvailableOdmHardwareDefinitions");
-  const odmHwDefItems: OdmHardwareDefinitionItem[] = [];
-  for (const hwDef of odmHwDefinitions) {
-    odmHwDefItems.push({label: hwDef.name, path: hwDef.path, detail: hwDef.path});
+  const currentlyOpenFilePath: string = window.activeTextEditor?.document.uri.fsPath;
+  if (currentlyOpenFilePath == undefined) {
+    window.showErrorMessage('Navigate to the tab with the Hardware Definition to port from.');
+    return;
   }
 
-  window.showQuickPick(odmHwDefItems)
+  const odmHwDefinitions: { name: string, path: string }[] = await commands.executeCommand("getAvailableOdmHardwareDefinitions");
+  const quickPickItems = odmHwDefinitions.map(_ => ({
+    label: _.name,
+    path: _.path,
+    detail: _.path
+  }));
+
+  window.showQuickPick(quickPickItems)
         .then(async pickedOdmHwDef => {
-          const currentlyOpenFilePath: string = window.activeTextEditor?.document.uri.fsPath;
           const hwDefFileName = path.basename(currentlyOpenFilePath);
 
           const portedPath = await commands.executeCommand("portHardwareDefinition", currentlyOpenFilePath, pickedOdmHwDef.path);
-          if ( typeof portedPath === "string") {
+          if (typeof portedPath === "string") {
             const doc = await workspace.openTextDocument(Uri.file(path.resolve(portedPath)));
             await window.showTextDocument(doc, ViewColumn.Active, false);
             window.showInformationMessage(`Successfully ported ${hwDefFileName}`);
@@ -83,10 +89,6 @@ async function portHwDefinition() {
             window.showErrorMessage("Failed to port hardware definition file " + hwDefFileName);
           }
         });
-}
-
-interface OdmHardwareDefinitionItem extends QuickPickItem {
-  path: string
 }
 
 const generatePinMappings = async () => {
