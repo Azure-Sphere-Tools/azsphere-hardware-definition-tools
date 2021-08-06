@@ -86,7 +86,14 @@ connection.onInitialize((params: InitializeParams) => {
       },
       // Commands requested from the client to the server
       executeCommandProvider: {
-        commands: ["getAvailablePins", "getAvailablePinTypes", "postPinAmountToGenerate", "getAvailableOdmHardwareDefinitions", "portHardwareDefinition"],
+        commands: [
+          "getAvailablePins", 
+          "getAvailablePinTypes", 
+          "postPinAmountToGenerate", 
+          "validateHwDefinition", 
+          "getAvailableOdmHardwareDefinitions", 
+          "portHardwareDefinition"
+        ]
       },
     },
   };
@@ -146,6 +153,19 @@ connection.onInitialized(() => {
           addPinMappings(pinsToAdd, pinType, hwDefUri, await getFileText(hwDefUri));
         }
         break;
+      case "validateHwDefinition":
+        if (event.arguments) {
+          const hwDefinitionUri = event.arguments[0];
+          const sdkPath = (await getDocumentSettings(hwDefinitionUri)).SdkPath;
+          const hwDefinition = tryParseHardwareDefinitionFile(
+            await readFile(hwDefinitionUri, { encoding: "utf8" }), 
+            hwDefinitionUri, 
+            sdkPath
+          );
+
+          return (hwDefinition !== undefined);
+        }
+        break;
       case "getAvailableOdmHardwareDefinitions":
         if (event.arguments) {
           const currentDocumentUri = event.arguments[0];
@@ -192,7 +212,9 @@ interface ExtensionSettings {
   partnerApplicationPaths: Map<string, string>;
 }
 const defaultSettings: ExtensionSettings = {
-  SdkPath: process.platform == "linux" ? "/opt/azurespheresdk" : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
+  SdkPath: process.platform == "linux" 
+    ? "/opt/azurespheresdk" 
+    : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
   partnerApplicationPaths: new Map(),
 };
 

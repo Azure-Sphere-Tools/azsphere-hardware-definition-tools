@@ -69,6 +69,12 @@ async function portHwDefinition() {
     return;
   }
 
+  const isValidHwDefinition = await commands.executeCommand("validateHwDefinition", currentlyOpenFilePath);
+  if (!isValidHwDefinition) {
+    window.showErrorMessage('Navigate to the tab with the Hardware Definition to port from.');
+    return;
+  }
+
   const odmHwDefinitions: { name: string, path: string }[] = await commands.executeCommand("getAvailableOdmHardwareDefinitions");
   const quickPickItems = odmHwDefinitions.map(_ => ({
     label: _.name,
