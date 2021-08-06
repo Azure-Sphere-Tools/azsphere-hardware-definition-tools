@@ -387,7 +387,7 @@ suite('validatePinBlock', () => {
     const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
 
 		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), hwDefinition.uri, true);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), true);
 		const actualDiagnostic = warningDiagnostics[0];
 	
 		assert.strictEqual(actualDiagnostic.message, 'MY_PWM_CONTROLLER0 configured as Gpio by MY_LED');
@@ -411,7 +411,7 @@ suite('validatePinBlock', () => {
     const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
 
 		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), hwDefinition.uri, true);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), true);
 		const actualDiagnostic = warningDiagnostics[0];
 	
 		assert.strictEqual(actualDiagnostic.message, 'MY_LED configured as Pwm by MY_PWM_CONTROLLER0');
@@ -435,7 +435,7 @@ suite('validatePinBlock', () => {
     const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
 
 		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), hwDefinition.uri, true);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), true);
 		const actualDiagnostic = warningDiagnostics[0];
 	
 		assert.strictEqual(actualDiagnostic.message, 'MY_SPI configured as I2cMaster by MY_I2C');
@@ -460,7 +460,7 @@ suite('validatePinBlock', () => {
     const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1, validPin2], [importedhwDefinitionFile]);
 
 		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), hwDefinition.uri, false);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), false);
 		const actualDiagnostic = warningDiagnostics[0];
 		assert.strictEqual(actualDiagnostic, undefined);
 	});

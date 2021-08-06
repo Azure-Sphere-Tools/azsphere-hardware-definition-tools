@@ -118,7 +118,7 @@ suite("quickfix", () => {
 		const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
 		assert(hwDefinition);
 		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), hwDefinition.uri, false);  
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), false);  
     
     const params: CodeActionParams = {
       context: {diagnostics: warningDiagnostics},

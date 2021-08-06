@@ -210,7 +210,7 @@ export const getController = memoize(_getController);
  * @param includeRelatedInfo If the client IDE supports adding diagnostic related information
  * @returns Diagnostics with the Hardware Definition's underlying pin block conflicts
  */
-export function validatePinBlock(pinsToValidate: FlatPinMapping[], controllerSetup: Map<string, PinMapping>, hwDefinitionUri: string, includeRelatedInfo: boolean): Diagnostic[] {
+export function validatePinBlock(pinsToValidate: FlatPinMapping[], controllerSetup: Map<string, PinMapping>, includeRelatedInfo: boolean): Diagnostic[] {
 	const warningDiagnostics: Diagnostic[] = [];
 
 	for (const flatPinMapping of pinsToValidate) {
@@ -221,14 +221,14 @@ export function validatePinBlock(pinsToValidate: FlatPinMapping[], controllerSet
 			const controller = getController(pinMapping.type.value.text, appManifestValue);
 
 			if (controller == undefined) {
-				const diagnostic: Diagnostic = invalidPinTypeError(pinMapping, hwDefinitionUri, includeRelatedInfo);
+				const diagnostic: Diagnostic = invalidPinTypeError(pinMapping, flatPinMapping.hardwareDefinitionUri, includeRelatedInfo);
 				warningDiagnostics.push(diagnostic);
 			} else {
 				const existingControllerSetup = controllerSetup.get(controller.name);
 
 				if (existingControllerSetup != undefined &&
 					existingControllerSetup?.type.value.text != pinMapping.type.value.text) {
-					const diagnostic: Diagnostic = pinBlockConflictWarning(pinMapping, existingControllerSetup, hwDefinitionUri, includeRelatedInfo);
+					const diagnostic: Diagnostic = pinBlockConflictWarning(pinMapping, existingControllerSetup, flatPinMapping.hardwareDefinitionUri, includeRelatedInfo);
 					warningDiagnostics.push(diagnostic);
 				} else {
 					// add to controllerSetup if no other pin type has configured this pin block
@@ -381,7 +381,7 @@ export function scanHardwareDefinition(mainHardwareDefinition: HardwareDefinitio
 	diagnostics.push(...validateNamesAndMappings(mainHardwareDefinition, indexedPinMappings, includeRelatedInfo));
 	
 	const pinMappingsInCurrentHwDef = reachablePinMappings.filter(p => p.hardwareDefinitionUri === mainHardwareDefinition.uri);
-	diagnostics.push(...validatePinBlock(pinMappingsInCurrentHwDef, controllerSetup, mainHardwareDefinition.uri, includeRelatedInfo));
+	diagnostics.push(...validatePinBlock(pinMappingsInCurrentHwDef, controllerSetup, includeRelatedInfo));
 
 	// drop duplicate names if they exist
 	const allPinsWithoutDuplicates = new Map<string, FlatPinMapping>();
