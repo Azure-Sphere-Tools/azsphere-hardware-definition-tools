@@ -1,6 +1,7 @@
-import { readFile, readdir } from "fs/promises";
+import { readFile, readdir, writeFile } from "fs/promises";
 import * as path from "path";
 import { PinMapping } from "./hardwareDefinition";
+import { HardwareDefinitionScan } from "./validator";
 
 export async function listOdmHardwareDefinitions(sdkPath: string): Promise<OdmHardwareDefinitionFile[]> {
   const hwDefFolder = path.join(sdkPath, "HardwareDefinitions");
@@ -18,6 +19,47 @@ export async function listOdmHardwareDefinitions(sdkPath: string): Promise<OdmHa
   return odmHwDefsToReturn;
 }
 
+// TODO Add tests
+export function portHardwareDefinition(hwDefinition: JsonHardwareDefinition, hwDefinitionScan: HardwareDefinitionScan,
+  targetHwDefinitionScan: HardwareDefinitionScan, pathToTargetHwDefFile: string): JsonHardwareDefinition {
+  const generatedPeripherals: JsonPinMapping[] = [];
+  for (const flatPinMapping of hwDefinitionScan.pinsInHardwareDefinition) {
+    const generatedPinMapping = asJsonPinMapping(flatPinMapping.pinMapping);
+    
+    const mappedTo = flatPinMapping.pinMapping.mapping?.value.text;
+    if (mappedTo) {
+      const appManifestValueToQuery = hwDefinitionScan.getAppManifestValue(mappedTo);
+      if (appManifestValueToQuery) {
+        const newMappingValue = findPinNameWithAppManifestValue(appManifestValueToQuery, targetHwDefinitionScan);
+        if (newMappingValue) {
+          generatedPinMapping.Mapping = newMappingValue;
+        }
+        // TODO If can't find pin in target hw def with same app manifest value,
+        // we should replace it with another pin of the same type (after we've tried to assign all other pins with their exact match)
+      }
+    }
+    generatedPeripherals.push(generatedPinMapping);
+  }
+
+  return {
+    $schema: "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+    Metadata: hwDefinition.Metadata,
+    Description: { 
+      Name: `Ported to support ${pathToTargetHwDefFile} - Created from ${hwDefinition.Description.Name}`,
+      MainCoreHeaderFileTopContent: hwDefinition.Description.MainCoreHeaderFileTopContent
+    },
+    Imports: [{ Path: pathToTargetHwDefFile }],
+    Peripherals: generatedPeripherals
+  };
+
+}
+
+export async function saveHardwareDefinition(generatedHwDef: JsonHardwareDefinition, targetPath: string): Promise<void> {
+  const hwDefAsString = JSON.stringify(generatedHwDef, undefined, 4);
+  await writeFile(targetPath, hwDefAsString);
+}
+
+
 export interface OdmHardwareDefinitionFile {
   name: string,
   path: string
@@ -26,14 +68,15 @@ export interface OdmHardwareDefinitionFile {
 /**
  * JSON representation of a Hardware Definition
  */
-interface JsonHardwareDefinition {
+export interface JsonHardwareDefinition {
   $schema: string | undefined,
   Metadata: {
     Type: string,
     Version: number
   },
   Description: {
-    Name: string
+    Name: string,
+    MainCoreHeaderFileTopContent: string[] | undefined
   },
   Imports: JsonImport[] | undefined
   Peripherals: JsonPinMapping[],
@@ -52,6 +95,18 @@ interface JsonImport {
   Path: string
 }
 
+function findPinNameWithAppManifestValue(
+  appManifestValueToQuery: string | number,
+  targetHwDefinitionScan: HardwareDefinitionScan): string | undefined {
+  for (const targetPin of targetHwDefinitionScan.pinsInHardwareDefinition) {
+    const targetPinName = targetPin.pinMapping.name.value.text;
+    const targetAppManifestValue = targetHwDefinitionScan.getAppManifestValue(targetPinName);
+    if (targetAppManifestValue === appManifestValueToQuery) {
+      return targetPinName;
+    }
+  }
+  return undefined;
+}
 
 function asJsonPinMapping(original: PinMapping): JsonPinMapping {
   return {
