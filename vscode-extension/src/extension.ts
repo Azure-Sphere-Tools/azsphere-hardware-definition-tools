@@ -1,6 +1,5 @@
-import { homedir } from "os";
 import * as path from "path";
-import { workspace, ExtensionContext, ExtensionMode, commands, window, InputBoxOptions, QuickPickItem } from "vscode";
+import { workspace, ExtensionContext, ExtensionMode, commands, window, Uri, ViewColumn } from "vscode";
 import { LanguageClient, LanguageClientOptions, ServerOptions, TransportKind } from "vscode-languageclient/node";
 
 let client: LanguageClient;
@@ -57,6 +56,63 @@ export function activate(context: ExtensionContext) {
     disposable,
     commands.registerCommand("azsphere-hardware-definition-tools.generatePinMappings", () => generatePinMappings())
   );
+
+  context.subscriptions.push(
+    commands.registerCommand("azsphere-hardware-definition-tools.porting", portHwDefinition)
+  );
+}
+
+async function portHwDefinition() {
+  const currentlyOpenFilePath: string = window.activeTextEditor?.document.uri.fsPath;
+  if (currentlyOpenFilePath == undefined) {
+    window.showErrorMessage('Navigate to the tab with the Hardware Definition to port from.');
+    return;
+  }
+
+  const isValidHwDefinition = await commands.executeCommand("validateHwDefinition", currentlyOpenFilePath);
+  if (!isValidHwDefinition) {
+    window.showErrorMessage('Navigate to the tab with the Hardware Definition to port from.');
+    return;
+  }
+
+  const odmHwDefinitions: { name: string, path: string }[] = await commands.executeCommand("getAvailableOdmHardwareDefinitions");
+  const quickPickItems = odmHwDefinitions.map(_ => ({
+    label: _.name,
+    path: _.path,
+    detail: _.path
+  }));
+
+  quickPickItems.push({
+    label: 'Open new',
+    detail: '',
+    path: ''
+  });
+
+  window.showQuickPick(quickPickItems)
+        .then(async pickedOdmHwDef => {
+          const openNew = (pickedOdmHwDef == quickPickItems[quickPickItems.length - 1]);
+          if (openNew) {
+            const chosenFile = await window.showOpenDialog({
+              canSelectMany: false,
+              filters: {
+                "HardwareDefinition": ["json"]
+              }
+            });
+
+            pickedOdmHwDef.path = chosenFile[0].path;
+          }
+
+          const hwDefFileName = path.basename(currentlyOpenFilePath);
+
+          const portedPath = await commands.executeCommand("portHardwareDefinition", currentlyOpenFilePath, pickedOdmHwDef.path);
+          if (typeof portedPath === "string") {
+            const doc = await workspace.openTextDocument(Uri.file(path.resolve(portedPath)));
+            await window.showTextDocument(doc, ViewColumn.Active, false);
+            window.showInformationMessage(`Successfully ported ${hwDefFileName}`);
+          } else {
+            window.showErrorMessage("Failed to port hardware definition file " + hwDefFileName);
+          }
+        });
 }
 
 const generatePinMappings = async () => {

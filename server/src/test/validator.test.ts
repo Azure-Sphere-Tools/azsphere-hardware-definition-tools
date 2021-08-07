@@ -1,13 +1,12 @@
 import { Diagnostic } from 'vscode-languageserver/node';
 
 import * as assert from 'assert';
-import { HardwareDefinition, PinMapping, toRange } from '../hardwareDefinition';
+import { HardwareDefinition } from '../hardwareDefinition';
 import { asURI, getRange, getDummyPinMapping } from "./testUtils";
 import * as mockfs from 'mock-fs';
 import * as fs from 'fs';
 import { URI } from 'vscode-uri';
-import { tryParseHardwareDefinitionFile } from '../server';
-import { validateNamesAndMappings, validatePinBlock, findAppManifestValue, validateAppPinConflict } from '../validator';
+import { validateNamesAndMappings, validatePinBlock, findAppManifestValue, validateAppPinConflict, flatten, scanHardwareDefinition } from '../validator';
 import { AppManifest, AppPin } from "../applicationManifest";
 
 suite('validateNamesAndMappings', () => {
@@ -25,7 +24,7 @@ suite('validateNamesAndMappings', () => {
 			mapping: 'GPIO0' 
 		});
 		// {"Name": "ODM_GPIO0", "Type": "Gpio", "Mapping": "GPIO0"}
-		const pinWithSameMapping = getDummyPinMapping({ 
+		const odmPin = getDummyPinMapping({ 
 			name: 'ODM_GPIO0', 
 			type: 'Gpio', 
 			mapping: 'GPIO0' 
@@ -43,12 +42,13 @@ suite('validateNamesAndMappings', () => {
 		const hwDefFilePathWithSourcePin = 'my_app/mt3620.json';
 
 		const hwDefWithSourcePin = new HardwareDefinition(asURI(hwDefFilePathWithSourcePin), undefined, [sourcePin]);
-		const hwDefFalseImported = new HardwareDefinition(asURI(hwDefFilePathFalseImported), undefined, [pinWithSameMapping], [hwDefWithSourcePin]);
+		const hwDefFalseImported = new HardwareDefinition(asURI(hwDefFilePathFalseImported), undefined, [odmPin], [hwDefWithSourcePin]);
 		const hwDefWithIndirectPin = new HardwareDefinition(asURI(hwDefFilePathWithIndirectPin), undefined, [indirectPin], [hwDefFalseImported]);
 
-		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefWithIndirectPin, true);
+		const allPeripherals = flatten(hwDefWithIndirectPin).indexedByName;
+		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefWithIndirectPin, allPeripherals, true);
 
-		assert.strictEqual(warningDiagnostics.length, 2);
+		assert.strictEqual(warningDiagnostics.length, 1);
 
 		assert.strictEqual(warningDiagnostics[0].message, indirectPin.mapping?.value.text + ' is indirectly imported from ' + URI.parse(hwDefWithSourcePin.uri).fsPath + '.');
 		assert.deepStrictEqual(warningDiagnostics[0].range, indirectPin.mapping?.value.range);
@@ -126,7 +126,8 @@ suite('validateNamesAndMappings', () => {
 			[importedHwDef]
 		);
 
-		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionWithDuplicateNames, true);
+		const allPeripherals = flatten(hwDefinitionWithDuplicateNames).indexedByName;
+		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionWithDuplicateNames, allPeripherals, true);
 
 		assert.strictEqual(warningDiagnostics.length, 3);
 		
@@ -194,7 +195,9 @@ suite('validateNamesAndMappings', () => {
 		const importedHwDefinition = new HardwareDefinition(asURI('my_app/mt3620.json'), undefined, [importedPin]);
 		const hwDefinition = new HardwareDefinition(asURI('my_app/appliance.json'), undefined, [validPin, pinWithInvalidMapping], [importedHwDefinition]);
 
-		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinition, true);
+		
+		const allPeripherals = flatten(hwDefinition).indexedByName;
+		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinition, allPeripherals, true);
 
 		assert.strictEqual(warningDiagnostics.length, 1);
 
@@ -205,7 +208,7 @@ suite('validateNamesAndMappings', () => {
 		assert.strictEqual(warningDiagnostics[0].code, 'AST2');
 	});
 
-	test('Validate Duplicate Mapping', () => {
+	test('Sends warnings iff pins with duplicate mappings are in the same hardware definition', () => {
 		// {"Name": "MT3620_GPIO0", "Type": "Gpio", "AppManifestValue": 0}
 		const mt3620_peripheral_0 = getDummyPinMapping({
 			name: 'MT3620_GPIO0',
@@ -297,9 +300,12 @@ suite('validateNamesAndMappings', () => {
 		const avnet = new HardwareDefinition('avnet.json', undefined, [avnet_peripheral_0, avnet_peripheral_1], [mt3620]);
 		const application = new HardwareDefinition('application.json', undefined, [peripheralWithNoDuplicate, peripheralWithDuplicate0, peripheralWithDuplicate1, peripheralWithImportedDuplicate], [avnet]);
 
-		const diagnostics = validateNamesAndMappings(application, true);
+		const allPeripherals = flatten(application).indexedByName;
+		const diagnostics = validateNamesAndMappings(application, allPeripherals, true);
 
-		assert.strictEqual(diagnostics.length, 4);
+		// 2 diagnostics for the duplicate mappings in the same hardware definition
+		// 1 diagnostic  for indirect import (which isn't important for this test)
+		assert.strictEqual(diagnostics.length, 3);
 
 		assert.strictEqual(diagnostics[0].message, `${peripheralWithDuplicate0.mapping?.value.text} is also mapped to ${peripheralWithDuplicate1.name.value.text}.`);
 		assert.deepStrictEqual(diagnostics[0].range, peripheralWithDuplicate0.mapping?.value.range);
@@ -320,16 +326,6 @@ suite('validateNamesAndMappings', () => {
 		assert.deepStrictEqual(diagnostics[1].relatedInformation[0].location.uri, application.uri);
 		assert.deepStrictEqual(diagnostics[1].relatedInformation[0].location.range, peripheralWithDuplicate0.mapping?.value.range);
 		assert.strictEqual(diagnostics[1].relatedInformation[0].message, 'Duplicate peripheral mapping');
-
-		assert.strictEqual(diagnostics[3].message, `${peripheralWithImportedDuplicate.mapping?.value.text} is also mapped to ${avnet_peripheral_0.name.value.text}.`);
-		assert.deepStrictEqual(diagnostics[3].range, peripheralWithImportedDuplicate.mapping?.value.range);
-		assert.strictEqual(diagnostics[3].severity, 2);
-		assert.strictEqual(diagnostics[3].source, 'az sphere');
-		assert.strictEqual(diagnostics[3].code, 'AST3');
-		assert.ok(diagnostics[3].relatedInformation);
-		assert.deepStrictEqual(diagnostics[3].relatedInformation[0].location.uri, avnet.uri);
-		assert.deepStrictEqual(diagnostics[3].relatedInformation[0].location.range, avnet_peripheral_0.mapping?.value.range);
-		assert.strictEqual(diagnostics[3].relatedInformation[0].message, 'Duplicate peripheral mapping');
 	});
 
 	test('Includes Related Information in Diagnostic Message if "includeRelatedInfo" = false', () => {
@@ -360,7 +356,8 @@ suite('validateNamesAndMappings', () => {
 		const hwDefFilePath = 'my_app/hardwareDef.json';
 		const hwDefinitionWithDuplicateNames = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, pinWithDuplicateName]);
 
-		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionWithDuplicateNames, false);
+		const allPeripherals = flatten(hwDefinitionWithDuplicateNames).indexedByName;
+		const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionWithDuplicateNames, allPeripherals, false);
 		const actualDiagnostic = warningDiagnostics[0];
 
 		// we expect line and char to be incremented by 1 since we start counting lines from 1 in text files (not 0)
@@ -387,9 +384,10 @@ suite('validatePinBlock', () => {
     const hwDefFilePath = "my_app/hardwareDef.json";
 		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 6), name: 'MY_LED', type: 'Gpio', mapping: "MT3620_GPIO4" });
 		const warningPin = getDummyPinMapping({ range: getRange(1, 0, 1, 18), name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: "MT3620_PWM_CONTROLLER1" });
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
+    const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
 
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, true);
+		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), true);
 		const actualDiagnostic = warningDiagnostics[0];
 	
 		assert.strictEqual(actualDiagnostic.message, 'MY_PWM_CONTROLLER0 configured as Gpio by MY_LED');
@@ -410,9 +408,10 @@ suite('validatePinBlock', () => {
     const hwDefFilePath = "my_app/hardwareDef.json";
 		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 18), name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: "MT3620_PWM_CONTROLLER1" });
 		const warningPin = getDummyPinMapping({ range: getRange(1, 0, 1, 6), name: 'MY_LED', type: 'Gpio', mapping: "MT3620_GPIO4" });
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
+    const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
 
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, true);
+		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), true);
 		const actualDiagnostic = warningDiagnostics[0];
 	
 		assert.strictEqual(actualDiagnostic.message, 'MY_LED configured as Pwm by MY_PWM_CONTROLLER0');
@@ -433,9 +432,10 @@ suite('validatePinBlock', () => {
     const hwDefFilePath = "my_app/hardwareDef.json";
 		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 6), name: 'MY_I2C', type: 'I2cMaster', mapping: "MT3620_ISU0_I2C" });
 		const warningPin = getDummyPinMapping({ range: getRange(1, 0, 1, 6), name: 'MY_SPI', type: 'SpiMaster', mapping: "MT3620_ISU0_SPI" });
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
+    const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
 
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, true);
+		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), true);
 		const actualDiagnostic = warningDiagnostics[0];
 	
 		assert.strictEqual(actualDiagnostic.message, 'MY_SPI configured as I2cMaster by MY_I2C');
@@ -457,9 +457,10 @@ suite('validatePinBlock', () => {
     const hwDefFilePath = "my_app/hardwareDef.json";
 		const validPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 10), name: 'MY_LED_RED', type: 'Gpio', mapping: "MT3620_GPIO2" });
 		const validPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 11), name: 'MY_LED_BLUE', type: 'Gpio', mapping: "MT3620_GPIO3" });
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1, validPin2], [importedhwDefinitionFile]);
+    const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1, validPin2], [importedhwDefinitionFile]);
 
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);
+		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), false);
 		const actualDiagnostic = warningDiagnostics[0];
 		assert.strictEqual(actualDiagnostic, undefined);
 	});
@@ -480,8 +481,9 @@ suite('validateApplicationManifest', () => {
 		const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 6), name: 'MY_LED', type: 'Gpio', mapping: "MT3620_GPIO4" });
 		const warningPin = getDummyPinMapping({ range: getRange(1, 0, 1, 18), name: 'MY_PWM_CONTROLLER0', type: 'Pwm', mapping: "MT3620_PWM_CONTROLLER1" });
     const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin, warningPin], [importedhwDefinitionFile]);
+		const hwDefinitionScan = scanHardwareDefinition(hwDefinitionFile, true);
 
-		const appManifestArray = findAppManifestValue(hwDefinitionFile, ['$MY_LED', '$MY_PWM_CONTROLLER0']);
+		const appManifestArray = findAppManifestValue(hwDefinitionScan, ['$MY_LED', '$MY_PWM_CONTROLLER0']);
 		assert.strictEqual(appManifestArray[0], 4);
 		assert.strictEqual(appManifestArray[1], "PWM-CONTROLLER-1");
 	});
@@ -682,8 +684,9 @@ suite('validateApplicationManifest', () => {
     const hwDefFilePath = "my_app/hardwareDef.json";
 		const hwPinArray = [hwGpioPin1, hwGpioPin2, hwI2cMasterPin1, hwI2cMasterPin2, hwPwmPin1, hwPwmPin2, hwUartPin1, hwUartPin2, hwSpiMasterPin, hwAdcPin];
 		const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, hwPinArray, [importedhwDefinitionFile]);
+		const hwDefinitionScan = scanHardwareDefinition(hwDefinitionFile, true);
 
-		const warningDiagnostics = validateAppPinConflict(hwDefinitionFile, appManifest, partnerAppManifest);
+		const warningDiagnostics = validateAppPinConflict(hwDefinitionScan, appManifest, partnerAppManifest);
 		
 		assert.strictEqual(warningDiagnostics.length, 3);
 		

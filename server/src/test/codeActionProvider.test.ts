@@ -1,10 +1,9 @@
 import * as assert from "assert";
-import { Position, TextEdit } from "vscode-languageserver-textdocument";
-import { HardwareDefinition, PinMapping } from "../hardwareDefinition";
+import { HardwareDefinition } from "../hardwareDefinition";
 import { findPinMappingRange, quickfix } from "../codeActionProvider";
 import { asURI, getRange, getDummyPinMapping } from "./testUtils";
-import { CodeActionParams, Diagnostic, Range } from "vscode-languageserver";
-import { validateNamesAndMappings, validatePinBlock } from "../validator";
+import { CodeActionParams, Diagnostic } from "vscode-languageserver";
+import { flatten, validateNamesAndMappings, validatePinBlock } from "../validator";
 import * as mockfs from 'mock-fs';
 import { tryParseHardwareDefinitionFile } from "../server";
 import * as fs from 'fs';
@@ -44,24 +43,8 @@ suite("quickfix", () => {
     const validPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 7), name: "LED_BLUE", type: "Gpio", mapping: { value: { range: getRange(1, 2, 1, 3), text: "GPIO0" } } });
     const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
 
-    const textDocument = {
-      uri: asURI(hwDefFilePath),
-      languageId: "",
-      version: 0,
-      getText: function (range?: Range): string {
-        return "{{'Name': 'LED_RED', 'Type': 'Gpio', 'Mapping': 'GPIO0'},{'Name': 'LED_BLUE', 'Type': 'Gpio', 'Mapping': 'GPIO0'}}";
-      },
-      positionAt: function (offset: number): Position {
-        throw new Error("Function not implemented.");
-      },
-      offsetAt: function (position: Position): number {
-        throw new Error("Function not implemented.");
-      },
-      lineCount: 0
-    };
-
-    const text = textDocument.getText();
-    const diagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionFile, true);
+		const allPeripherals = flatten(hwDefinitionFile).indexedByName;
+    const diagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionFile, allPeripherals, true);
     
     const params: CodeActionParams = {
       context: {diagnostics: diagnostics},
@@ -85,7 +68,8 @@ suite("quickfix", () => {
     const validPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 7), name: "LED_RED", type: "Gpio", mapping: { value: { range: getRange(0, 2, 0, 3), text: "GPIO0" } } });
     const validPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 7), name: "LED_BLUE", type: "Gpio", mapping: { value: { range: getRange(1, 2, 1, 3), text: "GPIO10" } } });
     const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
-    const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionFile, true);
+		const allPeripherals = flatten(hwDefinitionFile).indexedByName;
+    const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionFile, allPeripherals, true);
     
     const params: CodeActionParams = {
       context: {diagnostics: warningDiagnostics},
@@ -131,9 +115,10 @@ suite("quickfix", () => {
 		});
 
 		const hwDefFilePath = 'my_app/odm.json';
-		const hwDefinitionFile = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
-		assert(hwDefinitionFile);
-		const warningDiagnostics: Diagnostic[] = validatePinBlock(hwDefinitionFile, false);  
+		const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
+		assert(hwDefinition);
+		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
+		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), false);  
     
     const params: CodeActionParams = {
       context: {diagnostics: warningDiagnostics},
@@ -143,7 +128,7 @@ suite("quickfix", () => {
       },
       textDocument: {uri: asURI(hwDefFilePath)}
     };
-    const codeAction = quickfix(hwDefinitionFile, params);
+    const codeAction = quickfix(hwDefinition, params);
     assert.strictEqual(codeAction[0].title, "Assign pin mapping to a pin on a different pin block");
   });
 });

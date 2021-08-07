@@ -32,13 +32,14 @@ import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { validateNamesAndMappings, findUnknownImports, validatePinBlock, validateAppPinConflict } from "./validator";
+import { findUnknownImports, validateAppPinConflict, scanHardwareDefinition as scanHardwareDefinition } from "./validator";
 import { HardwareDefinition, PinMapping, UnknownImport, toRange } from "./hardwareDefinition";
 import { addAppManifestPathsToSettings, AppManifest, AppPin } from "./applicationManifest";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import { readFile } from "fs/promises";
 import { hwDefinitionHeaderGen } from "./hwDefHeaderGeneration";
+import { JsonHardwareDefinition, listOdmHardwareDefinitions, portHardwareDefinition, saveHardwareDefinition } from "./porting";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
 
@@ -85,7 +86,14 @@ connection.onInitialize((params: InitializeParams) => {
       },
       // Commands requested from the client to the server
       executeCommandProvider: {
-        commands: ["getAvailablePins", "getAvailablePinTypes", "postPinAmountToGenerate"],
+        commands: [
+          "getAvailablePins", 
+          "getAvailablePinTypes", 
+          "postPinAmountToGenerate", 
+          "validateHwDefinition", 
+          "getAvailableOdmHardwareDefinitions", 
+          "portHardwareDefinition"
+        ]
       },
     },
   };
@@ -145,6 +153,53 @@ connection.onInitialized(() => {
           addPinMappings(pinsToAdd, pinType, hwDefUri, await getFileText(hwDefUri));
         }
         break;
+      case "validateHwDefinition":
+        if (event.arguments) {
+          const hwDefinitionUri = event.arguments[0];
+          const sdkPath = (await getDocumentSettings(hwDefinitionUri)).SdkPath;
+          const hwDefinition = tryParseHardwareDefinitionFile(
+            await readFile(hwDefinitionUri, { encoding: "utf8" }), 
+            hwDefinitionUri, 
+            sdkPath
+          );
+
+          return (hwDefinition !== undefined);
+        }
+        break;
+      case "getAvailableOdmHardwareDefinitions":
+        if (event.arguments) {
+          const currentDocumentUri = event.arguments[0];
+          const sdkPath = (await getDocumentSettings(currentDocumentUri)).SdkPath;
+          return listOdmHardwareDefinitions(sdkPath);
+        }
+        break;
+      case "portHardwareDefinition":
+        if (event.arguments) {
+          const openHwDefPath = event.arguments[0];
+          const targetHwDefPath = event.arguments[1];
+
+          const openHwDefinitionUri = asURI(openHwDefPath);
+          const targetHwDefinitionUri = asURI(targetHwDefPath);
+
+          const sdkPath = (await getDocumentSettings(openHwDefinitionUri)).SdkPath;
+
+          const hwDefinition = tryParseHardwareDefinitionFile(await readFile(openHwDefPath, { encoding: "utf8" }), openHwDefinitionUri, sdkPath);
+          const targetHwDefinition = tryParseHardwareDefinitionFile(await readFile(targetHwDefPath, { encoding: "utf8" }), targetHwDefinitionUri, sdkPath);
+    
+          if (hwDefinition && targetHwDefinition) {
+            const jsonHwDefinition = <JsonHardwareDefinition>JSON.parse(await readFile(openHwDefPath, { encoding: "utf8" }));
+      
+            const hwDefScan = scanHardwareDefinition(hwDefinition, true);
+            const targetHwDefScan = scanHardwareDefinition(targetHwDefinition, true);
+            const generated = portHardwareDefinition(jsonHwDefinition, hwDefScan, targetHwDefScan, path.basename(targetHwDefPath));
+
+            const portedFileName = path.basename(openHwDefPath, ".json") + "-ported.json";
+            const portedPath = path.join(path.dirname(openHwDefPath), portedFileName);
+            await saveHardwareDefinition(generated, portedPath);
+            return portedPath;
+          }
+        }
+        break;
       default:
         connection.console.log(`Access Denied - ${event.command} not recognised`);
     }
@@ -157,7 +212,9 @@ interface ExtensionSettings {
   partnerApplicationPaths: Map<string, string>;
 }
 const defaultSettings: ExtensionSettings = {
-  SdkPath: process.platform == "linux" ? "/opt/azurespheresdk" : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
+  SdkPath: process.platform == "linux" 
+    ? "/opt/azurespheresdk" 
+    : "C:\\Program Files (x86)\\Microsoft Azure Sphere SDK",
   partnerApplicationPaths: new Map(),
 };
 
@@ -343,17 +400,18 @@ const validateAppManifestDoc = async (textDocument: TextDocument, appManifest: A
   if (!hwDefinition) {
     return;
   }
+  const hwDefScan = scanHardwareDefinition(hwDefinition, true);
 
   const diagnostics: Diagnostic[] = [];
   for (const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]) {
     if (settings.partnerApplicationPaths.has(partner)) {
       const partnerAppManifestPath = <string>settings.partnerApplicationPaths.get(partner);
       if (fs.existsSync(partnerAppManifestPath)) {
-        const partnerAppManifestText = await getFileText(URI.file(path.resolve(partnerAppManifestPath)).toString());
+        const partnerAppManifestText = await getFileText(asURI(partnerAppManifestPath));
         const partnerAppManifest = tryParseAppManifestFile(partnerAppManifestText);
         
         if(partnerAppManifest){
-          diagnostics.push(...validateAppPinConflict(hwDefinition, appManifest, partnerAppManifest));
+          diagnostics.push(...validateAppPinConflict(hwDefScan, appManifest, partnerAppManifest));
         }
       } else {
         displayNotification({
@@ -432,16 +490,16 @@ export function tryParseAppManifestFile(AppManifestFileText: string): AppManifes
 
 async function validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<string | undefined> {
   const settings = await getDocumentSettings(textDocument.uri);
-  const text = textDocument.getText();
 
   const hwDefinition = tryParseHardwareDefinitionFile(textDocument.getText(), textDocument.uri, settings.SdkPath);
   if (!hwDefinition) {
     return;
   }
 
+  const hwDefinitionScan = scanHardwareDefinition(hwDefinition, hasDiagnosticRelatedInformationCapability);
+  
   const diagnostics: Diagnostic[] = [];
-  diagnostics.push(...validateNamesAndMappings(hwDefinition, hasDiagnosticRelatedInformationCapability));
-  diagnostics.push(...validatePinBlock(hwDefinition, hasDiagnosticRelatedInformationCapability));
+  diagnostics.push(...hwDefinitionScan.diagnostics);
   diagnostics.push(...findUnknownImports(hwDefinition, textDocument));
 
   // Send the computed diagnostics to VSCode.
@@ -623,6 +681,10 @@ function isHardwareDefinitionFile(uri: string) {
 
 function isAppManifestFile(uri: string) {
   return uri.endsWith("app_manifest.json");
+}
+
+function asURI(filePath: string): string {
+  return URI.file(path.resolve(filePath)).toString();
 }
 
 // Make the text document manager listen on the connection

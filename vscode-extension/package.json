@@ -21,7 +21,8 @@
   "activationEvents": [
     "onLanguage:json",
     "onLanguage:plaintext",
-    "onLanguage:cmake"
+    "onLanguage:cmake",
+    "onCommand:azsphere-hardware-definition-tools.porting"
   ],
   "main": "./dist/extension",
   "contributes": {
@@ -57,6 +58,11 @@
         "command": "azsphere-hardware-definition-tools.generatePinMappings",
         "category": "Azure Sphere Tools",
         "title": "Add pin mappings for Hardware Definition File"
+      },
+      {
+        "command": "azsphere-hardware-definition-tools.porting",
+        "category": "Azure Sphere Tools",
+        "title": "Port to another hardware definition"
       }
     ]
   },

@@ -2,8 +2,10 @@ import { CompletionItem, CompletionItemKind } from "vscode-languageserver/node";
 
 import { Position } from "vscode-languageserver-textdocument";
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
+import { scanHardwareDefinition } from "./validator";
 
-export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinType?: string): string[] {
+export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinType: string): string[] {
+  const hwDefScan = scanHardwareDefinition(hwDefinition, true);
   let allPinMappings: PinMapping[] = [];
   const validPinMappings: string[] = [];
   for (const imported of hwDefinition.imports) {
@@ -12,14 +14,13 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
   const usedPinNames = new Set(hwDefinition.pinMappings.map((p) => p.mapping?.value.text));
 
   for (const pinMapping of allPinMappings) {
-    // TODO[OB] Check if pinblock configured as different type
-    const validPins = !usedPinNames.has(pinMapping.name.value.text);
-    if (pinType && pinMapping.type.value.text == pinType && validPins) {
-      validPinMappings.push(pinMapping.name.value.text);
-    }
+    const pinName = pinMapping.name.value.text;
+    const pinAppManifestValue = <string | number>hwDefScan.getAppManifestValue(pinName);
 
-    if (!pinType && validPins) {
-      validPinMappings.push(pinMapping.name.value.text);
+    const pinNotUsed = !usedPinNames.has(pinName);
+    const pinControllerConfiguredDifferently = hwDefScan.controllerConfiguredAsDifferentType(pinType, pinAppManifestValue);
+    if (pinMapping.type.value.text == pinType && pinNotUsed && !pinControllerConfiguredDifferently) {
+      validPinMappings.push(pinName);
     }
   }
   return validPinMappings;
