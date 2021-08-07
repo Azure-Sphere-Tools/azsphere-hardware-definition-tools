@@ -47,6 +47,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="CommandHandler.cs" />
     <Compile Include="DiagnosticsAdjustmentMiddleLayer.cs" />
     <Compile Include="GeneratePinMappingsCommand.cs" />
     <Compile Include="HardwareDefinitionLanguageClient.cs" />
@@ -54,8 +55,9 @@
     <Content Include="AZSphereHardwareDefinitionToolsExtensionSettings.json">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
-    <Compile Include="PinMappingGenerator.cs" />
+    <Compile Include="GeneratePinMappingsHandler.cs" />
     <Compile Include="PortHardwareDefinitionCommand.cs" />
+    <Compile Include="PortHardwareDefinitionHandler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="AZSphereHardwareDefinitionToolsPackage.cs" />
     <Content Include="AZSphereHardwareDefinitionToolsExtension.pkgdef">

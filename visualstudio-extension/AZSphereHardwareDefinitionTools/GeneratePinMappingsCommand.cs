@@ -89,7 +89,7 @@ namespace AZSphereHardwareDefinitionTools
     private void Execute(object sender, EventArgs e)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
-      _ = PinMappingGenerator.Instance.GeneratePinMappingsAsync();
+      _ = GeneratePinMappingsHandler.Instance.GeneratePinMappingsAsync();
     }
 
   }

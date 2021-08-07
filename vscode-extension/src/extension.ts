@@ -68,6 +68,7 @@ async function portHwDefinition() {
     window.showErrorMessage('Navigate to the tab with the Hardware Definition to port from.');
     return;
   }
+  const currentlyOpenFileUri = window.activeTextEditor?.document.uri;
 
   const isValidHwDefinition = await commands.executeCommand("validateHwDefinition", currentlyOpenFilePath);
   if (!isValidHwDefinition) {
@@ -102,6 +103,7 @@ async function portHwDefinition() {
             pickedOdmHwDef.path = chosenFile[0].path;
           }
 
+          const currentlyOpenFilePath: string = currentlyOpenFileUri.fsPath;
           const hwDefFileName = path.basename(currentlyOpenFilePath);
 
           const portedPath = await commands.executeCommand("portHardwareDefinition", currentlyOpenFilePath, pickedOdmHwDef.path);
