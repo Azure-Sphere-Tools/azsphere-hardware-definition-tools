@@ -82,8 +82,26 @@ async function portHwDefinition() {
     detail: _.path
   }));
 
+  quickPickItems.push({
+    label: 'Open new',
+    detail: '',
+    path: ''
+  });
+
   window.showQuickPick(quickPickItems)
         .then(async pickedOdmHwDef => {
+          const openNew = (pickedOdmHwDef == quickPickItems[quickPickItems.length - 1]);
+          if (openNew) {
+            const chosenFile = await window.showOpenDialog({
+              canSelectMany: false,
+              filters: {
+                "HardwareDefinition": ["json"]
+              }
+            });
+
+            pickedOdmHwDef.path = chosenFile[0].path;
+          }
+
           const hwDefFileName = path.basename(currentlyOpenFilePath);
 
           const portedPath = await commands.executeCommand("portHardwareDefinition", currentlyOpenFilePath, pickedOdmHwDef.path);
