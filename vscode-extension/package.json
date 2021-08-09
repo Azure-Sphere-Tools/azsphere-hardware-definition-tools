@@ -10,10 +10,16 @@
     "Dorin Botan",
     "Omar Beyhum"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Azure-Sphere-Tools/azsphere-hardware-definition-tools"
+  },
   "publisher": "ucl-ixn",
   "license": "MIT",
   "version": "1.0.0",
-  "categories": [],
+  "extensionPack": [
+    "ms-vscode.azure-sphere-tools"
+  ],
   "keywords": [],
   "engines": {
     "vscode": "^1.52.0"
@@ -30,11 +36,6 @@
       "type": "object",
       "title": "Azure Sphere Tools",
       "properties": {
-        "AzureSphere.SdkPath": {
-          "scope": "window",
-          "type": "string",
-          "description": "Path to the Azure Sphere SDK directory."
-        },
         "AzureSphere.partnerApplications": {
           "scope": "window",
           "type": "object",
