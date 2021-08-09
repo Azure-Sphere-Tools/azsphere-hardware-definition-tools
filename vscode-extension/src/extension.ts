@@ -63,20 +63,20 @@ export function activate(context: ExtensionContext) {
 }
 
 async function portHwDefinition() {
-  const currentlyOpenFilePath: string = window.activeTextEditor?.document.uri.fsPath;
-  if (currentlyOpenFilePath == undefined) {
-    window.showErrorMessage('Navigate to the tab with the Hardware Definition to port from.');
-    return;
-  }
   const currentlyOpenFileUri = window.activeTextEditor?.document.uri;
-
-  const isValidHwDefinition = await commands.executeCommand("validateHwDefinition", currentlyOpenFilePath);
-  if (!isValidHwDefinition) {
+  if (currentlyOpenFileUri == undefined) {
     window.showErrorMessage('Navigate to the tab with the Hardware Definition to port from.');
     return;
   }
 
-  const odmHwDefinitions: { name: string, path: string }[] = await commands.executeCommand("getAvailableOdmHardwareDefinitions");
+  const isValidHwDefinition = await commands.executeCommand("validateHwDefinition", currentlyOpenFileUri.toString());
+  if (!isValidHwDefinition) {
+    window.showErrorMessage('The current file is not a valid Hardware Definition. Navigate to a tab with a valid Hardware Definition to port from.');
+    return;
+  }
+
+  const odmHwDefinitions: { name: string, path: string }[] = await commands.executeCommand(
+    "getAvailableOdmHardwareDefinitions", currentlyOpenFileUri.toString());
   const quickPickItems = odmHwDefinitions.map(_ => ({
     label: _.name,
     path: _.path,
@@ -99,8 +99,11 @@ async function portHwDefinition() {
                 "HardwareDefinition": ["json"]
               }
             });
-
-            pickedOdmHwDef.path = chosenFile[0].path;
+            if (openNew == undefined) {
+              // user canceled file selection, exit command
+              return;
+            }
+            pickedOdmHwDef.path = chosenFile[0].fsPath;
           }
 
           const currentlyOpenFilePath: string = currentlyOpenFileUri.fsPath;

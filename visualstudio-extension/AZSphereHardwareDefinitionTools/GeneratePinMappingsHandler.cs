@@ -20,7 +20,7 @@ namespace AZSphereHardwareDefinitionTools
 
       if (HardwareDefinitionLanguageClient.Instance == null)
       {
-        await CreateAndDisplayInfoBarAsync("Cannot generate pin mappings while extension is still loading", currentFilePath, new InfoBarActionItem[] { });
+        await CreateAndDisplayInfoBarAsync("Cannot generate pin mappings while extension is still loading", currentFilePath);
         return;
       }
 

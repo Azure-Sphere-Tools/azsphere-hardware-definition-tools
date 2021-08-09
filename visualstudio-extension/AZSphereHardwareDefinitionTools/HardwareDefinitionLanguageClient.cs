@@ -130,6 +130,13 @@ namespace AZSphereHardwareDefinitionTools
     #endregion
 
     #region Port Hardware Definition commands
+    public async Task<bool> ValidateHwDefinitionAsync(string hwDefUri)
+    {
+      object[] args = { hwDefUri };
+      var response = await Rpc.InvokeWithParameterObjectAsync<JToken>(Methods.WorkspaceExecuteCommandName, new ExecuteCommandParams { Command = "validateHwDefinition", Arguments = args });
+      return response != null ? response.ToObject<bool>() : false;
+    }
+
     public async Task<OdmHardwareDefinitionsCommandResponse[]> GetAvailableOdmHardwareDefinitionsAsync(string hwDefUri)
     {
       object[] args = { hwDefUri };

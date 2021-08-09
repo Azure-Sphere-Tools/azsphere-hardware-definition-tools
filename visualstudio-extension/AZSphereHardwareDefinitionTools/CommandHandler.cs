@@ -26,9 +26,13 @@ namespace AZSphereHardwareDefinitionTools
     /// <param name="actions">Action buttons/links to add to the InfoBar</param>
     /// <param name="eventHandler">The callback to execute when an ActionItem from the displayed InfoBar is selected</param>
     /// <returns></returns>
-    protected async System.Threading.Tasks.Task CreateAndDisplayInfoBarAsync(string message, string currentFilePath, IEnumerable<InfoBarActionItem> actions, EventHandler<InfoBarActionItemEventArgs> eventHandler = null)
+    protected async System.Threading.Tasks.Task CreateAndDisplayInfoBarAsync(string message, string currentFilePath, IEnumerable<InfoBarActionItem> actions = null, EventHandler<InfoBarActionItemEventArgs> eventHandler = null)
     {
       CloseCurrentInfoBar();
+      if (actions == null)
+      {
+        actions = new InfoBarActionItem[] { };
+      }
       
       var infoBarElement = VS.InfoBar.CreateInfoBar(currentFilePath, new InfoBarModel(message, actions));
       currentInfoBar = infoBarElement;
