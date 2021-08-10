@@ -15,10 +15,10 @@
         defining some of the constants that we will use inside the file. -->
 
   <!--This is the file that defines the IDs for all the commands exposed by VisualStudio. -->
-  <Extern href="stdidcmd.h"/>
+  <Extern href="stdidcmd.h" />
 
   <!--This header contains the command ids for the menus provided by the shell. -->
-  <Extern href="vsshlids.h"/>
+  <Extern href="vsshlids.h" />
 
   <!--The Commands section is where commands, menus, and menu groups are defined.
       This section uses a Guid to identify the package that provides the command defined inside it. -->
@@ -36,8 +36,8 @@
          group as the part of a menu contained between two lines. The parent of a group
          must be a menu. -->
     <Groups>
-      <Group guid="guidAZSphereHardwareDefinitionToolsPackageCmdSet" id="MyMenuGroup" priority="0x0600">
-        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS"/>
+      <Group guid="guidAZSphereHardwareDefinitionToolsPackageCmdSet" id="HardwareDefinitionMenuGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_MENU_TOOLS" />
       </Group>
     </Groups>
 
@@ -53,10 +53,17 @@
               <CommandFlag>DynamicVisibility</CommandFlag>
           If you do not want an image next to your command, remove the Icon node /> -->
       <Button guid="guidAZSphereHardwareDefinitionToolsPackageCmdSet" id="GeneratePinMappingsCommandId" priority="0x0100" type="Button">
-        <Parent guid="guidAZSphereHardwareDefinitionToolsPackageCmdSet" id="MyMenuGroup" />
-        <Icon guid="guidImages" id="plusIcon" />
+        <Parent guid="guidAZSphereHardwareDefinitionToolsPackageCmdSet" id="HardwareDefinitionMenuGroup" />
+        <Icon guid="guidGeneratePinMappingsImages" id="plusIcon" />
         <Strings>
           <ButtonText>Add pin mappings for Hardware Definition File</ButtonText>
+        </Strings>
+      </Button>
+      <Button guid="guidAZSphereHardwareDefinitionToolsPackageCmdSet" id="PortHardwareDefinitionCommandId" priority="0x0100" type="Button">
+        <Parent guid="guidAZSphereHardwareDefinitionToolsPackageCmdSet" id="HardwareDefinitionMenuGroup" />
+        <Icon guid="guidPortHardwareDefinitionImages" id="portIcon" />
+        <Strings>
+          <ButtonText>Port to another Hardware Definition</ButtonText>
         </Strings>
       </Button>
     </Buttons>
@@ -68,7 +75,8 @@
             bitmap strip containing the bitmaps and then there are the numeric ids of the elements used
             inside a button definition. An important aspect of this declaration is that the element id
             must be the actual index (1-based) of the bitmap inside the bitmap strip. -->
-      <Bitmap guid="guidImages" href="Resources\GeneratePinMappingsCommand.png" usedList="plusIcon"/>
+      <Bitmap guid="guidGeneratePinMappingsImages" href="Resources\GeneratePinMappingsCommand.png" usedList="plusIcon" />
+      <Bitmap guid="guidPortHardwareDefinitionImages" href="Resources\PortHardwareDefinitionCommand.png" usedList="portIcon" />
     </Bitmaps>
   </Commands>
 
@@ -78,12 +86,17 @@
 
     <!-- This is the guid used to group the menu commands together -->
     <GuidSymbol name="guidAZSphereHardwareDefinitionToolsPackageCmdSet" value="{33801351-324d-437e-8ed2-2fff21755f6f}">
-      <IDSymbol name="MyMenuGroup" value="0x1020" />
+      <IDSymbol name="HardwareDefinitionMenuGroup" value="0x1020" />
       <IDSymbol name="GeneratePinMappingsCommandId" value="0x0100" />
+      <IDSymbol name="PortHardwareDefinitionCommandId" value="4129" />
     </GuidSymbol>
 
-    <GuidSymbol name="guidImages" value="{7fb46cdd-6ee6-44bd-b228-6fd9412fad24}" >
+    <GuidSymbol name="guidGeneratePinMappingsImages" value="{7fb46cdd-6ee6-44bd-b228-6fd9412fad24}">
       <IDSymbol name="plusIcon" value="1" />
+    </GuidSymbol>
+  
+    <GuidSymbol name="guidPortHardwareDefinitionImages" value="{03de25d4-c7c2-4a69-9d70-75bde84ff59b}">
+      <IDSymbol name="portIcon" value="1" />
     </GuidSymbol>
   </Symbols>
 </CommandTable>

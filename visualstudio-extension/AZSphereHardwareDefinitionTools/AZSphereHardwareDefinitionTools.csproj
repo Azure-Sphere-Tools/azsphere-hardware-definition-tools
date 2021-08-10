@@ -47,6 +47,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="CommandHandler.cs" />
     <Compile Include="DiagnosticsAdjustmentMiddleLayer.cs" />
     <Compile Include="GeneratePinMappingsCommand.cs" />
     <Compile Include="HardwareDefinitionLanguageClient.cs" />
@@ -54,13 +55,16 @@
     <Content Include="AZSphereHardwareDefinitionToolsExtensionSettings.json">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
-    <Compile Include="PinMappingGenerator.cs" />
+    <Compile Include="GeneratePinMappingsHandler.cs" />
+    <Compile Include="PortHardwareDefinitionCommand.cs" />
+    <Compile Include="PortHardwareDefinitionHandler.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="AZSphereHardwareDefinitionToolsPackage.cs" />
     <Content Include="AZSphereHardwareDefinitionToolsExtension.pkgdef">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
     <Content Include="Resources\GeneratePinMappingsCommand.png" />
+    <Content Include="Resources\PortHardwareDefinitionCommand.png" />
     <VSCTCompile Include="AZSphereHardwareDefinitionToolsPackage.vsct">
       <ResourceName>Menus.ctmenu</ResourceName>
     </VSCTCompile>
@@ -74,6 +78,11 @@
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Design" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.VisualStudio.LanguageServer.Client">

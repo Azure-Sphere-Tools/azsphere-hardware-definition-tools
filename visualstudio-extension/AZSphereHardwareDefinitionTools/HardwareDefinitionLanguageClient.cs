@@ -2,6 +2,7 @@
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Microsoft.VisualStudio.Threading;
 using Microsoft.VisualStudio.Utilities;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
 using System;
@@ -106,6 +107,7 @@ namespace AZSphereHardwareDefinitionTools
       return Task.CompletedTask;
     }
 
+    #region Generate Pin Mapping commands
     public async Task<string[]> GetAvailablePinTypesAsync(string hwDefUri)
     {
       object[] args = { hwDefUri };
@@ -125,6 +127,30 @@ namespace AZSphereHardwareDefinitionTools
       object[] args = { hwDefUri, pinsToAdd, pinTypeSelected };
       await Rpc.InvokeWithParameterObjectAsync<JToken>(Methods.WorkspaceExecuteCommandName, new ExecuteCommandParams { Command = "postPinAmountToGenerate", Arguments = args }); 
     }
+    #endregion
+
+    #region Port Hardware Definition commands
+    public async Task<bool> ValidateHwDefinitionAsync(string hwDefUri)
+    {
+      object[] args = { hwDefUri };
+      var response = await Rpc.InvokeWithParameterObjectAsync<JToken>(Methods.WorkspaceExecuteCommandName, new ExecuteCommandParams { Command = "validateHwDefinition", Arguments = args });
+      return response != null ? response.ToObject<bool>() : false;
+    }
+
+    public async Task<OdmHardwareDefinitionsCommandResponse[]> GetAvailableOdmHardwareDefinitionsAsync(string hwDefUri)
+    {
+      object[] args = { hwDefUri };
+      var response = await Rpc.InvokeWithParameterObjectAsync<JToken>(Methods.WorkspaceExecuteCommandName, new ExecuteCommandParams { Command = "getAvailableOdmHardwareDefinitions", Arguments = args });
+      return response != null ? response.ToObject<OdmHardwareDefinitionsCommandResponse[]>() : new OdmHardwareDefinitionsCommandResponse[] { };
+    }
+
+    public async Task<string> PortHardwareDefinitionAsync(string originalHwDefPath, string targetHwDefPath)
+    {
+      object[] args = { originalHwDefPath, targetHwDefPath };
+      var response = await Rpc.InvokeWithParameterObjectAsync<JToken>(Methods.WorkspaceExecuteCommandName, new ExecuteCommandParams { Command = "portHardwareDefinition", Arguments = args });
+      return response != null ? response.ToObject<string>() : null;
+    }
+    #endregion
 
     /// <summary>
     /// Finds the path to the source code of the language server
@@ -141,6 +167,15 @@ namespace AZSphereHardwareDefinitionTools
       string workingDirectory = Path.GetFullPath(Environment.CurrentDirectory);
       string extensionDirectory = workingDirectory.Substring(0, workingDirectory.LastIndexOf(EXTENSION_DIRECTORY) + EXTENSION_DIRECTORY.Length);
       return extensionDirectory;
+    }
+
+    public class OdmHardwareDefinitionsCommandResponse
+    {
+      [JsonProperty("name")]
+      public string Name { get; set; }
+
+      [JsonProperty("path")]
+      public string Path { get; set; }
     }
   }
 }

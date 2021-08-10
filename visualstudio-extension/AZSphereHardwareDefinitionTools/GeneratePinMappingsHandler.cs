@@ -8,21 +8,29 @@ using System.Threading.Tasks;
 
 namespace AZSphereHardwareDefinitionTools
 {
-  class PinMappingGenerator
+  class GeneratePinMappingsHandler : CommandHandler
   {
-    public static PinMappingGenerator Instance = new PinMappingGenerator();
+    public static GeneratePinMappingsHandler Instance = new GeneratePinMappingsHandler();
 
-    private InfoBar currentInfoBar;
-    
     public async System.Threading.Tasks.Task GeneratePinMappingsAsync()
     {
-      currentInfoBar?.Close();
+      CloseCurrentInfoBar();
       string currentFilePath = await CurrentFilePathAsync();
-      string currentFileUri = new Uri(currentFilePath).AbsoluteUri;
+      string currentFileUri;
+      try
+      {
+        currentFileUri = new Uri(currentFilePath).AbsoluteUri;
+
+      }
+      catch (Exception e) when (e is ArgumentNullException || e is UriFormatException)
+      {
+        await VS.MessageBox.ShowAsync("Open a Hardware Definition file to run the command", buttons: Microsoft.VisualStudio.Shell.Interop.OLEMSGBUTTON.OLEMSGBUTTON_OK);
+        return;
+      }
 
       if (HardwareDefinitionLanguageClient.Instance == null)
       {
-        await CreateAndDisplayInfoBarAsync("Cannot generate pin mappings while extension is still loading", currentFilePath, new InfoBarActionItem[] { });
+        await CreateAndDisplayInfoBarAsync("Cannot generate pin mappings while extension is still loading", currentFilePath);
         return;
       }
 
@@ -37,7 +45,7 @@ namespace AZSphereHardwareDefinitionTools
     private void OnPinTypeSelected(object sender, InfoBarActionItemEventArgs e)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
-      currentInfoBar?.Close();
+      CloseCurrentInfoBar();
 
       PinTypeActionContext selected = e.ActionItem.ActionContext;
       _ = System.Threading.Tasks.Task.Run(async () =>
@@ -59,7 +67,7 @@ namespace AZSphereHardwareDefinitionTools
     private void OnPinMappingsSelected(object sender, InfoBarActionItemEventArgs e)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
-      currentInfoBar?.Close();
+      CloseCurrentInfoBar();
 
       PinMappingActionContext selected = e.ActionItem.ActionContext;
       _ = System.Threading.Tasks.Task.Run(async () =>
@@ -67,32 +75,6 @@ namespace AZSphereHardwareDefinitionTools
         await HardwareDefinitionLanguageClient.Instance.PostPinAmountToGenerateAsync(selected.CurrentFileUri, selected.PinMappingsToAdd, selected.PinType);
       });
 
-    }
-
-    /// <summary>
-    /// 
-    /// </summary>
-    /// <param name="message">InfoBar main message</param>
-    /// <param name="currentFilePath">Path to the file where the InfoBar is displayed</param>
-    /// <param name="actions">Action buttons/links to add to the InfoBar</param>
-    /// <param name="eventHandler">The callback to execute when an ActionItem from the displayed InfoBar is selected</param>
-    /// <returns></returns>
-    private async System.Threading.Tasks.Task CreateAndDisplayInfoBarAsync(string message, string currentFilePath, IEnumerable<InfoBarActionItem> actions, EventHandler<InfoBarActionItemEventArgs> eventHandler = null)
-    {
-      var infoBarElement = VS.InfoBar.CreateInfoBar(currentFilePath, new InfoBarModel(message, actions));
-      currentInfoBar = infoBarElement;
-
-      if (eventHandler != null)
-      {
-        infoBarElement.ActionItemClicked += eventHandler;
-      }
-
-      await currentInfoBar.TryShowInfoBarUIAsync();
-    }
-
-    private static async Task<string> CurrentFilePathAsync()
-    {
-      return (await VS.Documents.GetCurrentDocumentAsync()).FilePath;
     }
   }
 

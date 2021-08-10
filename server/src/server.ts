@@ -158,7 +158,7 @@ connection.onInitialized(() => {
           const hwDefinitionUri = event.arguments[0];
           const sdkPath = (await getDocumentSettings(hwDefinitionUri)).SdkPath;
           const hwDefinition = tryParseHardwareDefinitionFile(
-            await readFile(hwDefinitionUri, { encoding: "utf8" }), 
+            await readFile(URI.parse(hwDefinitionUri).fsPath, { encoding: "utf8" }), 
             hwDefinitionUri, 
             sdkPath
           );
@@ -191,10 +191,15 @@ connection.onInitialized(() => {
       
             const hwDefScan = scanHardwareDefinition(hwDefinition, true);
             const targetHwDefScan = scanHardwareDefinition(targetHwDefinition, true);
-            const generated = portHardwareDefinition(jsonHwDefinition, hwDefScan, targetHwDefScan, path.basename(targetHwDefPath));
 
             const portedFileName = path.basename(openHwDefPath, ".json") + "-ported.json";
             const portedPath = path.join(path.dirname(openHwDefPath), portedFileName);
+            // if target hw def is in sdk folder, only return its file name, otherwise return its path relative to where the generated file will be
+            const importPath = targetHwDefPath.includes(sdkPath) 
+              ? path.basename(targetHwDefPath) 
+              : path.relative(path.dirname(portedPath), targetHwDefPath);
+
+            const generated = portHardwareDefinition(jsonHwDefinition, hwDefScan, targetHwDefScan, importPath);
             await saveHardwareDefinition(generated, portedPath);
             return portedPath;
           }
