@@ -63,7 +63,7 @@
         <Parent guid="guidAZSphereHardwareDefinitionToolsPackageCmdSet" id="HardwareDefinitionMenuGroup" />
         <Icon guid="guidPortHardwareDefinitionImages" id="portIcon" />
         <Strings>
-          <ButtonText>Port to another hardware definition</ButtonText>
+          <ButtonText>Port to another Hardware Definition</ButtonText>
         </Strings>
       </Button>
     </Buttons>

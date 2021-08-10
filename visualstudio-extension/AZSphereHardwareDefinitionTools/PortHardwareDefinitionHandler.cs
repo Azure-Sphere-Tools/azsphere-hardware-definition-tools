@@ -18,7 +18,16 @@ namespace AZSphereHardwareDefinitionTools
     {
       CloseCurrentInfoBar();
       string currentFilePath = await CurrentFilePathAsync();
-      string currentFileUri = new Uri(currentFilePath).AbsoluteUri;
+      string currentFileUri;
+      try
+      {
+        currentFileUri = new Uri(currentFilePath).AbsoluteUri;
+
+      } catch (Exception e) when (e is ArgumentNullException || e is UriFormatException)
+      {
+        await VS.MessageBox.ShowAsync("Open a Hardware Definition file to run the command", buttons: Microsoft.VisualStudio.Shell.Interop.OLEMSGBUTTON.OLEMSGBUTTON_OK);
+        return;
+      }
 
       if (HardwareDefinitionLanguageClient.Instance == null)
       {
@@ -33,10 +42,7 @@ namespace AZSphereHardwareDefinitionTools
       var odmHwDefinitions = await HardwareDefinitionLanguageClient.Instance.GetAvailableOdmHardwareDefinitionsAsync(currentFileUri);
       var actions = odmHwDefinitions.Select(odmHwDef => new InfoBarHyperlink(odmHwDef.Name, new OdmHardwareDefinitionActionContext(currentFilePath, odmHwDef.Path))).ToList();
       actions.Insert(0, new InfoBarHyperlink("Open new", new OdmHardwareDefinitionActionContext(currentFilePath, null)));
-      if (actions.Count > 0)
-      {
-        await CreateAndDisplayInfoBarAsync("Select a hardware definition to port to", currentFilePath, actions, OnOdmHardwareDefSelected);
-      }
+      await CreateAndDisplayInfoBarAsync("Select a hardware definition to port to", currentFilePath, actions, OnOdmHardwareDefSelected);
     }
 
     private void OnOdmHardwareDefSelected(object sender, InfoBarActionItemEventArgs e)
@@ -70,7 +76,8 @@ namespace AZSphereHardwareDefinitionTools
           await CreateAndDisplayInfoBarAsync($"Successfully ported {originalHwDefFileName}", portedPath);
         } else
         {
-          await CreateAndDisplayInfoBarAsync($"Failed to port hardware definition file {originalHwDefFileName}", await CurrentFilePathAsync());
+          string targetHwDefFileName = Path.GetFileName(selected.TargetHwDefPath);
+          await CreateAndDisplayInfoBarAsync($"Failed to port hardware definition file to {targetHwDefFileName} because it is invalid", await CurrentFilePathAsync());
         }
       });
 

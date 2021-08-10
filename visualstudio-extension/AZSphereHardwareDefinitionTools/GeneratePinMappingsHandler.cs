@@ -16,7 +16,17 @@ namespace AZSphereHardwareDefinitionTools
     {
       CloseCurrentInfoBar();
       string currentFilePath = await CurrentFilePathAsync();
-      string currentFileUri = new Uri(currentFilePath).AbsoluteUri;
+      string currentFileUri;
+      try
+      {
+        currentFileUri = new Uri(currentFilePath).AbsoluteUri;
+
+      }
+      catch (Exception e) when (e is ArgumentNullException || e is UriFormatException)
+      {
+        await VS.MessageBox.ShowAsync("Open a Hardware Definition file to run the command", buttons: Microsoft.VisualStudio.Shell.Interop.OLEMSGBUTTON.OLEMSGBUTTON_OK);
+        return;
+      }
 
       if (HardwareDefinitionLanguageClient.Instance == null)
       {

@@ -13,9 +13,20 @@ namespace AZSphereHardwareDefinitionTools
   {
     protected InfoBar currentInfoBar;
 
+    /// <summary>
+    /// Returns the path to the currently open file
+    /// </summary>
+    /// <returns>Null if no file is currently open</returns>
     protected async Task<string> CurrentFilePathAsync()
     {
-      return (await VS.Documents.GetCurrentDocumentAsync()).FilePath;
+      try
+      {
+        return (await VS.Documents.GetCurrentDocumentAsync())?.FilePath;
+      } catch (System.Runtime.InteropServices.COMException)
+      {
+        // occurs when no file is currently open
+        return null;
+      }
     }
 
     /// <summary>

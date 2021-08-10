@@ -71,7 +71,7 @@ async function portHwDefinition() {
 
   const isValidHwDefinition = await commands.executeCommand("validateHwDefinition", currentlyOpenFileUri.toString());
   if (!isValidHwDefinition) {
-    window.showErrorMessage('The current file is not a valid Hardware Definition. Navigate to a tab with a valid Hardware Definition to port from.');
+    window.showErrorMessage('Navigate to a tab with a valid Hardware Definition to port from.');
     return;
   }
 
@@ -99,7 +99,7 @@ async function portHwDefinition() {
                 "HardwareDefinition": ["json"]
               }
             });
-            if (openNew == undefined) {
+            if (chosenFile == undefined) {
               // user canceled file selection, exit command
               return;
             }
