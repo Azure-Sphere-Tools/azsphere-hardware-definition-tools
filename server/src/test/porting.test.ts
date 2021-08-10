@@ -3,6 +3,7 @@ import * as mockfs from "mock-fs";
 import * as path from "path";
 import { JsonHardwareDefinition, listOdmHardwareDefinitions, portHardwareDefinition } from "../porting";
 import { readFile } from "fs/promises";
+import { Parser } from "../parser";
 
 suite("listOdmHardwareDefinitions", () => {
   // unmock the file system after each test
@@ -267,9 +268,9 @@ suite("portHardwareDefinition", () => {
 
 async function preparePortingInput(hwDefToPortPath: string, targetHwDefPath: string) {
   const hwDefText = await readFile(hwDefToPortPath, { encoding: "utf8" });
-  const hwDefToPort = tryParseHardwareDefinitionFile(hwDefText, "", "");
+  const hwDefToPort = new Parser().tryParseHardwareDefinitionFile(hwDefText, "", "");
   assert.ok(hwDefToPort);
-  const targetHwDef = tryParseHardwareDefinitionFile(await readFile(targetHwDefPath, { encoding: "utf8" }), "", "");
+  const targetHwDef = new Parser().tryParseHardwareDefinitionFile(await readFile(targetHwDefPath, { encoding: "utf8" }), "", "");
   assert.ok(targetHwDef);
   const jsonHwDef = <JsonHardwareDefinition>JSON.parse(hwDefText);
   return { jsonHwDef, hwDefToPort, targetHwDef };

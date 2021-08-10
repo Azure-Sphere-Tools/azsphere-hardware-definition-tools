@@ -234,9 +234,7 @@ export class LanguageServer {
             if (hwDefinition && targetHwDefinition) {
               const jsonHwDefinition = <JsonHardwareDefinition>JSON.parse(await readFile(openHwDefPath, { encoding: "utf8" }));
         
-              const hwDefScan = scanHardwareDefinition(hwDefinition, true);
-              const targetHwDefScan = scanHardwareDefinition(targetHwDefinition, true);
-  
+              
               const portedFileName = path.basename(openHwDefPath, ".json") + "-ported.json";
               const portedPath = path.join(path.dirname(openHwDefPath), portedFileName);
               // if target hw def is in sdk folder, only return its file name, otherwise return its path relative to where the generated file will be
@@ -244,7 +242,7 @@ export class LanguageServer {
                 ? path.basename(targetHwDefPath) 
                 : path.relative(path.dirname(portedPath), targetHwDefPath);
 
-              const generated = portHardwareDefinition(jsonHwDefinition, hwDefScan, targetHwDefScan, importPath);
+              const generated = portHardwareDefinition(jsonHwDefinition, hwDefinition, targetHwDefinition, importPath);
               await saveHardwareDefinition(generated, portedPath);
               return portedPath;
             }
@@ -358,7 +356,7 @@ export class LanguageServer {
    * @param change The opened/changed document
    */
   async onDidChangeContent(change: TextDocumentChangeEvent<TextDocument>) {
-    await languageServer.validateDocument(change.document);
+    await this.validateDocument(change.document);
   }
 
   async validateDocument(textDocument: TextDocument): Promise<string | undefined> {
