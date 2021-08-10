@@ -35,7 +35,7 @@ export function portHardwareDefinition(jsonHwDefinition: JsonHardwareDefinition,
     const mappedTo = flatPinMapping.pinMapping.mapping?.value.text;
     if (mappedTo && generatedPinMapping.mapping) {
       const appManifestValueToQuery = hwDefinitionScan.getAppManifestValue(mappedTo);
-      if (appManifestValueToQuery) {
+      if (appManifestValueToQuery !== undefined) {
         const newMappingValue = findPinNameWithAppManifestValue(appManifestValueToQuery, targetHwDefinitionScan);
         if (newMappingValue) {
           // found a pin in the target hw def with the same app manifest value
