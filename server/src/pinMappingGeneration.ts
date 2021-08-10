@@ -2,8 +2,6 @@ import { writeFile } from "fs/promises";
 import * as jsonc from "jsonc-parser";
 import { URI } from "vscode-uri";
 import { HardwareDefinition } from "./hardwareDefinition";
-import { displayNotification } from "./server";
-import { MessageType } from "vscode-languageserver";
 import { getPinMappingSuggestions } from "./suggestions";
 
 function checkHwDefinition(importedHwDef: HardwareDefinition): Set<string> {
@@ -20,24 +18,17 @@ function checkHwDefinition(importedHwDef: HardwareDefinition): Set<string> {
 }
 
 export async function getPinTypes(hwDefinition: HardwareDefinition): Promise<string[] | undefined> {
-  try {
-    if (hwDefinition.imports.length > 0) {
-      const pinTypes = new Set<string>();
-      for (const hwDefImport of hwDefinition.imports) {
-        const pinTypesInImport = checkHwDefinition(hwDefImport);
-        pinTypesInImport.forEach((p) => pinTypes.add(p));
-      }
-      return Array.from(pinTypes).filter(pinType => getPinMappingSuggestions(hwDefinition, pinType).length > 0);
-    } else {
-      displayNotification({ message: "Hardware Definition file does not have any imports to generate pins from.", type: MessageType.Error });
+  if (hwDefinition.imports.length > 0) {
+    const pinTypes = new Set<string>();
+    for (const hwDefImport of hwDefinition.imports) {
+      const pinTypesInImport = checkHwDefinition(hwDefImport);
+      pinTypesInImport.forEach((p) => pinTypes.add(p));
     }
-  } catch (err) {
-    displayNotification({ message: `Import Hardware Definition not found - ${err}.`, type: MessageType.Error });
-    return;
+    return Array.from(pinTypes).filter(pinType => getPinMappingSuggestions(hwDefinition, pinType).length > 0);
   }
 }
 
-export const addPinMappings = async (pinsToAdd: string[], pinType: string, hwDefUri: string, hwDefText: string) => {
+export const addPinMappings = async (pinsToAdd: string[], pinType: string, hwDefUri: string, hwDefText: string): Promise<any|undefined> => {
   // Use currentFile passed by the test
 
   if (pinsToAdd && pinType) {
@@ -57,7 +48,7 @@ export const addPinMappings = async (pinsToAdd: string[], pinType: string, hwDef
     try {
       await writeFile(URI.parse(hwDefUri).fsPath, jsonc.applyEdits(hwDefText, edits));
     } catch (err) {
-      displayNotification({ message: `Failed to add new pin mappings to ${hwDefUri} - ${err}.`, type: MessageType.Error });
+      return err;
     }
   }
 };

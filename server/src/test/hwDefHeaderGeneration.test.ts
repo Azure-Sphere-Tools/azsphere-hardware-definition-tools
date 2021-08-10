@@ -3,7 +3,7 @@ import { hwDefinitionHeaderGen } from "../hwDefHeaderGeneration";
 
 suite("hardwareDefinitionHeaderGeneration", () => {
   test("Valid command execution", async () => {
-    const actual = await hwDefinitionHeaderGen(__filename, "cat");
+    const actual = await hwDefinitionHeaderGen(__dirname, "cd");
 
     if (actual) {
       assert.deepStrictEqual(actual.type, 3);
@@ -12,8 +12,8 @@ suite("hardwareDefinitionHeaderGeneration", () => {
     }
   });
 
-  test("Invalid command execution - file doesn't exist", async () => {
-    const actual = await hwDefinitionHeaderGen("test/invalid.json", "cat");
+  test("Invalid command execution - folder doesn't exist", async () => {
+    const actual = await hwDefinitionHeaderGen("test/invalidfolder", "cd");
 
     if (actual) {
       assert.deepStrictEqual(actual.type, 1);
