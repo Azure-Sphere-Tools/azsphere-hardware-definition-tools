@@ -1,10 +1,9 @@
 import * as assert from "assert";
-import { tryParseHardwareDefinitionFile, findFullPath } from "../server";
+import { Parser, findFullPath } from "../parser";
 import * as mockfs from "mock-fs";
 import * as path from "path";
 import * as fs from "fs";
 import { URI } from "vscode-uri";
-import { ConnectionError } from "vscode-languageserver";
 
 suite("tryParseHardwareDefinitionFile", () => {
   // unmock the file system after each test
@@ -28,7 +27,7 @@ suite("tryParseHardwareDefinitionFile", () => {
     });
 
     const hwDefFilePath = "my_app/mt3620.json";
-    const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: "utf8" }), asURI(hwDefFilePath), "");
+    const hwDefinition = new Parser().tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: "utf8" }), asURI(hwDefFilePath), "");
 
     if (hwDefinition) {
       const actualPins = hwDefinition.pinMappings;
@@ -75,7 +74,7 @@ suite("tryParseHardwareDefinitionFile", () => {
 
     const hwDefFilePath = "my_app/odm.json";
     const importedHwDefFilePath = "my_app/mt3620.json";
-    const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: "utf8" }), asURI(hwDefFilePath), "");
+    const hwDefinition = new Parser().tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: "utf8" }), asURI(hwDefFilePath), "");
 
     if (hwDefinition) {
       // check pins

@@ -1,5 +1,4 @@
 import * as assert from "assert";
-import { tryParseHardwareDefinitionFile } from "../server";
 import * as mockfs from "mock-fs";
 import * as path from "path";
 import { JsonHardwareDefinition, listOdmHardwareDefinitions, portHardwareDefinition } from "../porting";
