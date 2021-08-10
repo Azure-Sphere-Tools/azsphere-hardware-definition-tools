@@ -1,7 +1,9 @@
 import { readFile, readdir, writeFile } from "fs/promises";
 import * as path from "path";
-import { PinMapping } from "./hardwareDefinition";
-import { HardwareDefinitionScan } from "./validator";
+import { Range } from "vscode-languageserver-textdocument";
+import { HardwareDefinition, PinMapping, PinMappingKey } from "./hardwareDefinition";
+import { getPinMappingSuggestions } from "./suggestions";
+import { HardwareDefinitionScan, scanHardwareDefinition } from "./validator";
 
 export async function listOdmHardwareDefinitions(sdkPath: string): Promise<OdmHardwareDefinitionFile[]> {
   const hwDefFolder = path.join(sdkPath, "HardwareDefinitions");
@@ -19,39 +21,67 @@ export async function listOdmHardwareDefinitions(sdkPath: string): Promise<OdmHa
   return odmHwDefsToReturn;
 }
 
-// TODO Add tests
-export function portHardwareDefinition(hwDefinition: JsonHardwareDefinition, hwDefinitionScan: HardwareDefinitionScan,
-  targetHwDefinitionScan: HardwareDefinitionScan, pathToTargetHwDefFile: string): JsonHardwareDefinition {
-  const generatedPeripherals: JsonPinMapping[] = [];
+export function portHardwareDefinition(jsonHwDefinition: JsonHardwareDefinition, hwDefinition: HardwareDefinition,
+  targetHwDefinition: HardwareDefinition, pathToTargetHwDefFile: string): JsonHardwareDefinition {
+    const hwDefinitionScan = scanHardwareDefinition(hwDefinition, true);
+    const targetHwDefinitionScan = scanHardwareDefinition(targetHwDefinition, true);
+
+  const generatedPeripherals: PinMapping[] = [];
+  const namesOfPinsWithoutExactMatch = new Set<string>();
   for (const flatPinMapping of hwDefinitionScan.pinsInHardwareDefinition) {
-    const generatedPinMapping = asJsonPinMapping(flatPinMapping.pinMapping);
-    
+    // make a deep copy of the pin so we can safely edit it
+    const generatedPinMapping = copyPinMapping(flatPinMapping.pinMapping);
+
     const mappedTo = flatPinMapping.pinMapping.mapping?.value.text;
-    if (mappedTo) {
+    if (mappedTo && generatedPinMapping.mapping) {
       const appManifestValueToQuery = hwDefinitionScan.getAppManifestValue(mappedTo);
-      if (appManifestValueToQuery) {
+      if (appManifestValueToQuery !== undefined) {
         const newMappingValue = findPinNameWithAppManifestValue(appManifestValueToQuery, targetHwDefinitionScan);
         if (newMappingValue) {
-          generatedPinMapping.Mapping = newMappingValue;
+          // found a pin in the target hw def with the same app manifest value
+          generatedPinMapping.mapping.value.text = newMappingValue;
+        } else {
+          // couldn't find a pin in the target hw def with the same app manifest value, mark it for editing later
+          namesOfPinsWithoutExactMatch.add(generatedPinMapping.name.value.text);
         }
-        // TODO If can't find pin in target hw def with same app manifest value,
-        // we should replace it with another pin of the same type (after we've tried to assign all other pins with their exact match)
       }
     }
     generatedPeripherals.push(generatedPinMapping);
   }
 
+  const generatedHwDefinition = new HardwareDefinition("not_needed", undefined, generatedPeripherals, [targetHwDefinition]);
+
+  if (namesOfPinsWithoutExactMatch.size > 0) {
+    replacePinsWithoutExactMatch(generatedHwDefinition, namesOfPinsWithoutExactMatch);
+  }
+
   return {
     $schema: "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
-    Metadata: hwDefinition.Metadata,
-    Description: { 
-      Name: `Ported to support ${pathToTargetHwDefFile} - Created from ${hwDefinition.Description.Name}`,
-      MainCoreHeaderFileTopContent: hwDefinition.Description.MainCoreHeaderFileTopContent
+    Metadata: jsonHwDefinition.Metadata,
+    Description: {
+      Name: `Ported to support ${pathToTargetHwDefFile} - Created from ${jsonHwDefinition.Description.Name}`,
+      MainCoreHeaderFileTopContent: jsonHwDefinition.Description.MainCoreHeaderFileTopContent
     },
     Imports: [{ Path: pathToTargetHwDefFile }],
-    Peripherals: generatedPeripherals
+    Peripherals: generatedHwDefinition.pinMappings.map(p => asJsonPinMapping(p))
   };
 
+}
+
+/**
+ * Edits the passed hardware definition and replaces the "Mapping" values of pins that did not have an exact match.
+ * @param generatedHwDefinition The generated Hardware Definition to edit
+ * @param namesOfPinsWithoutExactMatch Names of generated peripherals for which we couldn't find an imported pin with the same app manifest value 
+ */
+function replacePinsWithoutExactMatch(generatedHwDefinition: HardwareDefinition, namesOfPinsWithoutExactMatch: Set<string>) {
+  for (const pin of generatedHwDefinition.pinMappings) {
+    if (namesOfPinsWithoutExactMatch.has(pin.name.value.text)) {
+      const alternativePins = getPinMappingSuggestions(generatedHwDefinition, pin.type.value.text);
+      if (alternativePins.length > 0) {
+        (<PinMappingKey<string>>pin.mapping).value.text = alternativePins[0];
+      }
+    }
+  }
 }
 
 export async function saveHardwareDefinition(generatedHwDef: JsonHardwareDefinition, targetPath: string): Promise<void> {
@@ -115,5 +145,40 @@ function asJsonPinMapping(original: PinMapping): JsonPinMapping {
     Mapping: original.mapping?.value.text,
     AppManifestValue: original.appManifestValue?.value.text,
     Comment: original.comment?.value.text
+  };
+}
+
+/**
+ * Creates a deep copy of the given pin mapping
+ */
+function copyPinMapping(original: PinMapping): PinMapping {
+  return new PinMapping(
+    copyRange(original.range),
+    copyKey(original.name),
+    copyKey(original.type),
+    original.mapping ? copyKey(original.mapping) : undefined,
+    original.appManifestValue ? copyKey(original.appManifestValue) : undefined,
+    original.comment ? copyKey(original.comment) : undefined
+  );
+}
+
+function copyKey<T>(o: PinMappingKey<T>): PinMappingKey<T> {
+  return {
+    range: copyRange(o.range),
+    key: {
+      range: copyRange(o.key.range),
+      text: o.key.text,
+    },
+    value: {
+      range: copyRange(o.value.range),
+      text: o.value.text
+    }
+  };
+}
+
+function copyRange(o: Range): Range {
+  return {
+    start: { line: o.start.line, character: o.start.character },
+    end: { line: o.end.line, character: o.end.character },
   };
 }
