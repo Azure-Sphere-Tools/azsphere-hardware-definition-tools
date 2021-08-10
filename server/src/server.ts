@@ -188,9 +188,6 @@ connection.onInitialized(() => {
     
           if (hwDefinition && targetHwDefinition) {
             const jsonHwDefinition = <JsonHardwareDefinition>JSON.parse(await readFile(openHwDefPath, { encoding: "utf8" }));
-      
-            const hwDefScan = scanHardwareDefinition(hwDefinition, true);
-            const targetHwDefScan = scanHardwareDefinition(targetHwDefinition, true);
 
             const portedFileName = path.basename(openHwDefPath, ".json") + "-ported.json";
             const portedPath = path.join(path.dirname(openHwDefPath), portedFileName);
@@ -199,7 +196,7 @@ connection.onInitialized(() => {
               ? path.basename(targetHwDefPath) 
               : path.relative(path.dirname(portedPath), targetHwDefPath);
 
-            const generated = portHardwareDefinition(jsonHwDefinition, hwDefScan, targetHwDefScan, importPath);
+            const generated = portHardwareDefinition(jsonHwDefinition, hwDefinition, targetHwDefinition, importPath);
             await saveHardwareDefinition(generated, portedPath);
             return portedPath;
           }
