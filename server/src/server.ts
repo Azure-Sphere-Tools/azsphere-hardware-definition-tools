@@ -285,7 +285,6 @@ export class LanguageServer {
   }
   
   async onDidOpen(change: TextDocumentChangeEvent<TextDocument>): Promise<void> {
-    await new Promise(r => setTimeout(r, 10000));
 
     const textDocument = change.document;
     const settings = await this.getDocumentSettings(textDocument.uri);
