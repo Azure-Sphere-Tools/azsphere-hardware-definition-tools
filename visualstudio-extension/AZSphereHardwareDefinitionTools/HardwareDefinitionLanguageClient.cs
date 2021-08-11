@@ -25,6 +25,7 @@ namespace AZSphereHardwareDefinitionTools
 
 
     private const string EXTENSION_DIRECTORY = "visualstudio-extension";
+    private const string ENTRYPOINT_FILE = "startServer.js";
 
     public string Name => "AZ Sphere Hardware Definition Tools";
 
@@ -75,7 +76,7 @@ namespace AZSphereHardwareDefinitionTools
       var languageServerEntrypoint = PathToLanguageServerSourceCode();
 #else
       string extensionDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
-      var languageServerEntrypoint = Path.Combine(extensionDirectory, "EmbeddedLanguageServer", "node_modules", "azsphere-hardware-definition-language-server", "dist", "server.js");
+      var languageServerEntrypoint = Path.Combine(extensionDirectory, "EmbeddedLanguageServer", "node_modules", "azsphere-hardware-definition-language-server", "dist", ENTRYPOINT_FILE);
 #endif
 
       if (!File.Exists(languageServerEntrypoint))
@@ -159,7 +160,7 @@ namespace AZSphereHardwareDefinitionTools
     private static string PathToLanguageServerSourceCode()
     {
       string extensionDirectory = ExtensionPath();
-      return Path.GetFullPath(Path.Combine(extensionDirectory, "..", "server", "dist", "server.js"));
+      return Path.GetFullPath(Path.Combine(extensionDirectory, "..", "server", "dist", ENTRYPOINT_FILE));
     }
 
     public static string ExtensionPath()

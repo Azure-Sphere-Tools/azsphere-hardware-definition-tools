@@ -8,9 +8,9 @@ export function activate(context: ExtensionContext) {
   let serverModule: string;
   if (context.extensionMode == ExtensionMode.Development || context.extensionMode == ExtensionMode.Test) {
     // if in development/test mode, run language server directly from language server project to enable breakpoints on source code
-    serverModule = context.asAbsolutePath(path.join("..", "server", "dist", "server.js"));
+    serverModule = context.asAbsolutePath(path.join("..", "server", "dist", "startServer.js"));
   } else {
-    serverModule = context.asAbsolutePath(path.join("embedded-language-server", "node_modules", "azsphere-hardware-definition-language-server", "dist", "server.js"));
+    serverModule = context.asAbsolutePath(path.join("embedded-language-server", "node_modules", "azsphere-hardware-definition-language-server", "dist", "startServer.js"));
   }
 
   console.log(

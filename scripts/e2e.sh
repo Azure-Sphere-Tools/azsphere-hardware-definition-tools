@@ -4,8 +4,7 @@
 set -e
 
 # Run unit tests
-# TODO remove 'LANGUAGE_SERVER_MODE=TEST' when connection issue fixed in server.ts
-LANGUAGE_SERVER_MODE=TEST ./node_modules/mocha/bin/mocha --ui tdd --color --timeout 10s server/dist/test/**.test.js
+./node_modules/mocha/bin/mocha --ui tdd --color --timeout 10s server/dist/test/**.test.js
 
 if [[ "$1" == "ONLY_UNIT_TESTS" ]]; then
   exit 0

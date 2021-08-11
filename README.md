@@ -14,7 +14,7 @@ This projects includes a Language Server, VS Code extension, and Visual Studio e
 |
 ├── server // Language Server
 │   └── src
-│       └── server.ts // Language Server entry point
+│       └── startServer.ts // Language Server entry point
 │
 ├── vscode-extension // The VS Code extension and its manifest
 │   ├── src

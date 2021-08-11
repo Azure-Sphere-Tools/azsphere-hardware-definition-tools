@@ -1,8 +1,6 @@
 import {
-  createConnection,
   TextDocuments,
   Diagnostic,
-  ProposedFeatures,
   InitializeParams,
   DidChangeConfigurationNotification,
   CompletionItem,
@@ -14,8 +12,6 @@ import {
   ShowMessageRequestParams,
   TextDocumentEdit,
   TextEdit,
-  IPCMessageReader,
-  IPCMessageWriter,
   ShowMessageNotification,
   ShowMessageParams,
   CodeActionKind,
@@ -45,10 +41,6 @@ import { Logger } from "./utils";
 import { Parser } from "./parser";
 
 const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
-
-// temporary hack to run unit tests with mocha instead of always calling 'createConnection(ProposedFeatures.all)'
-// when fixed, remove IPCMessageReader/Writer from server.ts and LANGUAGE_SERVER_MODE from .vscode/settings.json
-const runningTests = process.env.LANGUAGE_SERVER_MODE == "TEST";
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
@@ -80,11 +72,11 @@ export class LanguageServer {
 
   private logger: Logger 
 
-  constructor (connection: Connection, documents: TextDocuments<TextDocument>, logger: Logger) {
+  constructor (connection: Connection, documents: TextDocuments<TextDocument>, logger: Logger, documentSettings = new Map<string, Thenable<ExtensionSettings>>()) {
     this.connection = connection;
     this.documents = documents;
     this.globalSettings = defaultSettings();
-    this.documentSettings = new Map();
+    this.documentSettings = documentSettings;
     this.parser = new Parser(documents, logger);
     this.logger = logger;
   }
@@ -148,11 +140,6 @@ export class LanguageServer {
     if (hasConfigurationCapability) {
       // Register for all configuration changes.
       this.connection.client.register(DidChangeConfigurationNotification.type, undefined);
-    }
-    if (hasWorkspaceFolderCapability) {
-      this.connection.workspace.onDidChangeWorkspaceFolders((_event) => {
-        this.logger.log("Workspace folder change event received.");
-      });
     }
     // Server receives a request from the client
     this.connection.onExecuteCommand(async (event) => {
@@ -312,7 +299,6 @@ export class LanguageServer {
       }
   
       if (!hwDefinition.schema) {
-        this.logger.log("Can suggest adding json schema");
         const fileName = textDocument.uri.substring(textDocument.uri.lastIndexOf("/") + 1);
         const msg: ShowMessageRequestParams = {
           message: `${fileName} detected as Hardware Definition file. Add a json schema for type hints?`,
@@ -322,7 +308,6 @@ export class LanguageServer {
         const addJsonSchemaRequest = this.connection.sendRequest(ShowMessageRequest.type, msg);
         addJsonSchemaRequest.then((resp) => {
           if (resp?.title == "Yes") {
-            this.logger.log(`Client accepted to add json schema for autocompletion on file ${fileName}`);
             const positionToInsertSchemaNode = textDocument.positionAt(text.indexOf(`"Metadata"`));
   
             this.connection.workspace.applyEdit({
@@ -551,38 +536,39 @@ function asURI(filePath: string): string {
   return URI.file(path.resolve(filePath)).toString();
 }
 
-// avoid referencing connection in other files/modules as it is expensive to create and can prevent tests from running in parallel
-const connection = runningTests ? createConnection(new IPCMessageReader(process), new IPCMessageWriter(process)) : createConnection(ProposedFeatures.all);
-const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
-const languageServer = new LanguageServer(connection, documents, connection.console);
 
-connection.onInitialize((params) => languageServer.onInitialize(params));
+export function startLanguageServer(connection: Connection) {
+  const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);
+  const languageServer = new LanguageServer(connection, documents, connection.console);
 
-connection.onInitialized(() => languageServer.onInitialized());
+  connection.onInitialize((params) => languageServer.onInitialize(params));
 
-connection.onDidChangeConfiguration((change) => languageServer.onDidChangeConfiguration(change));
+  connection.onInitialized(() => languageServer.onInitialized());
 
-documents.onDidOpen(async (change) => await languageServer.onDidOpen(change));
-// Only keep settings for open documents
-documents.onDidClose((e) => languageServer.onDidClose(e));
+  connection.onDidChangeConfiguration((change) => languageServer.onDidChangeConfiguration(change));
 
-documents.onDidSave(async (save) => await languageServer.onDidSave(save));
+  documents.onDidOpen(async (change) => await languageServer.onDidOpen(change));
+  // Only keep settings for open documents
+  documents.onDidClose((e) => languageServer.onDidClose(e));
 
-// The content of a text document has changed. This event is emitted
-// when the text document first opened or when its content has changed.
-documents.onDidChangeContent(async (change) => await languageServer.onDidChangeContent(change));
+  documents.onDidSave(async (save) => await languageServer.onDidSave(save));
 
-connection.onCodeAction(async (params) => await languageServer.onCodeAction(params));
+  // The content of a text document has changed. This event is emitted
+  // when the text document first opened or when its content has changed.
+  documents.onDidChangeContent(async (change) => await languageServer.onDidChangeContent(change));
 
-connection.onCompletion(async (docPosition) => await languageServer.onCompletion(docPosition));
+  connection.onCodeAction(async (params) => await languageServer.onCodeAction(params));
 
-// This handler resolves additional information for the item selected in the completion list.
-// Clients always expect this event to be handled, even if no additional info is available.
-connection.onCompletionResolve((item) => languageServer.onCompletionResolve(item));
+  connection.onCompletion(async (docPosition) => await languageServer.onCompletion(docPosition));
 
-// Make the text document manager listen on the connection
-// for open, change and close text document events
-documents.listen(connection);
+  // This handler resolves additional information for the item selected in the completion list.
+  // Clients always expect this event to be handled, even if no additional info is available.
+  connection.onCompletionResolve((item) => languageServer.onCompletionResolve(item));
 
-// Listen on the connection
-connection.listen();
+  // Make the text document manager listen on the connection
+  // for open, change and close text document events
+  documents.listen(connection);
+
+  // Listen on the connection
+  connection.listen();
+}
