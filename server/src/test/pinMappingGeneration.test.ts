@@ -4,7 +4,7 @@ import * as mockfs from "mock-fs";
 import { getPinTypes, addPinMappings } from "../pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import * as fs from "fs";
-import { tryParseHardwareDefinitionFile } from "../server";
+import { Parser } from "../parser";
 import { asURI, getDummyPinMapping } from "./testUtils";
 import { HardwareDefinition } from "../hardwareDefinition";
 
@@ -23,7 +23,7 @@ suite("pinMappingGeneration", () => {
 
   teardown(mockfs.restore);
   test("Get correct available pin type", async () => {
-    const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefPath, { encoding: 'utf8' }), hwDefUri, '');
+    const hwDefinition = new Parser().tryParseHardwareDefinitionFile(fs.readFileSync(hwDefPath, { encoding: 'utf8' }), hwDefUri, '');
     assert.ok(hwDefinition);
     const actual: string[] | undefined = await getPinTypes(hwDefinition);
 

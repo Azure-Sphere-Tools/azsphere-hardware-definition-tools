@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { URI } from "vscode-uri";
 import * as jsonc from "jsonc-parser";
+import { Logger } from "./utils";
 
 export class AppManifest {
 	constructor(
@@ -38,7 +39,7 @@ export type AppPinKey<T> = {
 }
 
 
-export const addAppManifestPathsToSettings = async (uri: string, settingsPath: string, logError = console.error): Promise<string[]> => {
+export const addAppManifestPathsToSettings = async (uri: string, settingsPath: string, logger: Logger = console): Promise<string[]> => {
   if (uri && settingsPath) {
     const app_manifestPath = URI.parse(uri).fsPath;
     const {
@@ -57,7 +58,7 @@ export const addAppManifestPathsToSettings = async (uri: string, settingsPath: s
 					}
           await appendFile(settingsPath, "{}", { flag: "wx" });
         } catch (e) {
-          logError(e);
+          logger.error(e);
           return [];
         }
       }
@@ -95,7 +96,7 @@ export const addAppManifestPathsToSettings = async (uri: string, settingsPath: s
         try {
           await writeFile(settingsPath, jsonc.applyEdits(settingsTxt, edits));
         } catch (e) {
-          logError(e);
+          logger.error(e);
           return [];
         }
       }

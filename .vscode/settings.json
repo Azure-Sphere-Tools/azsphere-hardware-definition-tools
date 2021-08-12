@@ -14,9 +14,5 @@
 	],
 	"mochaExplorer.ui": "tdd",
 	"mochaExplorer.autoload": true,
-	"mochaExplorer.require": "source-map-support/register",
-	// workaround to make mocha test explorer work. Remove when fixed in server.ts
-	"mochaExplorer.env": {
-		"LANGUAGE_SERVER_MODE": "TEST"
-	}
+	"mochaExplorer.require": "source-map-support/register"
 }

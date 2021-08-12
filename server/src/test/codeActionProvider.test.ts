@@ -5,7 +5,7 @@ import { asURI, getRange, getDummyPinMapping } from "./testUtils";
 import { CodeActionParams, Diagnostic } from "vscode-languageserver";
 import { flatten, validateNamesAndMappings, validatePinBlock } from "../validator";
 import * as mockfs from 'mock-fs';
-import { tryParseHardwareDefinitionFile } from "../server";
+import { Parser } from "../parser";
 import * as fs from 'fs';
 
 
@@ -115,7 +115,7 @@ suite("quickfix", () => {
 		});
 
 		const hwDefFilePath = 'my_app/odm.json';
-		const hwDefinition = tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
+		const hwDefinition = new Parser().tryParseHardwareDefinitionFile(fs.readFileSync(hwDefFilePath, { encoding: 'utf8' }), asURI(hwDefFilePath), '');
 		assert(hwDefinition);
 		const pinsToValidate = flatten(hwDefinition).flattened.filter(p => p.hardwareDefinitionUri == hwDefinition.uri);
 		const warningDiagnostics: Diagnostic[] = validatePinBlock(pinsToValidate, new Map(), false);  
