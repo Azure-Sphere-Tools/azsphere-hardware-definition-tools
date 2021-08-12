@@ -1,3 +1,5 @@
+export const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
+
 /**
  * Interface to abstract the Language Server Connection's remote logger.
  * Compatible with javascript's built in "console" class.

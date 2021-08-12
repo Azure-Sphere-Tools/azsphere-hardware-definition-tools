@@ -3,7 +3,7 @@ import { Diagnostic } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
-import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning, appConflictPinBlock, appConflictDuplicateName } from "./diagnostics";
+import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning, appConflictPinBlock, appConflictDuplicateValue } from "./diagnostics";
 import { AppManifest } from "./applicationManifest";
 
 export interface FlatPinMapping {
@@ -221,7 +221,7 @@ export function validatePinBlock(pinsToValidate: FlatPinMapping[], controllerSet
 			const controller = getController(pinMapping.type.value.text, appManifestValue);
 
 			if (controller == undefined) {
-				const diagnostic: Diagnostic = invalidPinTypeError(pinMapping, flatPinMapping.hardwareDefinitionUri, includeRelatedInfo);
+				const diagnostic: Diagnostic = invalidPinTypeError(pinMapping);
 				warningDiagnostics.push(diagnostic);
 			} else {
 				const existingControllerSetup = controllerSetup.get(controller.name);
@@ -290,7 +290,7 @@ export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, appMan
 				// find the pin conflic for duplicate name
 				if(partnerAppManifestValues.includes(appManifestValues[index])){
 					const range = value?.value.range;
-					const diagnostic: Diagnostic = appConflictDuplicateName(appPinNames[index], partnerAppManifest.ComponentId,range);
+					const diagnostic: Diagnostic = appConflictDuplicateValue(appPinNames[index], partnerAppManifest.ComponentId,range);
 					warningDiagnostics.push(diagnostic);
 				}
 			}

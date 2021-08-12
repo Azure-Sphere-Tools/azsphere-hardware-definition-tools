@@ -3,6 +3,7 @@ import * as path from "path";
 import { Range } from "vscode-languageserver-textdocument";
 import { HardwareDefinition, PinMapping, PinMappingKey } from "./hardwareDefinition";
 import { getPinMappingSuggestions } from "./suggestions";
+import { HW_DEFINITION_SCHEMA_URL } from "./utils";
 import { HardwareDefinitionScan, scanHardwareDefinition } from "./validator";
 
 export async function listOdmHardwareDefinitions(sdkPath: string): Promise<OdmHardwareDefinitionFile[]> {
@@ -56,7 +57,7 @@ export function portHardwareDefinition(jsonHwDefinition: JsonHardwareDefinition,
   }
 
   return {
-    $schema: "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+    $schema: HW_DEFINITION_SCHEMA_URL,
     Metadata: jsonHwDefinition.Metadata,
     Description: {
       Name: `Ported to support ${pathToTargetHwDefFile} - Created from ${jsonHwDefinition.Description.Name}`,

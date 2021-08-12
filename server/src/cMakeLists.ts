@@ -3,9 +3,9 @@ import * as path from "path";
 import { Logger } from "./utils";
 
 export function parseCommandsParams(CMakeListsPath: string, logger: Logger = console): string | undefined {
-  const text: string = fs.readFileSync(CMakeListsPath).toString();
 
   try {
+    const text: string = fs.readFileSync(CMakeListsPath).toString();
     const match: RegExpExecArray | null = /TARGET_DIRECTORY "(.*)" TARGET_DEFINITION "(.*)"/g.exec(text);
 
     if (!match) return;

@@ -2,6 +2,9 @@ import * as path from "path";
 import { URI } from "vscode-uri";
 import { Range } from "vscode-languageserver-textdocument";
 import { PinMappingKey, PinMapping } from '../hardwareDefinition';
+import { AppManifest, AppPinKey } from "../applicationManifest";
+import { Parser } from "../parser";
+import { error } from "console";
 
 export function asURI(hwDefFilePath: string): string {
   return URI.file(path.resolve(hwDefFilePath)).toString();
@@ -156,4 +159,27 @@ export function getDummyPinMapping(
     opt.appManifestValue as PinMappingKey<number | string>,
     opt.comment as PinMappingKey<string>,
   );
+}
+
+export function dummyAppManifest(appId: string, partnerIds?: string[], gpios?: (string | number)[]): AppManifest {
+  partnerIds = partnerIds ?? [];
+  gpios = gpios ?? [];
+  const parsedDummy = new Parser().tryParseAppManifestFile(`
+  {
+    "SchemaVersion": 1,
+    "Name": "Some mock application manifest",
+    "ComponentId": "${appId}",
+    "EntryPoint": "/bin/app",
+    "CmdArgs": [],
+    "Capabilities": {
+      "AllowedApplicationConnections": ${JSON.stringify(partnerIds)},
+      "Gpio": ${JSON.stringify(gpios)}
+    },
+    "ApplicationType": "Default"
+  }`);
+  if (parsedDummy) {
+    return parsedDummy;
+  } else {
+    throw error("Failed to create dummy app manifest");
+  }
 }
