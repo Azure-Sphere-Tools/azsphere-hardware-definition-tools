@@ -38,6 +38,19 @@ jobs:
       - run: npm test
         env:
           DISPLAY: ":99.0" # Only necessary for linux tests
+      - run: npm run coverage
+      - name: Archive code coverage report
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: code-coverage
+          path: coverage/**
+      - name: Archive code coverage summary
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: coverage-summary.json
+          path: coverage/coverage-summary.json
 
   build-visualstudio:
     runs-on: windows-latest

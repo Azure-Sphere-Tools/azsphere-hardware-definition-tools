@@ -1,4 +1,5 @@
 # Azure Sphere Hardware Definition Tools
+![build-badge](https://github.com/Azure-Sphere-Tools/azsphere-hardware-definition-tools/actions/workflows/build.yml/badge.svg)
 
 ## Functionality
 
