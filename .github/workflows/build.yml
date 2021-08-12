@@ -38,7 +38,7 @@ jobs:
       - run: npm test
         env:
           DISPLAY: ":99.0" # Only necessary for linux tests
-      - run: npm run coverage
+      - run: chmod +x scripts/e2e.sh && npm run coverage
       - name: Archive code coverage report
         if: always()
         uses: actions/upload-artifact@v2
