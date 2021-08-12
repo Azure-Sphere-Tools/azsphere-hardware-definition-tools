@@ -1,4 +1,6 @@
 # Azure Sphere Hardware Definition Tools
+![build-badge](https://github.com/Azure-Sphere-Tools/azsphere-hardware-definition-tools/actions/workflows/build.yml/badge.svg)
+![coverage-badge](https://img.shields.io/badge/dynamic/json?color=success&logo=mocha&logoColor=white&label=Coverage&query=total.statements.pct&url=https%3A%2F%2Fgithub.com%2FAzure-Sphere-Tools%2Fazsphere-hardware-definition-tools%2Freleases%2Fdownload%2Fbadges%2Fcoverage-summary.json)
 
 ## Functionality
 
