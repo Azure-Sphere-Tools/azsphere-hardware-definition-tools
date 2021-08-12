@@ -14,7 +14,7 @@ export const PIN_BLOCK_CONFLICT_WARNING_CODE = "AST6";
 
 export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
 export const APP_PIN_BLOCK_CONFLICT_WARNING_CODE = "AST11";
-export const APP_DUPLICATE_NAME_WARNING_CODE = "AST12";
+export const APP_DUPLICATE_VALUE_WARNING_CODE = "AST12";
 
 
 
@@ -133,10 +133,8 @@ export function indirectMappingWarning(badMapping: PinMapping, indirectMapping: 
 /**
  * 
  * @param pinMapping The pin mapping whose appManifestValue and type do not match
- * @param hwDefinitionUri The uri of the hardware definition in which the pin mapping is declared
- * @param includeRelatedInfo If the IDE supports the 'relatedInformation' property
  */
-export function invalidPinTypeError(pinMapping: PinMapping, hwDefinitionUri: string, includeRelatedInfo: boolean): Diagnostic {
+export function invalidPinTypeError(pinMapping: PinMapping): Diagnostic {
   const diagnostic: Diagnostic = {
     code: INVALID_PIN_TYPE_ERROR_CODE,
     message: `${pinMapping.mapping != undefined ? pinMapping.mapping.value.text : pinMapping.appManifestValue?.value.text} cannot be used as ${pinMapping.type.value.text}`,
@@ -144,17 +142,6 @@ export function invalidPinTypeError(pinMapping: PinMapping, hwDefinitionUri: str
     severity: DiagnosticSeverity.Error,
     source: EXTENSION_SOURCE
   };
-  if (includeRelatedInfo) {
-    diagnostic.relatedInformation = [
-      {
-        location: {
-          uri: hwDefinitionUri,
-          range: pinMapping.range
-        },
-        message: `[TODO] Alternative options to be suggested here`
-      }
-    ];
-  }
   return diagnostic;
 }
 
@@ -210,10 +197,10 @@ export function appConflictPinBlock(conflictPinName: string, partnerComponentId:
   };
 }
 
-export function appConflictDuplicateName(conflictPinName: string, partnerComponentId: string, range: Range, existingPinName: string) {
+export function appConflictDuplicateValue(conflictPinName: string, partnerComponentId: string, range: Range, existingPinName: string) {
   return{
-    code: APP_DUPLICATE_NAME_WARNING_CODE,
-    message: `${conflictPinName} is also declared in partner app ${partnerComponentId} and name is ${existingPinName}.`,
+    code: APP_DUPLICATE_VALUE_WARNING_CODE,
+    message: `App manifest value of ${conflictPinName} is also declared in partner app ${partnerComponentId} through ${existingPinName}.`,
     range: range,
     severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE

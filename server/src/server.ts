@@ -20,6 +20,8 @@ import {
   Connection,
   DidChangeConfigurationParams,
   TextDocumentChangeEvent,
+  DiagnosticSeverity,
+  ExecuteCommandParams,
 } from "vscode-languageserver/node";
 
 import { parseCommandsParams } from "./cMakeLists";
@@ -30,17 +32,23 @@ import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
 import { TextDocument } from "vscode-languageserver-textdocument";
-import { findUnknownImports, validateAppPinConflict, scanHardwareDefinition as scanHardwareDefinition } from "./validator";
+import { findUnknownImports, validateAppPinConflict, scanHardwareDefinition as scanHardwareDefinition, HardwareDefinitionScan } from "./validator";
 import { HardwareDefinition } from "./hardwareDefinition";
 import { addAppManifestPathsToSettings, AppManifest } from "./applicationManifest";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import { readFile } from "fs/promises";
 import { hwDefinitionHeaderGen } from "./hwDefHeaderGeneration";
 import { JsonHardwareDefinition, listOdmHardwareDefinitions, portHardwareDefinition, saveHardwareDefinition } from "./porting";
-import { Logger } from "./utils";
+import { HW_DEFINITION_SCHEMA_URL, Logger } from "./utils";
 import { Parser } from "./parser";
 
-const HW_DEFINITION_SCHEMA_URL = "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json";
+
+export const GET_AVAILABLE_PIN_TYPES_CMD = "getAvailablePinTypes";
+export const GET_AVAILABLE_PINS_CMD = "getAvailablePins";
+export const POST_PIN_AMOUNT_TO_GENERATE_CMD = "postPinAmountToGenerate";
+export const VALIDATE_HW_DEFINITION_CMD = "validateHwDefinition";
+export const GET_AVAILABLE_ODM_HARDWARE_DEFINITIONS_CMD = "getAvailableOdmHardwareDefinitions";
+export const PORT_HARDWARE_DEFINITION_CMD = "portHardwareDefinition";
 
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
@@ -72,12 +80,18 @@ export class LanguageServer {
 
   private logger: Logger 
 
-  constructor (connection: Connection, documents: TextDocuments<TextDocument>, logger: Logger, documentSettings = new Map<string, Thenable<ExtensionSettings>>()) {
+  constructor(
+    connection: Connection,
+    documents: TextDocuments<TextDocument>,
+    logger: Logger,
+    documentSettings = new Map<string, Thenable<ExtensionSettings>>(),
+    parser = new Parser(documents, logger)) {
+      
     this.connection = connection;
     this.documents = documents;
     this.globalSettings = defaultSettings();
     this.documentSettings = documentSettings;
-    this.parser = new Parser(documents, logger);
+    this.parser = parser;
     this.logger = logger;
   }
   
@@ -110,12 +124,12 @@ export class LanguageServer {
         // Commands requested from the client to the server
         executeCommandProvider: {
           commands: [
-            "getAvailablePins",
-            "getAvailablePinTypes",
-            "postPinAmountToGenerate",
-            "validateHwDefinition",
-            "getAvailableOdmHardwareDefinitions",
-            "portHardwareDefinition"
+            GET_AVAILABLE_PIN_TYPES_CMD,
+            GET_AVAILABLE_PINS_CMD,
+            POST_PIN_AMOUNT_TO_GENERATE_CMD,
+            VALIDATE_HW_DEFINITION_CMD,
+            GET_AVAILABLE_ODM_HARDWARE_DEFINITIONS_CMD,
+            PORT_HARDWARE_DEFINITION_CMD
           ]
         },
       },
@@ -143,102 +157,101 @@ export class LanguageServer {
     }
     // Server receives a request from the client
     this.connection.onExecuteCommand(async (event) => {
-      switch (event.command) {
-        case "getAvailablePinTypes":
-          if (event.arguments) {
-            const hwDefUri = event.arguments[0];
-            const hwDef = await this.getHardwareDefinition(hwDefUri);
-            if (hwDef) {
-              const pinTypes = await getPinTypes(hwDef);
-              if (pinTypes) {
-                return pinTypes;
-              } else {
-                this.displayNotification({ 
-                  message: "Hardware Definition file does not have any imports to generate pins from.",
-                  type: MessageType.Error
-                });
-              }
+      const commandResponse = await this.executeCommand(event);
+      return commandResponse;
+    });
+  }
 
-            }
-          }
-          break;
-        case "getAvailablePins":
-          if (event.arguments) {
-            const [hwDefUri, pinTypeSelected] = event.arguments;
-  
-            const hwDefinition = await this.getHardwareDefinition(hwDefUri);
-  
-            if (hwDefinition && pinTypeSelected) {
-              return getPinMappingSuggestions(hwDefinition, pinTypeSelected);
-            }
-          }
-          break;
-        case "postPinAmountToGenerate":
-          if (event.arguments) {
-            const [hwDefUri, pinsToAdd, pinType] = event.arguments;
-            const error = await addPinMappings(pinsToAdd, pinType, hwDefUri, await this.getFileText(hwDefUri));
-            if (error) {
+  async executeCommand(event: ExecuteCommandParams): Promise<any> {
+    switch (event.command) {
+      case GET_AVAILABLE_PIN_TYPES_CMD:
+        if (event.arguments) {
+          const hwDefUri = event.arguments[0];
+          const hwDef = await this.getHardwareDefinition(hwDefUri);
+          if (hwDef) {
+            const pinTypes = await getPinTypes(hwDef);
+            if (pinTypes) {
+              return pinTypes;
+            } else {
               this.displayNotification({
-                message: `Failed to add new pin mappings to ${hwDefUri} - ${error}.`,
+                message: "Hardware Definition file does not have any imports to generate pins from.",
                 type: MessageType.Error
               });
             }
-          }
-          break;
-        case "validateHwDefinition":
-          if (event.arguments) {
-            const hwDefinitionUri = event.arguments[0];
-            const sdkPath = (await this.getDocumentSettings(hwDefinitionUri)).SdkPath;
-            const hwDefinition = this.parser.tryParseHardwareDefinitionFile(
-              await readFile(URI.parse(hwDefinitionUri).fsPath, { encoding: "utf8" }), 
-              hwDefinitionUri, 
-              sdkPath
-            );
-  
-            return (hwDefinition !== undefined);
-          }
-          break;
-        case "getAvailableOdmHardwareDefinitions":
-          if (event.arguments) {
-            const currentDocumentUri = event.arguments[0];
-            const sdkPath = (await this.getDocumentSettings(currentDocumentUri)).SdkPath;
-            return listOdmHardwareDefinitions(sdkPath);
-          }
-          break;
-        case "portHardwareDefinition":
-          if (event.arguments) {
-            const openHwDefPath = event.arguments[0];
-            const targetHwDefPath = event.arguments[1];
-  
-            const openHwDefinitionUri = asURI(openHwDefPath);
-            const targetHwDefinitionUri = asURI(targetHwDefPath);
-  
-            const sdkPath = (await this.getDocumentSettings(openHwDefinitionUri)).SdkPath;
-  
-            const hwDefinition = this.parser.tryParseHardwareDefinitionFile(await readFile(openHwDefPath, { encoding: "utf8" }), openHwDefinitionUri, sdkPath);
-            const targetHwDefinition = this.parser.tryParseHardwareDefinitionFile(await readFile(targetHwDefPath, { encoding: "utf8" }), targetHwDefinitionUri, sdkPath);
-      
-            if (hwDefinition && targetHwDefinition) {
-              const jsonHwDefinition = <JsonHardwareDefinition>JSON.parse(await readFile(openHwDefPath, { encoding: "utf8" }));
-        
-              
-              const portedFileName = path.basename(openHwDefPath, ".json") + "-ported.json";
-              const portedPath = path.join(path.dirname(openHwDefPath), portedFileName);
-              // if target hw def is in sdk folder, only return its file name, otherwise return its path relative to where the generated file will be
-              const importPath = targetHwDefPath.includes(sdkPath) 
-                ? path.basename(targetHwDefPath) 
-                : path.relative(path.dirname(portedPath), targetHwDefPath);
 
-              const generated = portHardwareDefinition(jsonHwDefinition, hwDefinition, targetHwDefinition, importPath);
-              await saveHardwareDefinition(generated, portedPath);
-              return portedPath;
-            }
           }
-          break;
-        default:
-          this.logger.log(`Access Denied - ${event.command} not recognised`);
-      }
-    });
+        }
+        break;
+      case GET_AVAILABLE_PINS_CMD:
+        if (event.arguments) {
+          const [hwDefUri, pinTypeSelected] = event.arguments;
+
+          const hwDefinition = await this.getHardwareDefinition(hwDefUri);
+
+          if (hwDefinition && pinTypeSelected) {
+            return getPinMappingSuggestions(hwDefinition, pinTypeSelected);
+          }
+        }
+        break;
+      case POST_PIN_AMOUNT_TO_GENERATE_CMD:
+        if (event.arguments) {
+          const [hwDefUri, pinsToAdd, pinType] = event.arguments;
+          const error = await addPinMappings(pinsToAdd, pinType, hwDefUri, await this.getFileText(hwDefUri));
+          if (error) {
+            this.displayNotification({
+              message: `Failed to add new pin mappings to ${hwDefUri} - ${error}.`,
+              type: MessageType.Error
+            });
+          }
+        }
+        break;
+      case VALIDATE_HW_DEFINITION_CMD:
+        if (event.arguments) {
+          const hwDefinitionUri = event.arguments[0];
+          const hwDefinition: HardwareDefinition | undefined = await this.getHardwareDefinition(hwDefinitionUri);
+          return (hwDefinition !== undefined);
+        }
+        break;
+      case GET_AVAILABLE_ODM_HARDWARE_DEFINITIONS_CMD:
+        if (event.arguments) {
+          const currentDocumentUri = event.arguments[0];
+          const sdkPath = (await this.getDocumentSettings(currentDocumentUri)).SdkPath;
+          return listOdmHardwareDefinitions(sdkPath);
+        }
+        break;
+      case PORT_HARDWARE_DEFINITION_CMD:
+        if (event.arguments) {
+          const openHwDefPath = event.arguments[0];
+          const targetHwDefPath = event.arguments[1];
+
+          const openHwDefinitionUri = asURI(openHwDefPath);
+          const targetHwDefinitionUri = asURI(targetHwDefPath);
+
+          const sdkPath = (await this.getDocumentSettings(openHwDefinitionUri)).SdkPath;
+
+          const hwDefinition = this.parser.tryParseHardwareDefinitionFile(await readFile(openHwDefPath, { encoding: "utf8" }), openHwDefinitionUri, sdkPath);
+          const targetHwDefinition = this.parser.tryParseHardwareDefinitionFile(await readFile(targetHwDefPath, { encoding: "utf8" }), targetHwDefinitionUri, sdkPath);
+    
+          if (hwDefinition && targetHwDefinition) {
+            const jsonHwDefinition = <JsonHardwareDefinition>JSON.parse(await readFile(openHwDefPath, { encoding: "utf8" }));
+      
+            
+            const portedFileName = path.basename(openHwDefPath, ".json") + "-ported.json";
+            const portedPath = path.join(path.dirname(openHwDefPath), portedFileName);
+            // if target hw def is in sdk folder, only return its file name, otherwise return its path relative to where the generated file will be
+            const importPath = targetHwDefPath.includes(sdkPath)
+              ? path.basename(targetHwDefPath)
+              : path.relative(path.dirname(portedPath), targetHwDefPath);
+
+            const generated = portHardwareDefinition(jsonHwDefinition, hwDefinition, targetHwDefinition, importPath);
+            await saveHardwareDefinition(generated, portedPath);
+            return portedPath;
+          }
+        }
+        break;
+      default:
+        this.logger.log(`Access Denied - ${event.command} not recognised`);
+    }
   }
 
   onDidChangeConfiguration(change: DidChangeConfigurationParams): void {
@@ -271,7 +284,7 @@ export class LanguageServer {
     return result;
   }
 
-  async getHardwareDefinition(hwDefUri: any): Promise<HardwareDefinition | undefined> {
+  private async getHardwareDefinition(hwDefUri: string): Promise<HardwareDefinition | undefined> {
     const settings = await this.getDocumentSettings(hwDefUri);
   
     try {
@@ -297,7 +310,7 @@ export class LanguageServer {
         return;
       }
   
-      if (!hwDefinition.schema) {
+      if (hwDefinition.schema == undefined) {
         const fileName = textDocument.uri.substring(textDocument.uri.lastIndexOf("/") + 1);
         const msg: ShowMessageRequestParams = {
           message: `${fileName} detected as Hardware Definition file. Add a json schema for type hints?`,
@@ -305,7 +318,7 @@ export class LanguageServer {
           actions: [{ title: "Yes" }, { title: "No" }],
         };
         const addJsonSchemaRequest = this.connection.sendRequest(ShowMessageRequest.type, msg);
-        addJsonSchemaRequest.then((resp) => {
+        await addJsonSchemaRequest.then((resp) => {
           if (resp?.title == "Yes") {
             const positionToInsertSchemaNode = textDocument.positionAt(text.indexOf(`"Metadata"`));
   
@@ -330,8 +343,10 @@ export class LanguageServer {
   async onDidSave(save: TextDocumentChangeEvent<TextDocument>): Promise<void> {
     // Hardware Definition header generation
     if(isHardwareDefinitionFile(save.document.uri)) {
-      const uri = await this.validateHardwareDefinitionDoc(save.document);
-      if (uri) this.displayNotification(await hwDefinitionHeaderGen(uri));
+      const hwDefScan = await this.validateHardwareDefinitionDoc(save.document);
+      if (hwDefScan && hwDefScan.diagnostics.every(d => d.severity != DiagnosticSeverity.Error)) {
+       this.displayNotification(await hwDefinitionHeaderGen(save.document.uri));
+      }
     }
   }
 
@@ -343,16 +358,17 @@ export class LanguageServer {
     await this.validateDocument(change.document);
   }
 
-  async validateDocument(textDocument: TextDocument): Promise<string | undefined> {
+  private async validateDocument(textDocument: TextDocument): Promise<void> {
     if (isAppManifestFile(textDocument.uri) && settingsPath) {
       const appManifest = this.parser.tryParseAppManifestFile(textDocument.getText());
       
       if (!appManifest) {
         return;
       }
+      const appManifestPath = URI.parse(textDocument.uri).fsPath;
       const existingPartnerAppPaths = (await this.getDocumentSettings(textDocument.uri)).partnerApplicationPaths;
       const absoluteSettingsPath = path.resolve(settingsPath);
-      const detectedPartnerApplications = await addAppManifestPathsToSettings(textDocument.uri, absoluteSettingsPath, this.logger);
+      const detectedPartnerApplications = await addAppManifestPathsToSettings(appManifestPath, appManifest, absoluteSettingsPath, this.logger);
       const newPartnerApplications = detectedPartnerApplications.filter(appId => !existingPartnerAppPaths.has(appId));
       if (newPartnerApplications.length > 0) {
         const msg: ShowMessageParams = {
@@ -371,7 +387,7 @@ export class LanguageServer {
     }
   }
 
-  async validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
+  private async validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
     const settings = await this.getDocumentSettings(textDocument.uri);
 
     const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));
@@ -423,7 +439,7 @@ export class LanguageServer {
     this.connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
   }
 
-  async validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<string | undefined> {
+  async validateHardwareDefinitionDoc(textDocument: TextDocument): Promise<HardwareDefinitionScan | undefined> {
     const settings = await this.getDocumentSettings(textDocument.uri);
   
     const hwDefinition = this.parser.tryParseHardwareDefinitionFile(textDocument.getText(), textDocument.uri, settings.SdkPath);
@@ -440,10 +456,10 @@ export class LanguageServer {
     // Send the computed diagnostics to VSCode.
     this.connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
   
-    return textDocument.uri;
+    return hwDefinitionScan;
   }
 
-  async getFileText(uri: string): Promise<string> {
+  private async getFileText(uri: string): Promise<string> {
     let fileText = this.documents.get(uri)?.getText();
     if (!fileText) {
       fileText = await readFile(URI.parse(uri).fsPath, { encoding: "utf8" });
@@ -451,7 +467,7 @@ export class LanguageServer {
     return fileText;
   }
 
-  displayNotification(notification: ShowMessageParams | undefined) {
+  private displayNotification(notification: ShowMessageParams | undefined) {
     if (notification) this.connection.sendNotification(ShowMessageNotification.type, notification);
   }
 
@@ -492,7 +508,7 @@ export class LanguageServer {
 }
 
 // The extension settings
-interface ExtensionSettings {
+export interface ExtensionSettings {
   SdkPath: string;
   partnerApplicationPaths: Map<string, string>;
 }
@@ -525,7 +541,7 @@ function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
 }
 
 
-const setSettingPath = (projectRootUri: URI, ide: string | undefined) => {
+export const setSettingPath = (projectRootUri: URI, ide: string | undefined) => {
   let settingsRelativeLocation: string;
   if (ide && ide.includes("Visual Studio Code")) {
     settingsRelativeLocation = ".vscode/settings.json";

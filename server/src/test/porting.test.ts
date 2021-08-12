@@ -4,6 +4,7 @@ import * as path from "path";
 import { JsonHardwareDefinition, listOdmHardwareDefinitions, portHardwareDefinition } from "../porting";
 import { readFile } from "fs/promises";
 import { Parser } from "../parser";
+import { HW_DEFINITION_SCHEMA_URL } from "../utils";
 
 suite("listOdmHardwareDefinitions", () => {
   // unmock the file system after each test
@@ -102,7 +103,7 @@ suite("portHardwareDefinition", () => {
     
     const expectedPorted = `
     {
-      "$schema": "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+      "$schema": "${HW_DEFINITION_SCHEMA_URL}",
       "Description": { 
         "Name": "Ported to support ${targetHwDefPath} - Created from ${hwDefToPortName}",
         "MainCoreHeaderFileTopContent": [ "// Some text" ]      
@@ -178,7 +179,7 @@ suite("portHardwareDefinition", () => {
     
     const expectedPorted = `
     {
-      "$schema": "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+      "$schema": "${HW_DEFINITION_SCHEMA_URL}",
       "Description": { "Name": "Ported to support ${targetHwDefPath} - Created from ${hwDefToPortName}" },
       "Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 },
       "Imports":[{ "Path": "${targetHwDefPath}" }],
@@ -251,7 +252,7 @@ suite("portHardwareDefinition", () => {
     
     const expectedPorted = `
     {
-      "$schema": "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+      "$schema": "${HW_DEFINITION_SCHEMA_URL}",
       "Description": { "Name": "Ported to support ${targetHwDefPath} - Created from ${hwDefToPortName}" },
       "Metadata": { "Type": "Azure Sphere Hardware Definition", "Version": 1 },
       "Imports":[{ "Path": "${targetHwDefPath}" }],
