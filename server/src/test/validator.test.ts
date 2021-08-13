@@ -682,11 +682,16 @@ suite('validateApplicationManifest', () => {
 		const hwSpiMasterPin = getDummyPinMapping({ range: getRange(8, 0, 8, 17), name: 'SAMPLE_SpiMaster1', type: 'SpiMaster', mapping: "MT3620_ISU4_SPI" });
 		const hwAdcPin = getDummyPinMapping({ range: getRange(9, 0, 9, 22), name: 'SAMPLE_ADC_CONTROLLER0', type: 'Adc', mapping: "MT3620_ADC_CONTROLLER0" });
     const hwDefFilePath = "my_app/hardwareDef.json";
-		const hwPinArray = [hwGpioPin1, hwGpioPin2, hwI2cMasterPin1, hwI2cMasterPin2, hwPwmPin1, hwPwmPin2, hwUartPin1, hwUartPin2, hwSpiMasterPin, hwAdcPin];
+		const hwPinArray = [hwGpioPin2, hwI2cMasterPin1, hwPwmPin2, hwUartPin2];
 		const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, hwPinArray, [importedhwDefinitionFile]);
 		const hwDefinitionScan = scanHardwareDefinition(hwDefinitionFile, true);
 
-		const warningDiagnostics = validateAppPinConflict(hwDefinitionScan, appManifest, partnerAppManifest);
+		const partnerhwDefFilePath = "my_app/hardwareDef1.json";
+		const partnerhwPinArray = [hwGpioPin1, hwI2cMasterPin1, hwPwmPin1, hwUartPin1, hwSpiMasterPin, hwAdcPin];
+		const partnerhwDefinitionFile = new HardwareDefinition(asURI(partnerhwDefFilePath), undefined, partnerhwPinArray, [importedhwDefinitionFile]);
+		const hpartnerwDefinitionScan = scanHardwareDefinition(partnerhwDefinitionFile, true);
+
+		const warningDiagnostics = validateAppPinConflict(hwDefinitionScan, hpartnerwDefinitionScan, appManifest, partnerAppManifest);
 		
 		assert.strictEqual(warningDiagnostics.length, 3);
 		

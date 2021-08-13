@@ -392,11 +392,23 @@ export class LanguageServer {
       if (settings.partnerApplicationPaths.has(partner)) {
         const partnerAppManifestPath = <string>settings.partnerApplicationPaths.get(partner);
         if (fs.existsSync(partnerAppManifestPath)) {
+          const partnerCMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(asURI(partnerAppManifestPath)).fsPath), "CMakeLists.txt"));
+          const partnerHWDefinitionPath = parseCommandsParams(partnerCMakeListsPath, this.logger);
+          if (!partnerHWDefinitionPath) {
+            return;
+          }
+          const partnerHWDefinitionText: string = await this.getFileText(asURI(partnerHWDefinitionPath));
+          const partnerHWDefinition = this.parser.tryParseHardwareDefinitionFile(partnerHWDefinitionText, partnerHWDefinitionPath, settings.SdkPath);
+        
+          if (!partnerHWDefinition) {
+            return;
+          }
+          const partnerHWDefScan = scanHardwareDefinition(partnerHWDefinition, true);
           const partnerAppManifestText = await this.getFileText(asURI(partnerAppManifestPath));
           const partnerAppManifest = this.parser.tryParseAppManifestFile(partnerAppManifestText);
           
           if(partnerAppManifest){
-            diagnostics.push(...validateAppPinConflict(hwDefScan, appManifest, partnerAppManifest));
+            diagnostics.push(...validateAppPinConflict(hwDefScan, partnerHWDefScan, appManifest, partnerAppManifest));
           }
         } else {
           this.displayNotification({

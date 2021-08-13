@@ -252,7 +252,7 @@ export function validatePinBlock(pinsToValidate: FlatPinMapping[], controllerSet
  * @param partnerAppManifest Record the information of partner app_manifest file
  * @returns Diagnostics with the app_manifest file underlying pin conflicts
  */
-export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, appManifest: AppManifest, partnerAppManifest: AppManifest ): Diagnostic[] => {
+export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, partnerHWDefScan: HardwareDefinitionScan, appManifest: AppManifest, partnerAppManifest: AppManifest ): Diagnostic[] => {
 	const warningDiagnostics: Diagnostic[] = [];
 
 	const appManifestMap = appManifest.Capabilities.RecordMap;
@@ -261,7 +261,7 @@ export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, appMan
 	const partnerController: Map<string, {pinType: string, pinName: string}> = new Map();
 	for(const [pinType, value] of partnerMap){
 		const partnerPinNames = partnerMap.get(pinType)?.value.text as string[];
-		const partnerAppManifestValues = findAppManifestValue(hwDefScan, partnerPinNames);
+		const partnerAppManifestValues = findAppManifestValue(partnerHWDefScan, partnerPinNames);
 
 		for (let index = 0; index < partnerAppManifestValues.length; index++) {
 			const controller = getController(pinType, partnerAppManifestValues[index]);
@@ -274,7 +274,7 @@ export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, appMan
 			const partnerPinNames = partnerMap.get(pinType)?.value.text as string[];
 			const appPinNames = value?.value.text as string[];
 			const appManifestValues = findAppManifestValue(hwDefScan, appPinNames);
-			const partnerAppManifestValues = findAppManifestValue(hwDefScan, partnerPinNames);
+			const partnerAppManifestValues = findAppManifestValue(partnerHWDefScan, partnerPinNames);
 
 			for (let index = 0; index < appManifestValues.length; index++) {
 				// find the pin conflict base on the pin block
