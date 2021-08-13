@@ -53,11 +53,10 @@ export interface UnknownImport {
 	end: number
 }
 
-export function toRange(text: string, start: number, end: number): Range {
-
+export function toRange(text: string, start: number, end: number, lineOffsets?: number[]): Range {
 	return {
-		start: toPosition(text, start),
-		end: toPosition(text, end)
+		start: toPosition(text, start, lineOffsets),
+		end: toPosition(text, end, lineOffsets)
 	};
 }
 
@@ -83,10 +82,10 @@ export function isInsideRange(position: Position, range: Range) {
 * Based off of https://github.com/microsoft/vscode-languageserver-node
 */
 
-export function toPosition(text: string, offset: number): Position {
+export function toPosition(text: string, offset: number, lineOffsets?: number[]): Position {
 	offset = Math.max(Math.min(offset, text.length), 0);
 
-	const lineOffsets = computeLineOffsets(text, true);
+	lineOffsets = lineOffsets ?? computeLineOffsets(text, true);
 	let low = 0, high = lineOffsets.length;
 	if (high === 0) {
 		return { line: 0, character: offset };
@@ -105,7 +104,7 @@ export function toPosition(text: string, offset: number): Position {
 	return { line, character: offset - lineOffsets[line] };
 }
 
-function computeLineOffsets(text: string, isAtLineStart: boolean, textOffset = 0): number[] {
+export function computeLineOffsets(text: string, isAtLineStart: boolean, textOffset = 0): number[] {
 	const result: number[] = isAtLineStart ? [textOffset] : [];
 	for (let i = 0; i < text.length; i++) {
 		const ch = text.charCodeAt(i);
