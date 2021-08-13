@@ -260,7 +260,7 @@ export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, partne
 
 	const partnerController: Map<string, {pinType: string, pinName: string}> = new Map();
 	for(const [pinType, value] of partnerMap){
-		const partnerPinNames = partnerMap.get(pinType)?.value.text as string[];
+		const partnerPinNames = partnerMap.get(pinType)?.value.text;
 		const partnerAppManifestValues = findAppManifestValue(partnerHWDefScan, partnerPinNames);
 
 		for (let index = 0; index < partnerAppManifestValues.length; index++) {
@@ -271,8 +271,8 @@ export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, partne
 
 	for(const [pinType, value] of appManifestMap){
 		if(partnerMap.has(pinType)){
-			const partnerPinNames = partnerMap.get(pinType)?.value.text as string[];
-			const appPinNames = value?.value.text as string[];
+			const partnerPinNames = partnerMap.get(pinType)?.value.text;
+			const appPinNames = value?.value.text;
 			const appManifestValues = findAppManifestValue(hwDefScan, appPinNames);
 			const partnerAppManifestValues = findAppManifestValue(partnerHWDefScan, partnerPinNames);
 
@@ -283,14 +283,16 @@ export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, partne
 				if(existingControllerSetup?.pinType != undefined &&
 					existingControllerSetup?.pinType != pinType){
 					const range = value?.value.range;
-					const diagnostic: Diagnostic = appConflictPinBlock(appPinNames[index], partnerAppManifest.ComponentId,range, existingControllerSetup);
+					const diagnostic: Diagnostic = appConflictPinBlock(appPinNames[index], partnerAppManifest.ComponentId, range, existingControllerSetup);
 					warningDiagnostics.push(diagnostic);
 				}
 				
 				// find the pin conflic for duplicate name
 				if(partnerAppManifestValues.includes(appManifestValues[index])){
+					const location = partnerAppManifestValues.indexOf(appManifestValues[index]);
+					const existingPinName = partnerPinNames[location];
 					const range = value?.value.range;
-					const diagnostic: Diagnostic = appConflictDuplicateName(appPinNames[index], partnerAppManifest.ComponentId,range);
+					const diagnostic: Diagnostic = appConflictDuplicateName(appPinNames[index], partnerAppManifest.ComponentId, range, existingPinName);
 					warningDiagnostics.push(diagnostic);
 				}
 			}
@@ -307,7 +309,7 @@ export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, partne
  * @param pinNames The pin array that needs to find the appmanifest value
  * @returns appmanifest value array for the pin array
  */
-export function findAppManifestValue(hwDefScan: HardwareDefinitionScan, pinNames: string[]): string[] {
+export function findAppManifestValue(hwDefScan: HardwareDefinitionScan, pinNames: any[]): any[] {
   const result = [];
   if (pinNames) {
     for (const name of pinNames) {
