@@ -316,7 +316,7 @@ export function findAppManifestValue(hwDefScan: HardwareDefinitionScan, pinNames
       if (name.toString().includes("$")) {
         const pinName = name.replace('$', '');
         const appManifestValue = hwDefScan.getAppManifestValue(pinName);
-        result.push(appManifestValue as string);
+        result.push(appManifestValue);
       } else {
         result.push(name);
       }
