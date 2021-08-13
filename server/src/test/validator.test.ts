@@ -695,7 +695,7 @@ suite('validateApplicationManifest', () => {
 		
 		assert.strictEqual(warningDiagnostics.length, 3);
 		
-		assert.strictEqual(warningDiagnostics[0].message, "$SAMPLE_I2C1 is also declared in partner app FGHIJ.");
+		assert.strictEqual(warningDiagnostics[0].message, "$SAMPLE_I2C1 is also declared in partner app FGHIJ and name is $SAMPLE_I2C1.");
 		assert.deepStrictEqual(warningDiagnostics[0].range, getRange(2,11,2,23));
 		assert.strictEqual(warningDiagnostics[0].severity, 2);
 		assert.strictEqual(warningDiagnostics[0].source, 'az sphere');
@@ -707,7 +707,7 @@ suite('validateApplicationManifest', () => {
 		assert.strictEqual(warningDiagnostics[1].source, 'az sphere');
 		assert.strictEqual(warningDiagnostics[1].code, 'AST11');
 
-		assert.strictEqual(warningDiagnostics[2].message, "ADC-CONTROLLER-0 is also declared in partner app FGHIJ.");
+		assert.strictEqual(warningDiagnostics[2].message, "ADC-CONTROLLER-0 is also declared in partner app FGHIJ and name is $SAMPLE_ADC_CONTROLLER0.");
 		assert.deepStrictEqual(warningDiagnostics[2].range, getRange(6,4,6,20));
 		assert.strictEqual(warningDiagnostics[2].severity, 2);
 		assert.strictEqual(warningDiagnostics[2].source, 'az sphere');
