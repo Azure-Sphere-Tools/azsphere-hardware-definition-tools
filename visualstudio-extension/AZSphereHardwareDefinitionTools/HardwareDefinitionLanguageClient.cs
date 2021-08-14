@@ -2,6 +2,9 @@
 using Microsoft.VisualStudio.LanguageServer.Protocol;
 using Microsoft.VisualStudio.Threading;
 using Microsoft.VisualStudio.Utilities;
+using Microsoft.VisualStudio.Workspace;
+using Microsoft.VisualStudio.Workspace.Settings;
+using Microsoft.VisualStudio.Workspace.VSIntegration.Contracts;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using StreamJsonRpc;
@@ -40,10 +43,19 @@ namespace AZSphereHardwareDefinitionTools
 
     public object MiddleLayer => DiagnosticsAdjustmentMiddleLayer.Instance;
 
-    public object CustomMessageTarget => null;
+    public object CustomMessageTarget { get; }
 
     public JsonRpc Rpc { get; private set; }
+    
+    public IVsFolderWorkspaceService WorkspaceService { get; }
 
+    [ImportingConstructor]
+    public HardwareDefinitionLanguageClient([Import] IVsFolderWorkspaceService wsService)
+    {
+      WorkspaceService = wsService;
+      CustomMessageTarget = new CustomMessageHandler(wsService);
+    }
+    
     public async Task<Connection> ActivateAsync(CancellationToken token)
     {
       // call Task.Yield() to force extension activation to run asynchronously and avoid risk of blocking main thread
@@ -130,6 +142,7 @@ namespace AZSphereHardwareDefinitionTools
     }
     #endregion
 
+
     #region Port Hardware Definition commands
     public async Task<bool> ValidateHwDefinitionAsync(string hwDefUri)
     {
@@ -177,6 +190,64 @@ namespace AZSphereHardwareDefinitionTools
 
       [JsonProperty("path")]
       public string Path { get; set; }
+    }
+  }
+
+  /// <summary>
+  /// Custom Language Server Message Handler to support customized notifications/requests like updating the partner app settings.
+  /// </summary>
+  public class CustomMessageHandler
+  {
+    private const string PARTNER_APPS_SETTINGS_KEY = "AzureSphere.partnerApplications";
+
+    public IVsFolderWorkspaceService WorkspaceService { get; }
+
+    public CustomMessageHandler(IVsFolderWorkspaceService workspaceService)
+    {
+      WorkspaceService = workspaceService;
+    }
+
+
+    [JsonRpcMethod("hardwareDefinitions/updatePartnerApps")]
+    public async Task OnUpdatePartnerAppsAsync(JToken arg)
+    {
+      var newPartnerApps = arg.ToObject<PartnerAppsSettings>();
+
+      var ws = WorkspaceService.CurrentWorkspace;
+      var manager = ws.GetSettingsManager();
+
+      using (IWorkspaceSettingsPersistance workspaceSettingsPersistance = await manager.GetPersistanceAsync(true))
+      {
+        var settingsWriter = await workspaceSettingsPersistance.GetWriter(SettingsTypes.Generic);
+        var partnerApps = settingsWriter.Property(PARTNER_APPS_SETTINGS_KEY, new PartnerAppsSettings { appIdsToPaths = new Dictionary<string, string>() });
+        foreach (var partnerApp in newPartnerApps.appIdsToPaths)
+        {
+          partnerApps.appIdsToPaths[partnerApp.Key] = partnerApp.Value;
+        }
+        settingsWriter.SetProperty(PARTNER_APPS_SETTINGS_KEY, partnerApps);
+      }
+    }
+  }
+
+  /// <summary>
+  /// Represents the partnerApplications settings. Must be implemented as a struct to be written by the workspace settings manager.
+  /// </summary>
+  [JsonConverter(typeof(PartnerAppJsonConverter))]
+  struct PartnerAppsSettings
+  {
+    public Dictionary<string, string> appIdsToPaths;
+  }
+  class PartnerAppJsonConverter : JsonConverter<PartnerAppsSettings>
+  {
+    public override PartnerAppsSettings ReadJson(JsonReader reader, Type objectType, PartnerAppsSettings existingValue, bool hasExistingValue, JsonSerializer serializer)
+    {
+      var partnerApps = serializer.Deserialize<Dictionary<string, string>>(reader);
+      return new PartnerAppsSettings { appIdsToPaths = partnerApps };
+    }
+
+    public override void WriteJson(JsonWriter writer, PartnerAppsSettings value, JsonSerializer serializer)
+    {
+      serializer.Serialize(writer, value.appIdsToPaths);
     }
   }
 }

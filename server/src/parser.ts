@@ -1,4 +1,4 @@
-import { AppManifest, AppPin } from "./applicationManifest";
+import { AppManifest, AppPin, AppPinKey } from "./applicationManifest";
 import * as jsonc from "jsonc-parser";
 import { Logger } from "./utils";
 import { computeLineOffsets, HardwareDefinition, PinMapping, toRange, UnknownImport } from "./hardwareDefinition";
@@ -140,10 +140,10 @@ export class Parser {
   
       const CapabilitiesAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(AppManifestFileRootNode, ["Capabilities"]);
   
-      const values: Map<string, any> = new Map();
+      const values = new Map<string, AppPinKey<any>>();
       const lineOffsets = computeLineOffsets(AppManifestFileText, true);
       CapabilitiesAsJsonNode.children?.forEach((keyValue) => {
-        if (keyValue.children) {
+        if (keyValue.children && keyValue.children.length >= 2) {
           values.set(keyValue.children[0].value, {
             range: toRange(AppManifestFileText, keyValue.offset, keyValue.offset + keyValue.length, lineOffsets),
             key: {
@@ -153,7 +153,7 @@ export class Parser {
             value: {
               range: toRange(AppManifestFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length, lineOffsets),
               text: temptValue.get(keyValue.children[0].value),
-            },
+            }
           });
         }
       });

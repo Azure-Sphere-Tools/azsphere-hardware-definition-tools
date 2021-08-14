@@ -31,16 +31,17 @@ import { quickfix } from "./codeActionProvider";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
-import { TextDocument } from "vscode-languageserver-textdocument";
+import { Range, TextDocument } from "vscode-languageserver-textdocument";
 import { findUnknownImports, validateAppPinConflict, scanHardwareDefinition as scanHardwareDefinition, HardwareDefinitionScan } from "./validator";
 import { HardwareDefinition } from "./hardwareDefinition";
-import { addAppManifestPathsToSettings, AppManifest } from "./applicationManifest";
+import { partnerAppsToAddInSettings, AppManifest } from "./applicationManifest";
 import { getPinTypes, addPinMappings } from "./pinMappingGeneration";
 import { readFile } from "fs/promises";
 import { hwDefinitionHeaderGen } from "./hwDefHeaderGeneration";
 import { JsonHardwareDefinition, listOdmHardwareDefinitions, portHardwareDefinition, saveHardwareDefinition } from "./porting";
 import { HW_DEFINITION_SCHEMA_URL, Logger } from "./utils";
 import { Parser } from "./parser";
+import { appManifestNotFound } from "./diagnostics";
 
 
 export const GET_AVAILABLE_PIN_TYPES_CMD = "getAvailablePinTypes";
@@ -50,11 +51,13 @@ export const VALIDATE_HW_DEFINITION_CMD = "validateHwDefinition";
 export const GET_AVAILABLE_ODM_HARDWARE_DEFINITIONS_CMD = "getAvailableOdmHardwareDefinitions";
 export const PORT_HARDWARE_DEFINITION_CMD = "portHardwareDefinition";
 
+const UPDATE_PARTNER_APPS_NOTIF = "hardwareDefinitions/updatePartnerApps";
+
 let hasConfigurationCapability = false;
 let hasWorkspaceFolderCapability = false;
 let hasDiagnosticRelatedInformationCapability = false;
 let hasCodeActionLiteralsCapability = false;
-let settingsPath: string;
+let settingsDisplayName: string;
 
 
 export class LanguageServer {
@@ -98,9 +101,7 @@ export class LanguageServer {
   onInitialize(params: InitializeParams): InitializeResult<any> {
     const capabilities = params.capabilities;
 
-    // Set settings.json path
-    const projectRootUri: URI = URI.parse(params.workspaceFolders ? params.workspaceFolders[0].uri : params.rootUri ?? "");
-    setSettingPath(projectRootUri, params.clientInfo?.name);
+    setSettingsName(params.clientInfo?.name);
 
     // Does the client support the `workspace/configuration` request?
     // If not, we fall back using global settings.
@@ -263,7 +264,7 @@ export class LanguageServer {
     }
   
     // Revalidate all open text documents
-    this.documents.all().forEach(this.validateDocument);
+    this.documents.all().forEach((doc) => this.validateDocument(doc));
   }
 
   getDocumentSettings(resource: string): Thenable<ExtensionSettings> {
@@ -344,8 +345,10 @@ export class LanguageServer {
     // Hardware Definition header generation
     if(isHardwareDefinitionFile(save.document.uri)) {
       const hwDefScan = await this.validateHardwareDefinitionDoc(save.document);
-      if (hwDefScan && hwDefScan.diagnostics.every(d => d.severity != DiagnosticSeverity.Error)) {
-       this.displayNotification(await hwDefinitionHeaderGen(save.document.uri));
+      const hasNoSevereErrors = hwDefScan?.diagnostics.every(d => d.severity != DiagnosticSeverity.Error);
+      if (hwDefScan && hasNoSevereErrors) {
+        const result = await hwDefinitionHeaderGen(save.document.uri);
+        this.displayNotification(result, "header-gen");
       }
     }
   }
@@ -359,7 +362,7 @@ export class LanguageServer {
   }
 
   private async validateDocument(textDocument: TextDocument): Promise<void> {
-    if (isAppManifestFile(textDocument.uri) && settingsPath) {
+    if (isAppManifestFile(textDocument.uri) && settingsDisplayName) {
       const appManifest = this.parser.tryParseAppManifestFile(textDocument.getText());
       
       if (!appManifest) {
@@ -367,16 +370,16 @@ export class LanguageServer {
       }
       const appManifestPath = URI.parse(textDocument.uri).fsPath;
       const existingPartnerAppPaths = (await this.getDocumentSettings(textDocument.uri)).partnerApplicationPaths;
-      const absoluteSettingsPath = path.resolve(settingsPath);
-      const detectedPartnerApplications = await addAppManifestPathsToSettings(appManifestPath, appManifest, absoluteSettingsPath, this.logger);
-      const newPartnerApplications = detectedPartnerApplications.filter(appId => !existingPartnerAppPaths.has(appId));
-      if (newPartnerApplications.length > 0) {
+      const partnerAppsToUpdate = await partnerAppsToAddInSettings(appManifestPath, appManifest, existingPartnerAppPaths);
+      if (Object.keys(partnerAppsToUpdate).length > 0) {
+        this.connection.sendNotification(UPDATE_PARTNER_APPS_NOTIF, partnerAppsToUpdate);
+        const partnerAppIds = Object.keys(partnerAppsToUpdate).filter(id => id != appManifest.ComponentId);
         const msg: ShowMessageParams = {
-          message: `Partner applications ${newPartnerApplications.join(", ")} detected, add their app_manifest.json paths ` 
-            + `to your ${path.basename(settingsPath)} to enable cross-application conflict detection`,
+          message: `Partner applications ${partnerAppIds.join(", ")} detected, open their app_manifest.json ` 
+            + `or add them to your ${settingsDisplayName} to enable cross-application conflict detection`,
           type: MessageType.Warning,
         };
-        this.displayNotification(msg);
+        this.displayNotification(msg, "app-manifest");
       }
   
       await this.validateAppManifestDoc(textDocument, appManifest);
@@ -404,7 +407,7 @@ export class LanguageServer {
     const hwDefScan = scanHardwareDefinition(hwDefinition, true);
   
     const diagnostics: Diagnostic[] = [];
-    for (const partner of appManifest.Capabilities.AllowedApplicationConnections as [string]) {
+    for (const partner of appManifest.Capabilities.AllowedApplicationConnections ?? []) {
       if (settings.partnerApplicationPaths.has(partner)) {
         const partnerAppManifestPath = <string>settings.partnerApplicationPaths.get(partner);
         if (fs.existsSync(partnerAppManifestPath)) {
@@ -427,11 +430,8 @@ export class LanguageServer {
             diagnostics.push(...validateAppPinConflict(hwDefScan, partnerHWDefScan, appManifest, partnerAppManifest));
           }
         } else {
-          this.displayNotification({
-            message: `Could not find partner app ${partner} under path "${partnerAppManifestPath}".\n`
-              + `Please check your ${path.basename(settingsPath)} to fix the path to the partner app manifest.`, 
-            type: MessageType.Error
-          });
+          const partnerAppIdsRange = <Range>appManifest.Capabilities.allowedAppConnectionsRange();
+          diagnostics.push(appManifestNotFound(partner, partnerAppManifestPath, settingsDisplayName, partnerAppIdsRange));
         }
       }
     }
@@ -467,8 +467,25 @@ export class LanguageServer {
     return fileText;
   }
 
-  private displayNotification(notification: ShowMessageParams | undefined) {
-    if (notification) this.connection.sendNotification(ShowMessageNotification.type, notification);
+  private static readonly NOTIF_TIMEOUT_MS = 10000;
+  private timedOutNotifs = new Map<TimeoutKey, number>();
+  /**
+   * 
+   * @param notification The notification to display
+   * @param timeoutKey If set, the notification will not be displayed if another one with the same key was displayed recently
+   */
+  private displayNotification(notification: ShowMessageParams, timeoutKey?: TimeoutKey) {
+    if (timeoutKey) {
+      const currentTimeMs = Date.now();
+      const lastNotified = this.timedOutNotifs.get(timeoutKey) ?? 0;
+      const canNotify = (currentTimeMs - lastNotified) > LanguageServer.NOTIF_TIMEOUT_MS;
+      if (canNotify) {
+        this.timedOutNotifs.set(timeoutKey, currentTimeMs);      
+        this.connection.sendNotification(ShowMessageNotification.type, notification);
+      }
+    } else {
+      this.connection.sendNotification(ShowMessageNotification.type, notification);
+    }
   }
 
   async onCodeAction(parms: CodeActionParams): Promise<CodeAction[]> {
@@ -541,14 +558,12 @@ function toExtensionSettings(settingsToValidate: any): ExtensionSettings {
 }
 
 
-export const setSettingPath = (projectRootUri: URI, ide: string | undefined) => {
-  let settingsRelativeLocation: string;
+const setSettingsName = (ide: string | undefined) => {
   if (ide && ide.includes("Visual Studio Code")) {
-    settingsRelativeLocation = ".vscode/settings.json";
+    settingsDisplayName = ".vscode/settings.json or .code-workspace";
   } else {
-    settingsRelativeLocation = ".vs/VSWorkspaceSettings.json";
+    settingsDisplayName = ".vs/VSWorkspaceSettings.json";
   }
-  settingsPath = path.join(projectRootUri.fsPath, settingsRelativeLocation);
 };
 
 function isHardwareDefinitionFile(uri: string) {
@@ -563,6 +578,10 @@ function asURI(filePath: string): string {
   return URI.file(path.resolve(filePath)).toString();
 }
 
+/**
+ * Unique key to identify notifications of the same kind that shouldn't be frequently displayed
+ */
+type TimeoutKey = "header-gen" | "app-manifest";
 
 export function startLanguageServer(connection: Connection) {
   const documents: TextDocuments<TextDocument> = new TextDocuments(TextDocument);

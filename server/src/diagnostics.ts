@@ -15,7 +15,7 @@ export const PIN_BLOCK_CONFLICT_WARNING_CODE = "AST6";
 export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
 export const APP_PIN_BLOCK_CONFLICT_WARNING_CODE = "AST11";
 export const APP_DUPLICATE_VALUE_WARNING_CODE = "AST12";
-
+export const APP_MANIFEST_NOT_FOUND_WARNING_CODE = "AST13";
 
 
 /**
@@ -207,6 +207,16 @@ export function appConflictDuplicateValue(conflictPinName: string, partnerCompon
   };
 }
 
+export function appManifestNotFound(partnerId: string, partnerAppManifestPath: string, settingsName: string, range: Range) {
+  return{
+    code: APP_MANIFEST_NOT_FOUND_WARNING_CODE,
+    message: `Could not find partner app ${partnerId} under path "${partnerAppManifestPath}".\n`
+      + `Please check your ${settingsName} file to fix the path to the partner app manifest.`,
+    range: range,
+    severity: DiagnosticSeverity.Warning,
+    source: EXTENSION_SOURCE
+  };
+}
 
 /**
  * @param diagnostic Adds a diagnostic's related information directly in its message under the form (line x, char y)
