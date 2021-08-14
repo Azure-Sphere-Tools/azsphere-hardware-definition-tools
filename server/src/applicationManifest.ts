@@ -1,9 +1,4 @@
 import { Range } from 'vscode-languageserver-textdocument';
-import { readFile, writeFile, appendFile, mkdir } from "fs/promises";
-import * as fs from "fs";
-import * as path from "path";
-import * as jsonc from "jsonc-parser";
-import { Logger } from "./utils";
 
 export class AppManifest {
   constructor(
@@ -21,8 +16,12 @@ export class AppPin {
     public SpiMaster: AppPinKey<(string | number)[]> | undefined,
     public Adc: AppPinKey<(string | number)[]> | undefined,
     public AllowedApplicationConnections: string[] | undefined,
-    public RecordMap: Map<string, any>
+    public RecordMap: Map<string, AppPinKey<any>>,
   ) { }
+
+  allowedAppConnectionsRange(): Range | undefined {
+    return this.RecordMap.get("AllowedApplicationConnections")?.value.range;
+  }
 }
 
 export type AppPinKey<T> = {
@@ -37,8 +36,14 @@ export type AppPinKey<T> = {
   }
 }
 
-
-export const addAppManifestPathsToSettings = async (appManifestPath: string, appManifest: AppManifest, settingsPath: string, logger: Logger = console): Promise<string[]> => {
+/**
+ * Finds the app ids/app manifest paths that should be added in settings based on the given app manifest
+ * @param appManifestPath Path to the given app manifest
+ * @param appManifest App manifest under which to search for partner applications
+ * @param partnerAppsFromSettings Map of app id to app manifest paths that already exists in the settings
+ * @returns Record<string, string> where each key is an app id and its value is the path to the app manifest
+ */
+export const partnerAppsToAddInSettings = async (appManifestPath: string, appManifest: AppManifest, partnerAppsFromSettings: Map<string, string>): Promise<Record<string, string>> => {
   const {
     ComponentId,
     Capabilities: { AllowedApplicationConnections },
@@ -47,59 +52,23 @@ export const addAppManifestPathsToSettings = async (appManifestPath: string, app
   if (ComponentId && Array.isArray(AllowedApplicationConnections) && AllowedApplicationConnections.length) {
     const detectedPartnerApplicationIds = AllowedApplicationConnections.map(id => String(id));
 
-    if (!fs.existsSync(settingsPath)) {
-      try {
-        const settingsDir = path.dirname(settingsPath);
-        if (!fs.existsSync(settingsDir)) {
-          await mkdir(settingsDir, { recursive: true });
+      
+      const applications: Record<string, string> = {};
+
+      // add entries for each componentId in AllowedApplicationConnections, user will need to add path
+      for (const id of detectedPartnerApplicationIds) {
+        if (!partnerAppsFromSettings.has(id)) {
+          applications[id] = "";
         }
-        await appendFile(settingsPath, "{}", { flag: "wx" });
-      } catch (e: any) {
-        logger.error(e);
-        return [];
       }
-    }
-    const settingsTxt = await readFile(settingsPath, "utf8");
-    const settings = jsonc.parse(settingsTxt);
-    const applications: Record<string, unknown> = {};
-    const partnerApplicationsFromSettings = settings["AzureSphere.partnerApplications"];
-    // add all partner applications from settings
-    if (partnerApplicationsFromSettings) {
-      for (const appId in partnerApplicationsFromSettings) {
-        const partnerAppManifestPath = partnerApplicationsFromSettings[appId];
-        applications[appId] = partnerAppManifestPath;
-
+      
+      // always keep the path to the current app manifest up to date
+      if (!partnerAppsFromSettings.has(ComponentId) || partnerAppsFromSettings.get(ComponentId) !== appManifestPath) {
+        applications[ComponentId] = appManifestPath;
       }
+
+      return applications;
     }
 
-    let settingsShouldBeUpdated = false;
-
-    // always keep the path to the current app manifest up to date
-    if (!applications[ComponentId] || applications[ComponentId] !== appManifestPath) {
-      applications[ComponentId] = appManifestPath;
-      settingsShouldBeUpdated = true;
-    }
-
-    // add entries for each componentId in AllowedApplicationConnections, user will need to add path
-    for (const id of AllowedApplicationConnections) {
-      if (applications[id] === null || applications[id] === undefined) {
-        applications[id] = "";
-        settingsShouldBeUpdated = true;
-      }
-    }
-
-    if (settingsShouldBeUpdated) {
-      const edits = jsonc.modify(settingsTxt, ["AzureSphere.partnerApplications"], applications, { formattingOptions: { insertSpaces: true } });
-      try {
-        await writeFile(settingsPath, jsonc.applyEdits(settingsTxt, edits));
-      } catch (e: any) {
-        logger.error(e);
-        return [];
-      }
-    }
-
-    return detectedPartnerApplicationIds;
-  }
-
-  return [];
+  return {};
 };

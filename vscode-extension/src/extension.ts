@@ -39,15 +39,22 @@ export function activate(context: ExtensionContext) {
       { scheme: "file", language: "json" },
       { scheme: "file", language: "plaintext" },
       { scheme: "file", language: "cmake" },
-    ],
-    synchronize: {
-      // Notify the server about file changes to '.clientrc files contained in the workspace
-      fileEvents: workspace.createFileSystemWatcher("**/.clientrc"),
-    },
+    ]
   };
 
   // Create the language client and start the client.
   client = new LanguageClient("azureSphereToolsLanguageServer", "AZ Sphere Hardware Language Server", serverOptions, clientOptions);
+  client.onReady().then(() => client.onNotification("hardwareDefinitions/updatePartnerApps", (partnerAppsToUpdate: Record<string, string> | undefined) => {
+    if (partnerAppsToUpdate) {
+      const azSphereConfig = workspace.getConfiguration("AzureSphere");
+      const partnerApps = azSphereConfig.get("partnerApplications") ?? {};
+
+      for (const appId in partnerAppsToUpdate) {
+        partnerApps[appId] = partnerAppsToUpdate[appId];
+      }
+      azSphereConfig.update("partnerApplications", partnerApps, false);
+    }
+  }));
 
   // Start the client. This will also launch the server
   const disposable = client.start();
