@@ -92,7 +92,7 @@ export const addAppManifestPathsToSettings = async (appManifestPath: string, app
       const edits = jsonc.modify(settingsTxt, ["AzureSphere.partnerApplications"], applications, { formattingOptions: { insertSpaces: true } });
       try {
         await writeFile(settingsPath, jsonc.applyEdits(settingsTxt, edits));
-      } catch (e) {
+      } catch (e: any) {
         logger.error(e);
         return [];
       }
