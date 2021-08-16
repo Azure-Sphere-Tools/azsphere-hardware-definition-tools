@@ -1,7 +1,7 @@
 import { AppManifest, AppPin } from "./applicationManifest";
 import * as jsonc from "jsonc-parser";
 import { Logger } from "./utils";
-import { HardwareDefinition, PinMapping, toRange, UnknownImport } from "./hardwareDefinition";
+import { computeLineOffsets, HardwareDefinition, PinMapping, toRange, UnknownImport } from "./hardwareDefinition";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
@@ -74,7 +74,7 @@ export class Parser {
         }
       }
       const pinMappings: PinMapping[] = [];
-  
+      const lineOffsets = computeLineOffsets(hwDefinitionFileText, true);
       for (let i = 0; i < Peripherals.length; i++) {
         const { Name, Type, Mapping, AppManifestValue } = Peripherals[i];
         const hasMappingOrAppManifestValue = typeof Mapping == "string" || typeof AppManifestValue == "string" || typeof AppManifestValue == "number";
@@ -84,23 +84,23 @@ export class Parser {
           const mappingAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Peripherals", i]);
   
           const values: Map<string, any> = new Map();
-          const range = toRange(hwDefinitionFileText, mappingAsJsonNode.offset, mappingAsJsonNode.offset + mappingAsJsonNode.length);
+          const range = toRange(hwDefinitionFileText, mappingAsJsonNode.offset, mappingAsJsonNode.offset + mappingAsJsonNode.length, lineOffsets);
   
-          mappingAsJsonNode.children?.forEach((keyValue) => {
+          for (const keyValue of mappingAsJsonNode.children ?? []) {
             if (keyValue.children) {
               values.set(keyValue.children[0].value.toLowerCase(), {
-                range: toRange(hwDefinitionFileText, keyValue.offset, keyValue.offset + keyValue.length),
+                range: toRange(hwDefinitionFileText, keyValue.offset, keyValue.offset + keyValue.length, lineOffsets),
                 key: {
-                  range: toRange(hwDefinitionFileText, keyValue.children[0].offset, keyValue.children[0].offset + keyValue.children[0].length),
+                  range: toRange(hwDefinitionFileText, keyValue.children[0].offset, keyValue.children[0].offset + keyValue.children[0].length, lineOffsets),
                   text: keyValue.children[0].value,
                 },
                 value: {
-                  range: toRange(hwDefinitionFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length),
+                  range: toRange(hwDefinitionFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length, lineOffsets),
                   text: keyValue.children[1].value,
                 },
               });
             }
-          });
+          }
   
           pinMappings.push(new PinMapping(range, values.get("name"), values.get("type"), values.get("mapping"), values.get("appmanifestvalue"), values.get("comment")));
         }
@@ -141,16 +141,17 @@ export class Parser {
       const CapabilitiesAsJsonNode = <jsonc.Node>jsonc.findNodeAtLocation(AppManifestFileRootNode, ["Capabilities"]);
   
       const values: Map<string, any> = new Map();
+      const lineOffsets = computeLineOffsets(AppManifestFileText, true);
       CapabilitiesAsJsonNode.children?.forEach((keyValue) => {
         if (keyValue.children) {
           values.set(keyValue.children[0].value, {
-            range: toRange(AppManifestFileText, keyValue.offset, keyValue.offset + keyValue.length),
+            range: toRange(AppManifestFileText, keyValue.offset, keyValue.offset + keyValue.length, lineOffsets),
             key: {
-              range: toRange(AppManifestFileText, keyValue.children[0].offset, keyValue.children[0].offset + keyValue.children[0].length),
+              range: toRange(AppManifestFileText, keyValue.children[0].offset, keyValue.children[0].offset + keyValue.children[0].length, lineOffsets),
               text: keyValue.children[0].value,
             },
             value: {
-              range: toRange(AppManifestFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length),
+              range: toRange(AppManifestFileText, keyValue.children[1].offset, keyValue.children[1].offset + keyValue.children[1].length, lineOffsets),
               text: temptValue.get(keyValue.children[0].value),
             },
           });
