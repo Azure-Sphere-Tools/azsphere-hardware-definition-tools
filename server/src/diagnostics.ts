@@ -210,10 +210,10 @@ export function appConflictPinBlock(conflictPinName: string, partnerComponentId:
   };
 }
 
-export function appConflictDuplicateName(conflictPinName: string, partnerComponentId: string, range: Range) {
+export function appConflictDuplicateName(conflictPinName: string, partnerComponentId: string, range: Range, existingPinName: string) {
   return{
     code: APP_DUPLICATE_NAME_WARNING_CODE,
-    message: `${conflictPinName} is also declared in partner app ${partnerComponentId}.`,
+    message: `${conflictPinName} is also declared in partner app ${partnerComponentId} and name is ${existingPinName}.`,
     range: range,
     severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE
