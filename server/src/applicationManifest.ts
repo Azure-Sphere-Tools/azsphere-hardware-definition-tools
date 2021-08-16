@@ -54,7 +54,7 @@ export const addAppManifestPathsToSettings = async (appManifestPath: string, app
           await mkdir(settingsDir, { recursive: true });
         }
         await appendFile(settingsPath, "{}", { flag: "wx" });
-      } catch (e) {
+      } catch (e: any) {
         logger.error(e);
         return [];
       }
