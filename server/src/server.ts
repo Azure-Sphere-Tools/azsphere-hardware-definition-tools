@@ -395,13 +395,13 @@ export class LanguageServer {
           const partnerCMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(asURI(partnerAppManifestPath)).fsPath), "CMakeLists.txt"));
           const partnerHWDefinitionPath = parseCommandsParams(partnerCMakeListsPath, this.logger);
           if (!partnerHWDefinitionPath) {
-            return;
+            continue;
           }
           const partnerHWDefinitionText: string = await this.getFileText(asURI(partnerHWDefinitionPath));
           const partnerHWDefinition = this.parser.tryParseHardwareDefinitionFile(partnerHWDefinitionText, partnerHWDefinitionPath, settings.SdkPath);
         
           if (!partnerHWDefinition) {
-            return;
+            continue;
           }
           const partnerHWDefScan = scanHardwareDefinition(partnerHWDefinition, true);
           const partnerAppManifestText = await this.getFileText(asURI(partnerAppManifestPath));
