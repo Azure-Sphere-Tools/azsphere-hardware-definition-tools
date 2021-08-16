@@ -6,6 +6,7 @@ import { rm } from "fs/promises";
 import * as fs from "fs";
 import * as jsonc from "jsonc-parser";
 import { URI } from "vscode-uri";
+import { Parser } from "../parser";
 
 const settingsPath = "my_app/.workplace/settings.json";
 const app_manifestUri = URI.file(path.resolve("my_app/app_manifest.json"));
@@ -134,7 +135,10 @@ function getSettings(): any[] {
  * @returns the actual settings that were modified
  */
 async function addAppManifestPathsAndReturnSettings(): Promise<any> {
-  await addAppManifestPathsToSettings(app_manifestUri.toString(), path.resolve(settingsPath));
+  const appManifestPath = app_manifestUri.fsPath;
+  const appManifest = new Parser().tryParseAppManifestFile(fs.readFileSync(appManifestPath, { encoding: "utf8" }));
+  assert.ok(appManifest);
+  await addAppManifestPathsToSettings(appManifestPath, appManifest, path.resolve(settingsPath));
   return jsonc.parse(fs.readFileSync(settingsPath, { encoding: "utf8" }));
 }
 
