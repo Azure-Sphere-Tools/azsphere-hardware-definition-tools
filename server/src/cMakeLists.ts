@@ -8,55 +8,33 @@ export function parseCommandsParams(CMakeListsPath: string, logger: Logger = con
   try {
     const text: string = fs.readFileSync(CMakeListsPath).toString();
     const match: RegExpExecArray | null = /TARGET_DIRECTORY "(.*)" TARGET_DEFINITION "(.*)"/g.exec(text);
-    // Variables not hardcode
+
     if (!match) return;
 
     if (match[1].length && match[2].length) {
       let [dir, file]: string[] = [match[1], match[2]];
+      // TODO: Find out/*/cmakecache
       const absolutePath: string = path.resolve(path.join(path.dirname(URI.parse(asURI(CMakeListsPath)).fsPath), "out/ARM-Debug/"));
-      let mostRecentCachePath: string | undefined;
-      let cacheTxt: string | undefined;
 
-      // Check if wrapped with ${}
+      // Check if wrapped with ${}, not hardcoded
       if (/\${.*?\}/g.test(dir)) {
-        mostRecentCachePath = path.join(absolutePath, getMostRecentFile(absolutePath));
-        cacheTxt = fs.readFileSync(mostRecentCachePath).toString();
+        const cacheTxt: string | undefined = getCacheTxt(absolutePath);
 
-        const variableWithoutWrapping: RegExpExecArray | null = /(?<=\{)(.*?)(?=\})/s.exec(dir);
-        if (variableWithoutWrapping && cacheTxt) {
-          // Match the variable line in the cache text
-          const regex: RegExp | null = new RegExp(`${variableWithoutWrapping[0]}(.*)`, "g");
-
-          const variableLineInCache: RegExpExecArray | null = regex.exec(cacheTxt);
-          if (variableLineInCache) {
-            // Match everything after "="
-            const dirVariable: RegExpExecArray | null = /(?<==).*/g.exec(variableLineInCache[0]);
-            dirVariable ? (dir = dirVariable[0]) : undefined;
-          }
+        if (cacheTxt) {
+          const TARGET_DIRECTORY = getHwDefPathFromCache(dir, cacheTxt);
+          TARGET_DIRECTORY ? (dir = TARGET_DIRECTORY) : undefined;
         }
       }
 
       if (/\${.*?\}/g.test(file)) {
-        if (!mostRecentCachePath) {
-          mostRecentCachePath = path.join(absolutePath, getMostRecentFile(absolutePath));
-          cacheTxt = fs.readFileSync(mostRecentCachePath).toString();
-        }
-        const variableWithoutWrapping: RegExpExecArray | null = /(?<=\{)(.*?)(?=\})/s.exec(file);
-        if (variableWithoutWrapping && cacheTxt) {
-          // Match the variable line in the cache text
-          const regex: RegExp | null = new RegExp(`${variableWithoutWrapping[0]}(.*)`, "g");
+        const cacheTxt: string | undefined = getCacheTxt(absolutePath);
 
-          const variableLineInCache: RegExpExecArray | null = regex.exec(cacheTxt);
-          if (variableLineInCache) {
-            // Match everything after "="
-            const fileVariable: RegExpExecArray | null = /(?<==).*/g.exec(variableLineInCache[0]);
-            fileVariable ? (file = fileVariable[0]) : undefined;
-          }
+        if (cacheTxt) {
+          const TARGET_DEFINITION = getHwDefPathFromCache(file, cacheTxt);
+          TARGET_DEFINITION ? (file = TARGET_DEFINITION) : undefined;
         }
       }
 
-      console.log(dir);
-      console.log(file);
       const pathFromHwDefinitionFile: string = path.join(path.dirname(CMakeListsPath), dir, file);
 
       if (fs.existsSync(pathFromHwDefinitionFile)) {
@@ -71,6 +49,25 @@ export function parseCommandsParams(CMakeListsPath: string, logger: Logger = con
     logger.log(`[Parse CMakeLists] - Cannot parse CMAkeLists command's parameters. ${err}`);
   }
 }
+
+const getCacheTxt = (absolutePath: string): string => {
+  return fs.readFileSync(path.join(absolutePath, getMostRecentFile(absolutePath))).toString();
+};
+
+const getHwDefPathFromCache = (targetValue: string, cacheTxt: string) => {
+  const variableWithoutWrapping: RegExpExecArray | null = /(?<=\{)(.*?)(?=\})/s.exec(targetValue);
+  if (variableWithoutWrapping && cacheTxt) {
+    // Match the variable line in the cache text
+    const regex: RegExp | null = new RegExp(`${variableWithoutWrapping[0]}(.*)`, "g");
+
+    const variableLineInCache: RegExpExecArray | null = regex.exec(cacheTxt);
+    if (variableLineInCache) {
+      // Match everything after "="
+      const variablleValue: RegExpExecArray | null = /(?<==).*/g.exec(variableLineInCache[0]);
+      return variablleValue ? variablleValue[0] : undefined;
+    }
+  }
+};
 
 const getMostRecentFile = (dir: string) => {
   const files = orderReccentFiles(dir);
