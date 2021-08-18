@@ -7,7 +7,8 @@
 		"watch": "tsc -b -w",
 		"postinstall": "cd vscode-extension && npm install && cd ../server && npm install && cd ..",
 		"test": "sh ./scripts/e2e.sh",
-		"coverage": "nyc ./scripts/e2e.sh ONLY_UNIT_TESTS && nyc report --reporter=html --reporter=json-summary && nyc check-coverage --statements 90"
+		"coverage": "nyc ./scripts/e2e.sh ONLY_UNIT_TESTS && nyc report --reporter=html --reporter=json-summary && nyc check-coverage --statements 90",
+		"publish": "bash ./scripts/publish.sh $EXTENSION_PATH $VSCE_PAT"
 	},
 	"devDependencies": {
 		"@types/mocha": "^8.2.2",
