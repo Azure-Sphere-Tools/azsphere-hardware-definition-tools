@@ -36,7 +36,9 @@ This extension makes it easier to validate, create and maintain [Hardware Defini
   > 4. A new file will then be generated based on the currently open hardware definition file with all of the mappings updated to match the hardware definition which has been ported to.
   
 ## Acknowledgments
-> The developers of this extension are a UCL (University College London) team including Omar Beyhum, Dorin Botan, Denoy Hossain, TSung-Han Tsai, and Jiachen Weng. Meanwhile, as a team, we would like to express our sincere gratitude to our client and UCL main contacts for their assistance and advice, Dave Glover, Mike Hall, Andreea Pintilie (Microsoft) as well as Dean Mohamedally, Sergey Mechtaev (UCL).
-> 
-> The [Azure Sphere Hardware Definition Tools](https://github.com/Azure-Sphere-Tools/azsphere-hardware-definition-tools) GitHub repository is available and welcome to download and use it to raise any suggestions.
+> This extension is developed by a team of UCL (University College London) students including Omar Beyhum, Dorin Botan, Denoy Hossain, Tsung-Han Tsai, and Jiachen Weng in collaboration with Microsoft.
+
+
+### Contributions
+> This extension is open source and maintained under the [Azure Sphere Hardware Definition Tools](https://github.com/Azure-Sphere-Tools/azsphere-hardware-definition-tools) GitHub repository. Suggestions and contributions are more than welcome.
 
