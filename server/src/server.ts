@@ -345,8 +345,8 @@ export class LanguageServer {
     // Hardware Definition header generation
     if(isHardwareDefinitionFile(save.document.uri)) {
       const hwDefScan = await this.validateHardwareDefinitionDoc(save.document);
-      const hasNoSevereErrors = hwDefScan?.diagnostics.every(d => d.severity != DiagnosticSeverity.Error);
-      if (hwDefScan && hasNoSevereErrors) {
+      const hasNoErrors = hwDefScan?.diagnostics.every(d => d.severity != DiagnosticSeverity.Error);
+      if (hwDefScan && hasNoErrors) {
         const result = await hwDefinitionHeaderGen(save.document.uri);
         this.displayNotification(result, "header-gen");
       }
