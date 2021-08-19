@@ -391,6 +391,7 @@ export class LanguageServer {
   }
 
   private async validateAppManifestDoc(textDocument: TextDocument, appManifest: AppManifest): Promise<void> {
+    // NOTE: (DOBO) gets filled with obsolete app id's
     const settings = await this.getDocumentSettings(textDocument.uri);
 
     const CMakeListsPath = path.resolve(path.join(path.dirname(URI.parse(textDocument.uri).fsPath), "CMakeLists.txt"));

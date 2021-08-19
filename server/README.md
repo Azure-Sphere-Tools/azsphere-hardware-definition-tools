@@ -111,3 +111,91 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
 |Range                |`"invalid_path"`|
 |Message              |`Cannot find invalid_path under HW_DEFINITION_FILE_PATH or SDK_PATH.`|
 |Severity             |Warning|
+
+### Duplicate Mapping Across Apps
+
+```json
+{
+  "ComponentId": "00000000-0000-0000-0000-000000000001",
+  "Capabilities": {
+    "Gpio": [ "$LED_1" ],
+    "AllowedApplicationConnections": [ "00000000-0000-0000-0000-000000000002" ]
+  }
+}
+```
+
+```json
+{
+  "ComponentId": "00000000-0000-0000-0000-000000000002",
+  "Capabilities": {
+    "Gpio": [ "$LED_2" ],
+    "AllowedApplicationConnections": [ "00000000-0000-0000-0000-000000000001" ]
+  }
+}
+```
+
+|                     | |
+|---------------------|-|
+|Range                |`"$LED_1"`|
+|                     |`"$LED_2"`|
+|Message              |`App manifest value of $LED_1 is also declared in partner app 00000000-0000-0000-0000-000000000002 through $LED_2.`|
+|                     |`App manifest value of $LED_2 is also declared in partner app 00000000-0000-0000-0000-000000000001 through $LED_1.`|
+|Severity             |Warning|
+
+### Pin Block Conflict Across Apps
+
+```json
+{
+  "ComponentId": "00000000-0000-0000-0000-000000000001",
+  "Capabilities": {
+    "Gpio": [ "$LED_1" ],
+    "AllowedApplicationConnections": [ "00000000-0000-0000-0000-000000000002" ]
+  }
+}
+```
+
+```json
+{
+  "ComponentId": "00000000-0000-0000-0000-000000000002",
+  "Capabilities": {
+    "Pwm": [ "$LED_2" ],
+    "AllowedApplicationConnections": [ "00000000-0000-0000-0000-000000000001" ]
+  }
+}
+```
+
+|                     | |
+|---------------------|-|
+|Range                |`"$LED_1"`|
+|                     |`"$LED_2"`|
+|Message              |`$LED_1 configured as Pwm by $LED_2 in partner app 00000000-0000-0000-0000-000000000002.`|
+|                     |`$LED_2 configured as Gpio by $LED_1 in partner app 00000000-0000-0000-0000-000000000001.`|
+|Severity             |Warning|
+
+### Unknown Partner Application
+
+```json
+.vscode/settings.json
+{
+    "AzureSphere.partnerApplications": {
+        "00000000-0000-0000-0000-000000000001": "dir_1/app_manifest.json",
+        "00000000-0000-0000-0000-000000000002": "dir_2/app_manifest.json"
+    }
+}
+```
+
+```json
+app_manifest.json
+{
+  "ComponentId": "00000000-0000-0000-0000-000000000001",
+  "Capabilities": {
+    "AllowedApplicationConnections": [ "00000000-0000-0000-0000-000000000002" ]
+  }
+}
+```
+
+|                     | |
+|---------------------|-|
+|Range                |`[ "00000000-0000-0000-0000-000000000002" ]`|
+|Message              |`Could not find partner app 00000000-0000-0000-0000-000000000002 under path "dir_2/app_manifest.json". \nPlease check your .vscode/settings.json or .code-workspace file to fix the path to the partner app manifest.`|
+|Severity             |Warning|

@@ -24,6 +24,7 @@ export class AppPin {
   }
 }
 
+// NOTE: (DOBO) duplicate of hardwareDefinition/PinMappingKey
 export type AppPinKey<T> = {
   range: Range,
   key: {
