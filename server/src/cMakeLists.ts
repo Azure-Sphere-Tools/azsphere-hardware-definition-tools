@@ -14,10 +14,8 @@ export function parseCommandsParams(CMakeListsPath: string, logger: Logger = con
 
     if (match[1].length && match[2].length) {
       let [dir, file]: string[] = [match[1], match[2]];
-      // TODO: Find out/*/cmakecache
-      // const absolutePath: string = path.resolve(path.join(path.dirname(URI.parse(asURI(CMakeListsPath)).fsPath), "out/ARM-Debug/"));
 
-      // Check if wrapped with ${}, not hardcoded
+      // Check if wrapped with ${}, value not hardcoded
       if (/\${.*?\}/g.test(dir)) {
         const cacheTxt: string | undefined = getCacheTxt(CMakeListsPath);
 
@@ -50,7 +48,7 @@ export function parseCommandsParams(CMakeListsPath: string, logger: Logger = con
   }
 }
 
-const getCacheTxt = (absolutePath: string): string => {
+export const getCacheTxt = (absolutePath: string): string => {
   return fs.readFileSync(getMostRecentFile(absolutePath)).toString();
 };
 
