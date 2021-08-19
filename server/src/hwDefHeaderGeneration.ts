@@ -8,7 +8,7 @@ import { URI } from "vscode-uri";
  * @param command The command provided by the test or the one to generate the HD header files
  * @returns The stdout if seccessuful or the err/stderr if the commands did not execute as expected
  */
-export const hwDefinitionHeaderGen = async (uri: string, command?: string): Promise<ShowMessageParams | undefined> => {
+export const hwDefinitionHeaderGen = async (uri: string, command?: string): Promise<ShowMessageParams> => {
   // Hardware Definition header generation
   return new Promise((resolve) => {
     exec(`${command || "azsphere hardware-definition generate-header --hardware-definition-file"} ${URI.parse(uri).fsPath}`, (err, stdout, stderr) => {
