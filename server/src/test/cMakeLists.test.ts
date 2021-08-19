@@ -19,7 +19,7 @@ suite("CMakeLists Infer", () => {
     "my_app/CMakeListsDirVarDefString.txt": `azsphere_target_hardware_definition(\${PROJECT_NAME} TARGET_DIRECTORY "\${VAR_A}" TARGET_DEFINITION "template_appliance.json")`,
 
     "my_app/out/a/CMakeCache.txt": cacheTxt,
-    "my_app/out/a/newer/CMakeCache.txt": cacheTxt,
+    "my_app/out/a/b/CMakeCache.txt": cacheTxt,
 
     "my_app/HardwareDefinitions/mt3620_rdb/template_appliance.json": "file_content",
   };
@@ -55,7 +55,8 @@ suite("CMakeLists Infer", () => {
   });
 
   test("Get most recent CMakeCache.txt", () => {
+    mockfs({ "my_app/out/newer/CMakeCache.txt": mockfs.file({ mtime: new Date(1) }) });
     const mostRecentFile = getMostRecentFile("my_app/CMakeListsDirStringDefVar.txt");
-    mostRecentFile ? assert.strictEqual(mostRecentFile.endsWith("my_app/out/a/newer/CMakeCache.txt"), true) : assert.fail(`Did not get most reccent CMakeCache.txt`);
+    mostRecentFile ? assert.strictEqual(mostRecentFile.endsWith("my_app/out/newer/CMakeCache.txt"), true) : assert.fail(`Did not get most reccent CMakeCache.txt`);
   });
 });
