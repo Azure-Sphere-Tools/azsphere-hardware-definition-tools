@@ -1,4 +1,4 @@
-import { parseCommandsParams, getCacheTxt } from "../cMakeLists";
+import { parseCommandsParams, getCacheTxt, getMostRecentFile, orderReccentFiles } from "../cMakeLists";
 import * as assert from "assert";
 import * as mockfs from "mock-fs";
 import * as path from "path";
@@ -18,7 +18,8 @@ suite("CMakeLists Infer", () => {
     "my_app/CMakeListsDirStringDefVar.txt": `azsphere_target_hardware_definition(\${PROJECT_NAME} TARGET_DIRECTORY "HardwareDefinitions/mt3620_rdb" TARGET_DEFINITION "\${VAR_B}")`,
     "my_app/CMakeListsDirVarDefString.txt": `azsphere_target_hardware_definition(\${PROJECT_NAME} TARGET_DIRECTORY "\${VAR_A}" TARGET_DEFINITION "template_appliance.json")`,
 
-    "my_app/out/randomName/CMakeCache.txt": cacheTxt,
+    "my_app/out/a/CMakeCache.txt": cacheTxt,
+    "my_app/out/a/newer/CMakeCache.txt": cacheTxt,
 
     "my_app/HardwareDefinitions/mt3620_rdb/template_appliance.json": "file_content",
   };
@@ -41,8 +42,20 @@ suite("CMakeLists Infer", () => {
     CMakeListsDirVarDefString ? assert.strictEqual(path.resolve(CMakeListsDirVarDefString), path.resolve(expectedPath)) : assert.fail(`Path was undefined`);
   });
 
-  test("Gets CMakeLists cache text", () => {
-    const actualCacheTxt: string | undefined = getCacheTxt("my_app/CMakeListsBothStrings.txt");
+  test("Get CMakeLists cache text", () => {
+    const actualCacheTxt: string | undefined = getCacheTxt("my_app/CMakeListsDirStringDefVar.txt");
     actualCacheTxt ? assert.strictEqual(actualCacheTxt, cacheTxt) : assert.fail(`Failed to read CMakeLists cache`);
+  });
+
+  test("Get all CMakeLists cache text under /out/", () => {
+    const actualFiles = orderReccentFiles("my_app/CMakeListsDirStringDefVar.txt");
+
+    // There should be 2 caches
+    actualFiles ? assert.strictEqual(actualFiles.length, 2) : assert.fail(`Did not get all CMakeLists cache text under /out/`);
+  });
+
+  test("Get most recent CMakeCache.txt", () => {
+    const mostRecentFile = getMostRecentFile("my_app/CMakeListsDirStringDefVar.txt");
+    mostRecentFile ? assert.strictEqual(mostRecentFile.endsWith("my_app/out/a/newer/CMakeCache.txt"), true) : assert.fail(`Did not get most reccent CMakeCache.txt`);
   });
 });

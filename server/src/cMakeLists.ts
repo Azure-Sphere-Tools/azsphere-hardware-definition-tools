@@ -73,12 +73,12 @@ const getHwDefPathFromCache = (targetValue: string, cacheTxt: string) => {
   }
 };
 
-const getMostRecentFile = (dir: string) => {
+export const getMostRecentFile = (dir: string) => {
   const files = orderReccentFiles(dir);
   return files?.length ? files[0].file : "";
 };
 
-const orderReccentFiles = (dir: string): { file: string; mtime: Date }[] | undefined => {
+export const orderReccentFiles = (dir: string): { file: string; mtime: Date }[] | undefined => {
   const files = glob.sync(`${path.resolve(path.dirname(URI.parse(asURI(dir)).fsPath))}/out/**/CMakeCache.txt`);
   return files.map((file) => ({ file, mtime: fs.lstatSync(path.join(file)).mtime })).sort((a, b) => b.mtime.getTime() - a.mtime.getTime());
 };
