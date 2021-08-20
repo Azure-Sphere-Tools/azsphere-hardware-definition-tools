@@ -74,6 +74,7 @@
     <None Include="source.extension.vsixmanifest">
       <SubType>Designer</SubType>
     </None>
+    <None Include="VISUALSTUDIO_EXTENSION.md" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Microsoft.CSharp" />

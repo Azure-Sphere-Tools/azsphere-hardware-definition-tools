@@ -1,5 +1,8 @@
-# Azure Sphere Hardware Definition Tools For Visual Studio Code
+# Azure Sphere Hardware Definition Tools For Visual Studio
 This extension makes it easier to validate, create and maintain [Hardware Definition files](https://docs.microsoft.com/en-us/azure-sphere/app-development/manage-hardware-dependencies) used for [Azure Sphere](https://docs.microsoft.com/en-us/azure-sphere/) IoT applications.
+
+## Installation
+Before getting the extension make sure to install [Node.js 14.7+](https://nodejs.org/) and the [Azure Sphere SDK](https://docs.microsoft.com/en-us/azure-sphere/install/install-sdk?pivots=visual-studio).  
 
 ## Features
 - [Hardware Definition Validation](#DiagnosticsGenerated)
@@ -21,7 +24,7 @@ This extension makes it easier to validate, create and maintain [Hardware Defini
   
 
 ### Command to generate pin mappings <span id='PinMappingGeneration'></span>
-  > Add pin mappings automatically by running the following command from a hardware definition file: azsphere-hardware-definition-tools.generatePinMappings
+  > Add pin mappings automatically by running the following command from the **Tools** menu: `Add pin mappings for Hardware Definition File`
 
 
 ### C Header file generation on hardware definition changes <span id='HeaderGeneration'></span>
@@ -30,7 +33,7 @@ This extension makes it easier to validate, create and maintain [Hardware Defini
 
 ### Command to port hardware definition files to different underlying hardware <span id='Porting'></span>
   > If you've written a hardware definition file for a given dev board/layout and would like to support another one, you can automatically port your existing hardware definition instead of rewriting it from scratch. To do so:
-  > 1. Run the following command through the VS Code command palette while the current file is a hardware definition file: azsphere-hardware-definition-tools.porting
+  > 1. Run the following command from the **Tools** menu while the current file is a hardware definition file: `Port to another Hardware Definition`
   > 2. Select the target hardware definition file needed to port.
   > 3. Select a hardware definition to port to from the Azure Sphere SDK or a customized one.
   > 4. A new file will then be generated based on the currently open hardware definition file with all of the mappings updated to match the hardware definition which has been ported to.
