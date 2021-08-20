@@ -17,7 +17,7 @@ export function parseCommandsParams(CMakeListsPath: string, logger: Logger = con
 
       // Check if wrapped with ${}, value not hardcoded
       if (/\${.*?\}/g.test(dir)) {
-        const cacheTxt: string | undefined = getCacheTxt(CMakeListsPath);
+        const cacheTxt = getCacheTxt(CMakeListsPath);
 
         if (cacheTxt) {
           const TARGET_DIRECTORY = getHwDefPathFromCache(dir, cacheTxt);
@@ -48,8 +48,14 @@ export function parseCommandsParams(CMakeListsPath: string, logger: Logger = con
   }
 }
 
-export const getCacheTxt = (absolutePath: string): string => {
-  return fs.readFileSync(getMostRecentFile(absolutePath)).toString();
+/**
+ *
+ * @param absolutePath CMakeLists path
+ * @returns The text of the lastest CMakeCache.txt or undefined if can't find it
+ */
+export const getCacheTxt = (absolutePath: string): string | undefined => {
+  const mostRecentFile = getMostRecentFile(absolutePath);
+  if (mostRecentFile) return fs.readFileSync(mostRecentFile).toString() || undefined;
 };
 
 /**
@@ -75,7 +81,7 @@ const getHwDefPathFromCache = (targetValue: string, cacheTxt: string) => {
 
 export const getMostRecentFile = (dir: string) => {
   const files = orderReccentFiles(dir);
-  return files?.length ? files[0].file : "";
+  return files?.length ? files[0].file : undefined;
 };
 
 export const orderReccentFiles = (dir: string): { file: string; mtime: Date }[] | undefined => {

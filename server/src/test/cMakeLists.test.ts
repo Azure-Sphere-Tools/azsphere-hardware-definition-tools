@@ -47,9 +47,14 @@ suite("CMakeLists Infer", () => {
     actualCacheTxt ? assert.strictEqual(actualCacheTxt, cacheTxt) : assert.fail(`Failed to read CMakeLists cache`);
   });
 
+  test("Returns undefined if no CMakeCache.txt is found", () => {
+    const actualCacheTxt = getCacheTxt("my_app/random/path/withNoCache/CMakeCache.txt");
+    console.log(actualCacheTxt);
+    !actualCacheTxt ? assert.strictEqual(actualCacheTxt, undefined) : assert.fail(`getCacheTxt() did not return undefined`);
+  });
+
   test("Get all CMakeLists cache text under /out/", () => {
     const actualFiles = orderReccentFiles("my_app/CMakeListsDirStringDefVar.txt");
-
     // There should be 2 caches
     actualFiles ? assert.strictEqual(actualFiles.length, 2) : assert.fail(`Did not get all CMakeLists cache text under /out/`);
   });
