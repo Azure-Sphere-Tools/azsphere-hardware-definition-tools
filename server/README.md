@@ -108,7 +108,7 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
 
 |                     | |
 |---------------------|-|
-|Range                |`"invalid_path"`|
+|Range                |`{"Path": "invalid_path"}`|
 |Message              |`Cannot find invalid_path under HW_DEFINITION_FILE_PATH or SDK_PATH.`|
 |Severity             |Warning|
 

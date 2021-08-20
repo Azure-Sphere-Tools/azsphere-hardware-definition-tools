@@ -177,12 +177,12 @@ export function pinBlockConflictWarning(badMapping: PinMapping, existingMapping:
   return diagnostic;
 }
 
-export function unknownImportWarning(unknownImport: UnknownImport, unknownImportRange: Range) {
+export function unknownImportWarning(unknownImport: UnknownImport) {
   return {
     code: UNKNOWN_IMPORT_WARNING_CODE,
     severity: DiagnosticSeverity.Warning,
-    range: unknownImportRange,
-    message: `Cannot find imported file '${unknownImport.fileName}' under ${unknownImport.hwDefinitionFilePath} or ${unknownImport.sdkPath}`,
+    range: unknownImport.range,
+    message: `Cannot find '${unknownImport.fileName}' under ${unknownImport.hwDefinitionFilePath} or ${unknownImport.sdkPath}.`,
     source: EXTENSION_SOURCE
   };
 }

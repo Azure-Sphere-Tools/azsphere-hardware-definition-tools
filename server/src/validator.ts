@@ -153,7 +153,7 @@ function addToIndex(pinsIndexedByName: Map<string, FlatPinMapping[]>, pinName: s
 export function findUnknownImports(hwDefinition: HardwareDefinition, textDocument: TextDocument): Diagnostic[] {
 	const diagnostics: Diagnostic[] = [];
 	for (const unknownImport of hwDefinition.unknownImports) {
-		const diagnostic = unknownImportWarning(unknownImport, toRange(textDocument.getText(), unknownImport.start, unknownImport.end));
+		const diagnostic = unknownImportWarning(unknownImport);
 		diagnostics.push(diagnostic);
 	}
 	return diagnostics;
