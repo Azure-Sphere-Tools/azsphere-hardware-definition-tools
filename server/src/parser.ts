@@ -1,7 +1,7 @@
 import { AppManifest, AppPin, AppPinKey } from "./applicationManifest";
 import * as jsonc from "jsonc-parser";
 import { Logger } from "./utils";
-import { computeLineOffsets, HardwareDefinition, PinMapping, toRange, UnknownImport } from "./hardwareDefinition";
+import { computeLineOffsets, HardwareDefinition, Import, PinMapping, toRange, UnknownImport } from "./hardwareDefinition";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
@@ -39,7 +39,7 @@ export class Parser {
       }
   
       const unknownImports: UnknownImport[] = [];
-      const validImports: HardwareDefinition[] = [];
+      const validImports: Import[] = [];
       if (Array.isArray(Imports)) {
         const importsNode = jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Imports"]) as jsonc.Node;
   
@@ -68,7 +68,18 @@ export class Parser {
               if (importedHwDefFileText) {
                 const importedHwDefinition = this.tryParseHardwareDefinitionFile(importedHwDefFileText, importedHwDefFileUri, sdkPath);
                 if (importedHwDefinition) {
-                  validImports.push(importedHwDefinition);
+                  validImports.push({
+                    hardwareDefinition: importedHwDefinition,
+                    range: toRange(importedHwDefFileText, pathNode.offset, pathNode.offset + pathNode.length),
+                    key: {
+                      text: pathKey.value,
+                      range: toRange(importedHwDefFileText, pathKey.offset, pathKey.offset + pathKey.length)
+                    },
+                    value: {
+                      text: pathVal.value,
+                      range: toRange(importedHwDefFileText, pathVal.offset, pathVal.offset + pathVal.length)
+                    }
+                  });
                 }
               }
             } else {

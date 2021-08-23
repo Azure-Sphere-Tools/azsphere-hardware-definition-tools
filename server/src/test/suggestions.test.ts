@@ -1,8 +1,8 @@
 import * as assert from "assert";
 import { Position, TextEdit } from "vscode-languageserver-textdocument";
-import { HardwareDefinition, PinMapping } from "../hardwareDefinition";
+import { HardwareDefinition } from "../hardwareDefinition";
 import { getPinMappingSuggestions, pinMappingCompletionItemsAtPosition } from "../suggestions";
-import { asURI, getDummyPinMapping, getRange } from "./testUtils";
+import { asURI, getDummyPinMapping, getDummyImport, getRange } from "./testUtils";
 
 suite("getPinMappingSuggestions", () => {
   test("Gets Pin Mapping Suggestions", () => {
@@ -10,7 +10,9 @@ suite("getPinMappingSuggestions", () => {
     const gpioPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 5), name: "GPIO1", type: "Gpio", appManifestValue: 1 });
     const pinWithDifferentType = getDummyPinMapping({ range: getRange(2, 0, 2, 5), name: "PWM0", type: "Pwm", appManifestValue: 28 });
     const importedhwDefFilePath = "my_app/importedHardwareDef.json";
-    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin1, gpioPin2, pinWithDifferentType]);
+    const importedhwDefinitionFile = getDummyImport({
+      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin1, gpioPin2, pinWithDifferentType])
+    });
 
     const hwDefFilePath = "my_app/hardwareDef.json";
     const validPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "LED", type: "Gpio", mapping: "GPIO1" });
@@ -25,10 +27,14 @@ suite("getPinMappingSuggestions", () => {
   test("Only suggests Pin Mappings that are directly imported", () => {
     const basePin1 = getDummyPinMapping({ range: getRange(), name: "BASE_GPIO0", type: "Gpio", appManifestValue: 0 });
     const basePin2 = getDummyPinMapping({ range: getRange(), name: "BASE_GPIO1", type: "Gpio", appManifestValue: 1 });
-    const baseHwDef = new HardwareDefinition(asURI("baseHwDef.json"), undefined, [basePin1, basePin2]);
+    const baseHwDef = getDummyImport({
+      hardwareDefinition: new HardwareDefinition(asURI("baseHwDef.json"), undefined, [basePin1, basePin2])
+    });
 
     const directlyImportedPin = getDummyPinMapping({ range: getRange(), name: "ODM_GPIO0", type: "Gpio", mapping: basePin1.name.value.text });
-    const importedhwDefinition = new HardwareDefinition(asURI("importedHardwareDef.json"), undefined, [directlyImportedPin], [baseHwDef]);
+    const importedhwDefinition = getDummyImport({
+      hardwareDefinition: new HardwareDefinition(asURI("importedHardwareDef.json"), undefined, [directlyImportedPin], [baseHwDef])
+    });
 
     const hwDefinitionFile = new HardwareDefinition(asURI("hardwareDef.json"), undefined, [], [importedhwDefinition]);
 
@@ -46,7 +52,9 @@ suite("getPinMappingSuggestions", () => {
     const pwmPinSharingPinBlock = getDummyPinMapping({ range: getRange(1, 0, 1, 5), name: "PWM1", type: "PWM", appManifestValue: "PWM-CONTROLLER-1" });
 
     const importedhwDefFilePath = "my_app/importedHardwareDef.json";
-    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin, gpioPinSharingPinBlock, pwmPinSharingPinBlock]);
+    const importedhwDefinitionFile = getDummyImport({
+      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin, gpioPinSharingPinBlock, pwmPinSharingPinBlock])
+    });
 
     const hwDefFilePath = "my_app/hardwareDef.json";
     const hwDefinition = new HardwareDefinition(asURI(hwDefFilePath), undefined, [pwmPinSharingPinBlock], [importedhwDefinitionFile]);
@@ -62,7 +70,9 @@ suite("getPinMappingSuggestions", () => {
 suite("pinMappingCompletionItemsAtPosition", () => {
   test("Returns Completion Items if caret inside 'Mapping' property", () => {
     const gpioPin = getDummyPinMapping({ range: getRange(), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
-    const importedhwDefinition = new HardwareDefinition(asURI("importedHardwareDef.json"), undefined, [gpioPin]);
+    const importedhwDefinition = getDummyImport({
+      hardwareDefinition: new HardwareDefinition(asURI("importedHardwareDef.json"), undefined, [gpioPin])
+    });
 
     const caretPosition: Position = { line: 0, character: 6 };
     // const pinWithEmptyMapping = new PinMapping("LED", "Gpio", "", undefined, anyRange());

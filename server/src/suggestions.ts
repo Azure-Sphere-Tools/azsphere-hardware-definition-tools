@@ -9,7 +9,7 @@ export function getPinMappingSuggestions(hwDefinition: HardwareDefinition, pinTy
   let allPinMappings: PinMapping[] = [];
   const validPinMappings: string[] = [];
   for (const imported of hwDefinition.imports) {
-    allPinMappings = allPinMappings.concat(imported.pinMappings);
+    allPinMappings = allPinMappings.concat(imported.hardwareDefinition.pinMappings);
   }
   const usedPinNames = new Set(hwDefinition.pinMappings.map((p) => p.mapping?.value.text));
 

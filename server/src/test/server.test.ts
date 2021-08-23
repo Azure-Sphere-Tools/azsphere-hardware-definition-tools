@@ -7,8 +7,8 @@ import { Position, TextDocument } from "vscode-languageserver-textdocument";
 import { FileOperationsFeatureShape } from "vscode-languageserver/lib/common/fileOperations";
 import { WorkspaceFolders } from "vscode-languageserver/lib/common/workspaceFolders";
 import { ExtensionSettings, GET_AVAILABLE_ODM_HARDWARE_DEFINITIONS_CMD, GET_AVAILABLE_PINS_CMD, GET_AVAILABLE_PIN_TYPES_CMD, LanguageServer, PORT_HARDWARE_DEFINITION_CMD, POST_PIN_AMOUNT_TO_GENERATE_CMD, startLanguageServer, VALIDATE_HW_DEFINITION_CMD } from "../server";
-import { asURI, dummyAppManifest, getDummyPinMapping, getRange } from "./testUtils";
-import { Connection, InitializeParams, RemoteClient, RemoteConsole, ShowMessageNotification, ShowMessageParams, ShowMessageRequest, TextDocumentEdit, TextDocuments, TextDocumentsConfiguration, WorkspaceEdit, _RemoteWorkspace } from "vscode-languageserver";
+import { asURI, dummyAppManifest, getDummyPinMapping, getDummyImport } from "./testUtils";
+import { Connection, InitializeParams, RemoteClient, RemoteConsole, ShowMessageNotification, ShowMessageRequest, TextDocumentEdit, TextDocuments, TextDocumentsConfiguration, WorkspaceEdit, _RemoteWorkspace } from "vscode-languageserver";
 import { Configuration } from "vscode-languageserver/lib/common/configuration";
 import { Parser } from "../parser";
 import { HardwareDefinition, toPosition } from "../hardwareDefinition";
@@ -268,7 +268,9 @@ suite("LanguageServer", () => {
 
 
     // mock parser to return a hw def which imports another
-    const importedHwDef = new HardwareDefinition("", "", [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })]);
+    const importedHwDef = getDummyImport({
+      hardwareDefinition: new HardwareDefinition("", "", [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })])
+    });
     const pinToAskCompletionsFor = getDummyPinMapping({ name: "APP_GPIO", mapping: "" });
     const hwDefinition = new HardwareDefinition("", "", [pinToAskCompletionsFor], [importedHwDef]);
 
@@ -375,7 +377,9 @@ suite("LanguageServer", () => {
 
     // mock parser to return a hw def for which we can generate a pin
     const availableType = "Gpio";
-    const importedHwDef = new HardwareDefinition("", "", [getDummyPinMapping({ type: availableType, appManifestValue: 1 })]);
+    const importedHwDef = getDummyImport({
+      hardwareDefinition: new HardwareDefinition("", "", [getDummyPinMapping({ type: availableType, appManifestValue: 1 })])
+    });
     const hwDef = new HardwareDefinition("", "", [], [importedHwDef]);
     const mockedParser = mockParser({ content: anyString(), hwDef: hwDef });
     const server = new LanguageServer(mockConnection(), mockDocumentManager(), console, new Map(), mockedParser);
@@ -419,7 +423,9 @@ suite("LanguageServer", () => {
 
     // mock parser to return a hw def for which we can generate a pin
     const pinType = "Gpio";
-    const importedHwDef = new HardwareDefinition("", "", [getDummyPinMapping({ type: pinType, appManifestValue: 1 })]);
+    const importedHwDef = getDummyImport({
+      hardwareDefinition: new HardwareDefinition("", "", [getDummyPinMapping({ type: pinType, appManifestValue: 1 })])
+    });
     const hwDef = new HardwareDefinition("", "", [], [importedHwDef]);
     const mockedParser = mockParser({ content: anyString(), hwDef: hwDef });
     const server = new LanguageServer(mockConnection(), mockDocumentManager(), console, new Map(), mockedParser);

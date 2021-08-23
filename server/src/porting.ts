@@ -1,7 +1,7 @@
 import { readFile, readdir, writeFile } from "fs/promises";
 import * as path from "path";
 import { Range } from "vscode-languageserver-textdocument";
-import { HardwareDefinition, PinMapping, PinMappingKey } from "./hardwareDefinition";
+import { HardwareDefinition, Import, PinMapping, PinMappingKey } from "./hardwareDefinition";
 import { getPinMappingSuggestions } from "./suggestions";
 import { HW_DEFINITION_SCHEMA_URL } from "./utils";
 import { HardwareDefinitionScan, scanHardwareDefinition } from "./validator";
@@ -22,10 +22,13 @@ export async function listOdmHardwareDefinitions(sdkPath: string): Promise<OdmHa
   return odmHwDefsToReturn;
 }
 
-export function portHardwareDefinition(jsonHwDefinition: JsonHardwareDefinition, hwDefinition: HardwareDefinition,
-  targetHwDefinition: HardwareDefinition, pathToTargetHwDefFile: string): JsonHardwareDefinition {
-    const hwDefinitionScan = scanHardwareDefinition(hwDefinition, true);
-    const targetHwDefinitionScan = scanHardwareDefinition(targetHwDefinition, true);
+export function portHardwareDefinition(
+  jsonHwDefinition: JsonHardwareDefinition, 
+  hwDefinition: HardwareDefinition,
+  targetHwDefinition: HardwareDefinition, 
+  pathToTargetHwDefFile: string): JsonHardwareDefinition {
+  const hwDefinitionScan = scanHardwareDefinition(hwDefinition, true);
+  const targetHwDefinitionScan = scanHardwareDefinition(targetHwDefinition, true);
 
   const generatedPeripherals: PinMapping[] = [];
   const namesOfPinsWithoutExactMatch = new Set<string>();
@@ -49,8 +52,21 @@ export function portHardwareDefinition(jsonHwDefinition: JsonHardwareDefinition,
     }
     generatedPeripherals.push(generatedPinMapping);
   }
+  
+  const targetImport: Import = {
+    hardwareDefinition: targetHwDefinition,
+    range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 }},
+    key: {
+      text: "Path",
+      range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 }}
+    },
+    value: {
+      text: targetHwDefinition.uri,
+      range: { start: { line: 0, character: 0 }, end: { line: 0, character: 0 }}
+    }
+  };
 
-  const generatedHwDefinition = new HardwareDefinition("not_needed", undefined, generatedPeripherals, [targetHwDefinition]);
+  const generatedHwDefinition = new HardwareDefinition("not_needed", undefined, generatedPeripherals, [targetImport]);
 
   if (namesOfPinsWithoutExactMatch.size > 0) {
     replacePinsWithoutExactMatch(generatedHwDefinition, namesOfPinsWithoutExactMatch);
@@ -66,7 +82,6 @@ export function portHardwareDefinition(jsonHwDefinition: JsonHardwareDefinition,
     Imports: [{ Path: pathToTargetHwDefFile }],
     Peripherals: generatedHwDefinition.pinMappings.map(p => asJsonPinMapping(p))
   };
-
 }
 
 /**

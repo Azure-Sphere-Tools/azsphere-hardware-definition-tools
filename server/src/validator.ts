@@ -52,7 +52,7 @@ export interface FlatPinMapping {
 				const diagnostic = nonexistentMappingError(currentPeripheral);
 				pinDiagnostics.push(diagnostic);
 			} else if (mappedPeripherals.length == 1) {
-				const firstLevelImports = hwDefinition.imports.map(({ uri }) => uri);
+				const firstLevelImports = hwDefinition.imports.map(({ hardwareDefinition }) => hardwareDefinition.uri);
 				const importedMappingUri = mappedPeripherals[0].hardwareDefinitionUri;
 
 				if (importedMappingUri != hwDefinition.uri &&
@@ -118,7 +118,7 @@ export function flatten(hwDefinition: HardwareDefinition): {flattened: FlatPinMa
 	// add imported pins before pins in current hw def
 	// so that we can lookup their app manifest values when resolving current pins' app manifest vals
 	for (const importedDefinition of hwDefinition.imports) {
-		const pinsFromImport = flatten(importedDefinition);
+		const pinsFromImport = flatten(importedDefinition.hardwareDefinition);
 		flatPinMappings.push(...pinsFromImport.flattened);
 		for (const [pinName, pinsForName] of pinsFromImport.indexedByName) {
 			addToIndex(pinsIndexedByName, pinName, ...pinsForName);

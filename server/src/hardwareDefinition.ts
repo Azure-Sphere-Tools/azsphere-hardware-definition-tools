@@ -5,13 +5,13 @@ export class HardwareDefinition {
 		public uri: string,
 		public schema: string | undefined,
 		public pinMappings: PinMapping[] = [],
-		// public imports: Import[] = [],
-		public imports: HardwareDefinition[] = [],
+		public imports: Import[] = [],
 		public unknownImports: UnknownImport[] = []
 	) { }
 }
 
 export type Import = {
+	hardwareDefinition: HardwareDefinition,
 	range: Range,
 	key: {
 		range: Range,
@@ -20,8 +20,7 @@ export type Import = {
 	value: {
 		range: Range,
 		text: string
-	},
-	hardwareDefinition: HardwareDefinition
+	}
 }
 
 /**

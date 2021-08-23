@@ -1,8 +1,8 @@
 import * as path from "path";
 import { URI } from "vscode-uri";
 import { Range } from "vscode-languageserver-textdocument";
-import { PinMappingKey, PinMapping } from '../hardwareDefinition';
-import { AppManifest, AppPinKey } from "../applicationManifest";
+import { HardwareDefinition, Import, PinMappingKey, PinMapping } from '../hardwareDefinition';
+import { AppManifest } from "../applicationManifest";
 import { Parser } from "../parser";
 import { error } from "console";
 
@@ -42,11 +42,11 @@ type _PinMappingKey<T> = {
  *
  * </br></br>
  * <code>getDummyPinMapping({appManifestValue: 1})</code> returns a new PinMapping with all ranges
- * set to <b>0</b>, <i>Name</i> set to <b>MY_PIN</b>, <i>Type</i> <b>Gpio</b> and <i>AppManifestValue</i> <b>1</b>
+ * set to <b>0</b>, <i>Name</i> set to <b>MY_PIN</b>, <i>Type</i> <b>Gpio</b> and <i>AppManifestValue</i> <b>1</b>.
  *
  * </br></br>
  * <code>getDummyPinMapping({appManifestValue: {value: {text: 1}}})</code> returns a new PinMapping with all ranges
- * set to <b>0</b>, <i>Name</i> set to <b>MY_PIN</b>, <i>Type</i> <b>Gpio</b> and <i>AppManifestValue</i> <b>1</b>
+ * set to <b>0</b>, <i>Name</i> set to <b>MY_PIN</b>, <i>Type</i> <b>Gpio</b> and <i>AppManifestValue</i> <b>1</b>.
  *
  * @param {Object} [opt]
  * @param {Range}  [opt.range=(0,0,0,0)]
@@ -159,6 +159,102 @@ export function getDummyPinMapping(
     opt.appManifestValue as PinMappingKey<number | string>,
     opt.comment as PinMappingKey<string>,
   );
+}
+
+/**
+ * Returns a new HardwareDefinition Import with the given or default values for all the required parameters
+ *
+ * </br></br>
+ * Examples:
+ *
+ * </br>
+ * <code>getDummyImport()</code> returns a new Import with all ranges set to <b>0</b> 
+ * and empty <i>HardwareDefinition</i>.
+ *
+ * </br></br>
+ * <code>getDummyImport({hardwareDefinition: hwDef})</code> returns a new Import with all ranges
+ * set to <b>0</b>, <i>HardwareDefinition</i> set to <b>hwDef</b> and <i>Value</i> set to <b>hwDef</b> uri.
+ *
+ * </br></br>
+ * <code>getDummyImport({key: {text: 1}})</code> returns a new Import with all ranges  * set to <b>0</b>, 
+ * empty <i>HardwareDefinition</i> and <i>Value.Text</i> set to <b>text</b>.
+ *
+ * @param {Object}             [opt]
+ * @param {Range}              [opt.range=(0,0,0,0)]
+ * @param {HardwareDefinition} [opt.hardwareDefinition={}]
+ * @param {Object}             [opt.key]
+ * @param {Range}              [opt.key.range=(0,0,0,0)]
+ * @param {string}             [opt.key.text='']
+ * @param {Object}             [opt.value]
+ * @param {Range}              [opt.value.range=(0,0,0,0)]
+ * @param {string}             [opt.value.text='']
+ * @returns Import
+ */
+export function getDummyImport(
+  opt: {
+    hardwareDefinition?: HardwareDefinition,
+    range?: Range,
+    key?: string | { text?: string, range?: Range },
+    value?: string | { text?: string, range?: Range }
+  } = {}): Import {
+  if (opt.hardwareDefinition == undefined) {
+    opt.hardwareDefinition = {
+      uri: '',
+      schema: undefined,
+      pinMappings: [],
+      imports: [],
+      unknownImports: []
+    };
+  }
+
+  if (opt.range == undefined) {
+    opt.range = getRange();
+  }
+
+  if (typeof opt.key == 'object') {
+    opt.key = {
+      text: opt.key.text || '',
+      range: opt.key.range || getRange()
+    };
+  }
+  else if (typeof opt.key == 'string') {
+    opt.key = {
+      text: opt.key,
+      range: getRange()
+    };
+  }
+  else if (opt.key == undefined) {
+    opt.key = {
+      text: '',
+      range: getRange()
+    };
+  }
+
+  if (typeof opt.value == 'object') {
+    opt.value = {
+      text: opt.value.text || '',
+      range: opt.value.range || getRange()
+    };
+  }
+  else if (typeof opt.value == 'string') {
+    opt.value = {
+      text: opt.value,
+      range: getRange()
+    };
+  }
+  else if (opt.value == undefined) {
+    opt.value = {
+      text: opt.hardwareDefinition.uri.split('/').slice(-1)[0] || '',
+      range: getRange()
+    };
+  }
+
+  return {
+    hardwareDefinition: opt.hardwareDefinition,
+    range: opt.range,
+    key: opt.key as {text: string, range: Range},
+    value: opt.value as { text: string, range: Range }
+  };
 }
 
 export function dummyAppManifest(appId: string, partnerIds?: string[], gpios?: (string | number)[]): AppManifest {

@@ -92,8 +92,8 @@ suite("tryParseHardwareDefinitionFile", () => {
       // check imports
       assert.strictEqual(1, hwDefinition.imports.length);
       const importedHwDefinition = hwDefinition.imports[0];
-      assert.strictEqual(importedHwDefinition.uri, asURI(importedHwDefFilePath));
-      const importedPins = importedHwDefinition.pinMappings;
+      assert.strictEqual(importedHwDefinition.hardwareDefinition.uri, asURI(importedHwDefFilePath));
+      const importedPins = importedHwDefinition.hardwareDefinition.pinMappings;
       for (let i = 0; i < importedPins.length; i++) {
         const importedPin = importedPins[i];
         const actualPin = actualPins[i];

@@ -21,7 +21,7 @@ export async function getPinTypes(hwDefinition: HardwareDefinition): Promise<str
   if (hwDefinition.imports.length > 0) {
     const pinTypes = new Set<string>();
     for (const hwDefImport of hwDefinition.imports) {
-      const pinTypesInImport = checkHwDefinition(hwDefImport);
+      const pinTypesInImport = checkHwDefinition(hwDefImport.hardwareDefinition);
       pinTypesInImport.forEach((p) => pinTypes.add(p));
     }
     return Array.from(pinTypes).filter(pinType => getPinMappingSuggestions(hwDefinition, pinType).length > 0);
