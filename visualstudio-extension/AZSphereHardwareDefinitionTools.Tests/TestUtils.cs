@@ -29,17 +29,40 @@ namespace AZSphereHardwareDefinitionTools.Tests
       await shell.LoadPackageAsync(ref guid);
     }
 
-
-    public static async Task<WindowFrame> OpenTestFixtureFileAsync(string filename)
+    public static async Task<WindowFrame> OpenFileAsync(string filename)
     {
-      var doc = await VS.Documents.OpenAsync(TestFixtureFile(filename));
+      var doc = await VS.Documents.OpenAsync(FullFilePath(filename));
       await doc.ShowAsync();
       return doc;
     }
 
-    public static string TestFixtureFile(string filename)
+    public static string FullFilePath(string filename)
     {
-      return Path.Combine(HardwareDefinitionLanguageClient.ExtensionPath(), "..", "testFixture", filename);
+      return Path.GetFullPath(Path.Combine(WorkingDir(), filename));
+    }
+
+    private static string WorkingDir()
+    {
+      return Path.Combine(HardwareDefinitionLanguageClient.ExtensionPath(), "testWorkingDir");
+    }
+
+    /// <summary>
+    /// Creates a file under the "working directory" for the test
+    /// </summary>
+    /// <param name="relativePath">Path to the file relative to the test "working directory"</param>
+    /// <param name="content">Content of the file to create</param>
+    /// <returns></returns>
+    public static void CreateFile(string relativePath, string content)
+    {
+      string fullPath = Path.Combine(WorkingDir(), relativePath);
+      Directory.CreateDirectory(Path.GetDirectoryName(fullPath));
+      File.WriteAllText(fullPath, content);
+    }
+
+    public static string GetFileText(string relativePath)
+    {
+      string fullPath = Path.Combine(WorkingDir(), relativePath);
+      return File.ReadAllText(fullPath);
     }
 
     /// <summary>
@@ -70,17 +93,17 @@ namespace AZSphereHardwareDefinitionTools.Tests
     /// <summary>
     /// Opens a Solution - usually needed before running e2e tests to enable Visual Studio functionalities
     /// </summary>
-    /// <param name="slnFileName">Relative path to solution file in test fixtures</param>
+    /// <param name="slnFileName">Relative path to solution file in the test's "working directory"</param>
     /// <returns></returns>
     public static async Task OpenSolutionAsync(string slnFileName)
     {
       await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
-      (await VS.Services.GetSolutionAsync()).OpenSolutionFile((uint)__VSSLNOPENOPTIONS.SLNOPENOPT_Silent, TestFixtureFile(slnFileName));
+      (await VS.Services.GetSolutionAsync()).OpenSolutionFile((uint)__VSSLNOPENOPTIONS.SLNOPENOPT_Silent, FullFilePath(slnFileName));
 
     }
 
     /// <summary>
-    /// Closes the active Solution - usually needed after running an e2e to prevent it from affecting others
+    /// Closes the active Solution and deletes all files under the test's working directory - usually needed after running an e2e to prevent it from affecting others
     /// </summary>
     /// <returns></returns>
     public static async Task<bool> CloseSolutionAsync()
@@ -88,6 +111,10 @@ namespace AZSphereHardwareDefinitionTools.Tests
       await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
       var solutionService = await VS.Services.GetSolutionAsync();
       var resultCode = solutionService.CloseSolutionElement((uint)__VSSLNCLOSEOPTIONS.SLNCLOSEOPT_DeleteProject, null, 0);
+      if (Directory.Exists(WorkingDir()))
+      {
+        Directory.Delete(WorkingDir(), true);
+      }
       return resultCode == Microsoft.VisualStudio.VSConstants.S_OK;
 
     }
@@ -95,9 +122,36 @@ namespace AZSphereHardwareDefinitionTools.Tests
     public static async Task<bool> MoveCaretAsync(int line, int character)
     {
       await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
+      // Reload document to dismiss previous completion suggestions if they exist
+      await ReloadCurrentDocumentAsync();
+
       var currentView = await VS.Documents.GetCurrentNativeTextViewAsync();
       var resultCode = currentView.SetCaretPos(line, character);
       return resultCode == Microsoft.VisualStudio.VSConstants.S_OK;
+    }
+
+    public static (int line, int character) OffsetAsPosition(string text, int offset)
+    {
+      offset = Math.Max(Math.Min(offset, text.Length), 0);
+
+      int line = 1, character = 1;
+      for (int charIndex = 0; charIndex < offset; charIndex++)
+      {
+        char currentChar = text[charIndex];
+        if (currentChar == '\n' || currentChar == '\r')
+        {
+          if (currentChar == '\r' && text[charIndex + 1] == '\n') // if \r\n i.e. crlf, skip the extra char
+          {
+            charIndex++;
+          }
+          line++;
+          character = 1;
+        } else
+        {
+          character++;
+        }
+      }
+      return (line, character);
     }
 
     public static async Task<IEnumerable<CompletionItem>> TriggerCompletionAsync(int maxAttempts = 5)
