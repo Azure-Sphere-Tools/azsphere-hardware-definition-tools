@@ -788,7 +788,13 @@ suite('validateImports', () => {
 
 		assert.strictEqual(diagnostics.length, 1);
 
-		assert.strictEqual(diagnostics[0].message, `Imported hardware definition contains errors. (line ${pinMapping1.name.value.range.start.line + 1}, char ${pinMapping1.name.value.range.start.character + 1} in /${importedHwDef.hardwareDefinition.uri})`);
+		assert.strictEqual(
+			diagnostics[0].message,
+			`Imported hardware definition contains errors. `
+			+ `(line ${pinMapping1.name.value.range.start.line + 1}, `
+			+ `char ${pinMapping1.name.value.range.start.character + 1} `
+			+ `in ${URI.parse(importedHwDef.hardwareDefinition.uri).path})`
+		);
 		assert.deepStrictEqual(diagnostics[0].range, importRange);
 		assert.strictEqual(diagnostics[0].severity, 1);
 		assert.strictEqual(diagnostics[0].source, 'az sphere');
@@ -797,18 +803,15 @@ suite('validateImports', () => {
 	});
 
 	test('Find indirectly imported errors', () => {
-		const pinMapping1 = getDummyPinMapping({
-			name: 'LED'
-		});
-		const pinMapping2 = getDummyPinMapping({
-			name: 'LED'
-		});
+		const pinMapping1 = getDummyPinMapping({ name: 'LED' });
+		const pinMapping2 = getDummyPinMapping({ name: 'LED' });
 
-		const importRange = getRange(10, 0, 11, 100);
+		const errorRange = getRange(9, 0, 10, 100);
 		const baseHwDef = getDummyImport({
-			range: importRange,
-			hardwareDefinition: new HardwareDefinition('imported.json', false, undefined, [ pinMapping1, pinMapping2 ])
+			range: errorRange,
+			hardwareDefinition: new HardwareDefinition('base.json', false, undefined, [ pinMapping1, pinMapping2 ])
 		});
+		const importRange = getRange(10, 0, 11, 100);
 		const importedHwDef = getDummyImport({
 			range: importRange,
 			hardwareDefinition: new HardwareDefinition('imported.json', false, undefined, [], [ baseHwDef ])
@@ -827,7 +830,7 @@ suite('validateImports', () => {
 		assert.strictEqual(diagnostics[0].code, 'AST14');
 		assert.ok(diagnostics[0].relatedInformation);
 		assert.deepStrictEqual(diagnostics[0].relatedInformation[0].location.uri, importedHwDef.hardwareDefinition.uri);
-		assert.deepStrictEqual(diagnostics[0].relatedInformation[0].location.range, baseHwDef.range);
+		assert.deepStrictEqual(diagnostics[0].relatedInformation[0].location.range, errorRange);
 		assert.strictEqual(diagnostics[0].relatedInformation[0].message, 'Imported error');
 
 		// Exclude related info
@@ -835,7 +838,13 @@ suite('validateImports', () => {
 
 		assert.strictEqual(diagnostics.length, 1);
 
-		assert.strictEqual(diagnostics[0].message, `Imported hardware definition contains errors. (line ${importRange.start.line + 1}, char ${importRange.start.character + 1} in /${importedHwDef.hardwareDefinition.uri})`);
+		assert.strictEqual(
+			diagnostics[0].message,
+			`Imported hardware definition contains errors. `
+			+ `(line ${errorRange.start.line + 1}, `
+			+ `char ${errorRange.start.character + 1} `
+			+ `in ${URI.parse(importedHwDef.hardwareDefinition.uri).path})`
+		);
 		assert.deepStrictEqual(diagnostics[0].range, importRange);
 		assert.strictEqual(diagnostics[0].severity, 1);
 		assert.strictEqual(diagnostics[0].source, 'az sphere');
