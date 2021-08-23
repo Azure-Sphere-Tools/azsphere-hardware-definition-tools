@@ -131,7 +131,7 @@ export class Parser {
 
       const sdkDefined = URI.parse(hwDefinitionFileUri).path.startsWith(sdkPath);
   
-      return new HardwareDefinition(hwDefinitionFileUri, sdkDefined, $schema, pinMappings, validImports, unknownImports);
+      return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports, sdkDefined);
     } catch (error) {
       this.logger.log("Cannot parse Hardware Definition file as JSON");
       return;

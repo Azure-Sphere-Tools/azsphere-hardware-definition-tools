@@ -210,7 +210,7 @@ suite("LanguageServer", () => {
     // mock parser to return app manifests with 1 conflict on shared GPIO
     const appManifest = dummyAppManifest(appId, [partnerId], ["$APP_GPIO"]);
     const partnerManifest = dummyAppManifest(partnerId, [appId], ["$PARTNER_GPIO"]);
-    const hwDefinition = new HardwareDefinition("", false, "", [
+    const hwDefinition = new HardwareDefinition("", "", [
       getDummyPinMapping({ name: "APP_GPIO", appManifestValue: 1 }),
       getDummyPinMapping({ name: "PARTNER_GPIO", appManifestValue: 1 })
     ]);
@@ -242,7 +242,7 @@ suite("LanguageServer", () => {
 
     // mock parser to return a hw def which imports another
     const pinWithUnknownMapping = getDummyPinMapping({ name: "APP_GPIO", mapping: "UNKNOWN" });
-    const faultyHwDefinition = new HardwareDefinition("", false, "", [pinWithUnknownMapping]);
+    const faultyHwDefinition = new HardwareDefinition("", "", [pinWithUnknownMapping]);
 
     const mockedParser = mockParser({content: anyString(), hwDef: faultyHwDefinition});
     const mockedConnection = mockConnection();
@@ -269,10 +269,10 @@ suite("LanguageServer", () => {
 
     // mock parser to return a hw def which imports another
     const importedHwDef = getDummyImport({
-      hardwareDefinition: new HardwareDefinition("", false, "", [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })])
+      hardwareDefinition: new HardwareDefinition("", "", [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })])
     });
     const pinToAskCompletionsFor = getDummyPinMapping({ name: "APP_GPIO", mapping: "" });
-    const hwDefinition = new HardwareDefinition("", false, "", [pinToAskCompletionsFor], [importedHwDef]);
+    const hwDefinition = new HardwareDefinition("", "", [pinToAskCompletionsFor], [importedHwDef]);
 
     const mockedParser = mockParser({ content: anyString(), hwDef: hwDefinition});
     const server = new LanguageServer(mockConnection(), mockDocumentManager(), console, new Map(), mockedParser);
@@ -329,7 +329,7 @@ suite("LanguageServer", () => {
 
     // mock parser to return a hw def which imports another
     const pinWithUnknownMapping = getDummyPinMapping({ name: "APP_GPIO", mapping: "UNKNOWN" });
-    const faultyHwDefinition = new HardwareDefinition("", false, "", [pinWithUnknownMapping]);
+    const faultyHwDefinition = new HardwareDefinition("", "", [pinWithUnknownMapping]);
 
     const mockedParser = mockParser({ content: anyString(), hwDef: faultyHwDefinition });
     const server = new LanguageServer(mockConnection(), mockDocumentManager(), console, new Map(), mockedParser);
@@ -354,7 +354,7 @@ suite("LanguageServer", () => {
     mockfs(files);
 
     // mock parser to return a hw def with an error
-    const hwDefWithError = new HardwareDefinition("", false, "", [getDummyPinMapping({ name: "PIN", mapping: "UNKNOWN" })]);
+    const hwDefWithError = new HardwareDefinition("", "", [getDummyPinMapping({ name: "PIN", mapping: "UNKNOWN" })]);
     const mockedParser = mockParser({ content: anyString(), hwDef: hwDefWithError });
     const mockedConnection = mockConnection();
     const server = new LanguageServer(mockedConnection, mockDocumentManager(), console, new Map(), mockedParser);
@@ -378,9 +378,9 @@ suite("LanguageServer", () => {
     // mock parser to return a hw def for which we can generate a pin
     const availableType = "Gpio";
     const importedHwDef = getDummyImport({
-      hardwareDefinition: new HardwareDefinition("", false, "", [getDummyPinMapping({ type: availableType, appManifestValue: 1 })])
+      hardwareDefinition: new HardwareDefinition("", "", [getDummyPinMapping({ type: availableType, appManifestValue: 1 })])
     });
-    const hwDef = new HardwareDefinition("", false, "", [], [importedHwDef]);
+    const hwDef = new HardwareDefinition("", "", [], [importedHwDef]);
     const mockedParser = mockParser({ content: anyString(), hwDef: hwDef });
     const server = new LanguageServer(mockConnection(), mockDocumentManager(), console, new Map(), mockedParser);
     server.onInitialize(workspaceConfigSupportedParams());
@@ -401,7 +401,7 @@ suite("LanguageServer", () => {
     mockfs(files);
 
     // mock parser to return a hw def for which we can't generate any pins
-    const hwDefWithNoPins = new HardwareDefinition("", false, "", []);
+    const hwDefWithNoPins = new HardwareDefinition("", "", []);
     const mockedParser = mockParser({ content: anyString(), hwDef: hwDefWithNoPins });
     const mockedConnection = mockConnection();
     const server = new LanguageServer(mockedConnection, mockDocumentManager(), console, new Map(), mockedParser);
@@ -424,9 +424,9 @@ suite("LanguageServer", () => {
     // mock parser to return a hw def for which we can generate a pin
     const pinType = "Gpio";
     const importedHwDef = getDummyImport({
-      hardwareDefinition: new HardwareDefinition("", false, "", [getDummyPinMapping({ type: pinType, appManifestValue: 1 })])
+      hardwareDefinition: new HardwareDefinition("", "", [getDummyPinMapping({ type: pinType, appManifestValue: 1 })])
     });
-    const hwDef = new HardwareDefinition("", false, "", [], [importedHwDef]);
+    const hwDef = new HardwareDefinition("", "", [], [importedHwDef]);
     const mockedParser = mockParser({ content: anyString(), hwDef: hwDef });
     const server = new LanguageServer(mockConnection(), mockDocumentManager(), console, new Map(), mockedParser);
     server.onInitialize(workspaceConfigSupportedParams());
@@ -471,7 +471,7 @@ suite("LanguageServer", () => {
     mockfs(files);
     
     const mockedParser = mockParser(
-      { content: files[goodHwDefPath], hwDef: new HardwareDefinition(asURI(goodHwDefPath), false, "", []) },
+      { content: files[goodHwDefPath], hwDef: new HardwareDefinition(asURI(goodHwDefPath), "", []) },
       { content: files[badHwDefPath], hwDef:  undefined }
     );
     const server = new LanguageServer(mockConnection(), mockDocumentManager(), console, new Map(), mockedParser);
@@ -500,7 +500,7 @@ suite("LanguageServer", () => {
     mockfs(files);
 
     // mock parser to return valid odm hw def
-    const odmHwDef = new HardwareDefinition("", false, "", [getDummyPinMapping({ name: "ODM_PIN", appManifestValue: 1 })]);
+    const odmHwDef = new HardwareDefinition("", "", [getDummyPinMapping({ name: "ODM_PIN", appManifestValue: 1 })]);
     const mockedParser = mockParser({ content: files[odmHwDefPath], hwDef: odmHwDef });
     
     // configure sdk path in settings for file against which we will run the command

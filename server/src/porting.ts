@@ -66,7 +66,7 @@ export function portHardwareDefinition(
     }
   };
 
-  const generatedHwDefinition = new HardwareDefinition("not_needed", false, undefined, generatedPeripherals, [targetImport]);
+  const generatedHwDefinition = new HardwareDefinition("not_needed", undefined, generatedPeripherals, [targetImport]);
 
   if (namesOfPinsWithoutExactMatch.size > 0) {
     replacePinsWithoutExactMatch(generatedHwDefinition, namesOfPinsWithoutExactMatch);
