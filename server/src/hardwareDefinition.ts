@@ -3,6 +3,7 @@ import { Range, Position } from 'vscode-languageserver-textdocument';
 export class HardwareDefinition {
 	constructor(
 		public uri: string,
+		public sdkDefined: boolean,
 		public schema: string | undefined,
 		public pinMappings: PinMapping[] = [],
 		public imports: Import[] = [],

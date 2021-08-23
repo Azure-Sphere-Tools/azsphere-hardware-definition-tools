@@ -115,6 +115,7 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
 ### Duplicate Mapping Across Apps
 
 ```json
+app_manifest_1.json
 {
   "ComponentId": "00000000-0000-0000-0000-000000000001",
   "Capabilities": {
@@ -122,9 +123,8 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
     "AllowedApplicationConnections": [ "00000000-0000-0000-0000-000000000002" ]
   }
 }
-```
 
-```json
+app_manifest_2.json
 {
   "ComponentId": "00000000-0000-0000-0000-000000000002",
   "Capabilities": {
@@ -145,6 +145,7 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
 ### Pin Block Conflict Across Apps
 
 ```json
+app_manifest_1.json
 {
   "ComponentId": "00000000-0000-0000-0000-000000000001",
   "Capabilities": {
@@ -152,9 +153,8 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
     "AllowedApplicationConnections": [ "00000000-0000-0000-0000-000000000002" ]
   }
 }
-```
 
-```json
+app_manifest_2.json
 {
   "ComponentId": "00000000-0000-0000-0000-000000000002",
   "Capabilities": {
@@ -182,9 +182,7 @@ The `pack-server.sh` script can be run to pack the language server into a tarbal
         "00000000-0000-0000-0000-000000000002": "dir_2/app_manifest.json"
     }
 }
-```
 
-```json
 app_manifest.json
 {
   "ComponentId": "00000000-0000-0000-0000-000000000001",
@@ -199,3 +197,30 @@ app_manifest.json
 |Range                |`[ "00000000-0000-0000-0000-000000000002" ]`|
 |Message              |`Could not find partner app 00000000-0000-0000-0000-000000000002 under path "dir_2/app_manifest.json". \nPlease check your .vscode/settings.json or .code-workspace file to fix the path to the partner app manifest.`|
 |Severity             |Warning|
+
+### Invalid Import
+
+```json
+lib.json
+{
+  "Peripherals": {
+    { "Name": "REF", "Type": "Gpio", "Mapping": "GPIO0" },
+    { "Name": "REF", "Type": "Gpio", "Mapping": "GPIO1" }
+  }
+}
+
+appliance.json
+{
+  "Imports": [ {"Path": "lib.json"} ],
+  "Peripherals": {
+    { "Name": "LED", "Type": "Gpio", "Mapping": "REF" }
+  }
+}
+```
+
+|                     | |
+|---------------------|-|
+|Range                |`{"Path": "lib.json"}`|
+|Message              |`Imported hardware definition contains errors.`|
+|Severity             |Error|
+|Related info location|first `"REF"` in lib.json|

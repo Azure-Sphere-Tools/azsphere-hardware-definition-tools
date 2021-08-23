@@ -14,13 +14,13 @@ suite("findPinMappingRange", () => {
     const gpioPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
     const importedhwDefFilePath = "my_app/hardwareDef.json";
     const importedhwDefinitionFile = getDummyImport({
-      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin])
+      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), false, undefined, [gpioPin])
     });
 
     const hwDefFilePath = "my_app/ODM.json";
     const validPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 7), name: "LED_RED", type: "Gpio", mapping: { value: { range: getRange(0, 2, 0, 3), text: "GPIO0" } } });
     const validPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 7), name: "LED_BLUE", type: "Gpio", mapping: { value: { range: getRange(1, 2, 1, 3), text: "GPIO0" } } });
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), false, undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
 
     const warningPinMapping = findPinMappingRange({line: 1, character: 2}, hwDefinitionFile);
 
@@ -39,13 +39,13 @@ suite("quickfix", () => {
     const gpioPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
     const importedhwDefFilePath = "my_app/hardwareDef.json";
     const importedhwDefinitionFile = getDummyImport({
-      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin])
+      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), false, undefined, [gpioPin])
     });
 
     const hwDefFilePath = "my_app/ODM.json";
     const validPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 7), name: "LED_RED", type: "Gpio", mapping: { value: { range: getRange(0, 2, 0, 3), text: "GPIO0" } } });
     const validPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 7), name: "LED_BLUE", type: "Gpio", mapping: { value: { range: getRange(1, 2, 1, 3), text: "GPIO0" } } });
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), false, undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
 
 		const allPeripherals = flatten(hwDefinitionFile).indexedByName;
     const diagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionFile, allPeripherals, true);
@@ -67,13 +67,13 @@ suite("quickfix", () => {
     const gpioPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
     const importedhwDefFilePath = "my_app/hardwareDef.json";
     const importedhwDefinitionFile = getDummyImport({
-      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin])
+      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), false, undefined, [gpioPin])
     });
 
     const hwDefFilePath = "my_app/ODM.json";
     const validPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 7), name: "LED_RED", type: "Gpio", mapping: { value: { range: getRange(0, 2, 0, 3), text: "GPIO0" } } });
     const validPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 7), name: "LED_BLUE", type: "Gpio", mapping: { value: { range: getRange(1, 2, 1, 3), text: "GPIO10" } } });
-    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
+    const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), false, undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
 		const allPeripherals = flatten(hwDefinitionFile).indexedByName;
     const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionFile, allPeripherals, true);
     

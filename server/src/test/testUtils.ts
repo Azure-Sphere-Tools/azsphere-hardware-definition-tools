@@ -200,6 +200,7 @@ export function getDummyImport(
   if (opt.hardwareDefinition == undefined) {
     opt.hardwareDefinition = {
       uri: '',
+      sdkDefined: false,
       schema: undefined,
       pinMappings: [],
       imports: [],

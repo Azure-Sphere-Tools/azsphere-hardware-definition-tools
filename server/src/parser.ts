@@ -70,14 +70,14 @@ export class Parser {
                 if (importedHwDefinition) {
                   validImports.push({
                     hardwareDefinition: importedHwDefinition,
-                    range: toRange(importedHwDefFileText, pathNode.offset, pathNode.offset + pathNode.length),
+                    range: toRange(hwDefinitionFileText, pathNode.offset, pathNode.offset + pathNode.length),
                     key: {
                       text: pathKey.value,
-                      range: toRange(importedHwDefFileText, pathKey.offset, pathKey.offset + pathKey.length)
+                      range: toRange(hwDefinitionFileText, pathKey.offset, pathKey.offset + pathKey.length)
                     },
                     value: {
                       text: pathVal.value,
-                      range: toRange(importedHwDefFileText, pathVal.offset, pathVal.offset + pathVal.length)
+                      range: toRange(hwDefinitionFileText, pathVal.offset, pathVal.offset + pathVal.length)
                     }
                   });
                 }
@@ -128,8 +128,10 @@ export class Parser {
           pinMappings.push(new PinMapping(range, values.get("name"), values.get("type"), values.get("mapping"), values.get("appmanifestvalue"), values.get("comment")));
         }
       }
+
+      const sdkDefined = URI.parse(hwDefinitionFileUri).path.startsWith(sdkPath);
   
-      return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports);
+      return new HardwareDefinition(hwDefinitionFileUri, sdkDefined, $schema, pinMappings, validImports, unknownImports);
     } catch (error) {
       this.logger.log("Cannot parse Hardware Definition file as JSON");
       return;

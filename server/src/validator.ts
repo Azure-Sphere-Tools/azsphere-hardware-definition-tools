@@ -1,10 +1,20 @@
-import { Diagnostic } from 'vscode-languageserver/node';
+import { Diagnostic, DiagnosticSeverity } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
-import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning, appConflictPinBlock, appConflictDuplicateValue } from "./diagnostics";
 import { AppManifest } from "./applicationManifest";
+import { 
+	duplicateMappingWarning, 
+	duplicateNameError, 
+	indirectMappingWarning, 
+	invalidPinTypeError, 
+	nonexistentMappingError, 
+	pinBlockConflictWarning, 
+	unknownImportWarning, 
+	appConflictPinBlock, 
+	appConflictDuplicateValue,
+	invalidImport } from "./diagnostics";
 
 export interface FlatPinMapping {
 	pinMapping: PinMapping,
@@ -384,6 +394,20 @@ export function scanHardwareDefinition(mainHardwareDefinition: HardwareDefinitio
 	
 	const pinMappingsInCurrentHwDef = reachablePinMappings.filter(p => p.hardwareDefinitionUri === mainHardwareDefinition.uri);
 	diagnostics.push(...validatePinBlock(pinMappingsInCurrentHwDef, controllerSetup, includeRelatedInfo));
+
+	mainHardwareDefinition.imports.some(importedHwDef => {
+		if (!importedHwDef.hardwareDefinition.sdkDefined) {
+			const importedDiagnostics = scanHardwareDefinition(importedHwDef.hardwareDefinition, includeRelatedInfo).diagnostics;
+			const importedErrors = importedDiagnostics.filter(diagnostic => diagnostic.severity == DiagnosticSeverity.Error);
+
+			if (importedErrors.length > 0) {
+				diagnostics.push(
+					invalidImport(importedHwDef.range, importedHwDef.hardwareDefinition.uri, importedErrors[0].range, includeRelatedInfo)
+				);
+				return;
+			}
+		}
+	});
 
 	// drop duplicate names if they exist
 	const allPinsWithoutDuplicates = new Map<string, FlatPinMapping>();

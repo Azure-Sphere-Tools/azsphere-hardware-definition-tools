@@ -36,9 +36,9 @@ suite("pinMappingGeneration", () => {
 
   test("Does not suggest types whose pins have all been assigned", async () => {
     const importedwDef = getDummyImport({
-      hardwareDefinition: new HardwareDefinition("anyuri", undefined, [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })])
+      hardwareDefinition: new HardwareDefinition("anyuri", false, undefined, [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })])
     });
-    const hwDefinition = new HardwareDefinition("anyUri", undefined, [getDummyPinMapping({ name: "LED", mapping: "GPIO1" })], [importedwDef]);
+    const hwDefinition = new HardwareDefinition("anyUri", false, undefined, [getDummyPinMapping({ name: "LED", mapping: "GPIO1" })], [importedwDef]);
     
     const actualPinTypesCount = (await getPinTypes(hwDefinition))?.length;
     const expectedPinTypesCount = 0;

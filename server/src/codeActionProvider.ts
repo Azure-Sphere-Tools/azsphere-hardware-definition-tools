@@ -1,5 +1,5 @@
 import { CodeAction, CodeActionParams, CodeActionKind, Position, Diagnostic} from 'vscode-languageserver';
-import { DUPLICATE_MAPPING_WARNING_CODE, NONEXISTENT_MAPPING_ERROR_CODE, PIN_BLOCK_CONFLICT_WARNING_CODE } from "./diagnostics";
+import { DiagnosticCode } from "./diagnostics";
 import { HardwareDefinition, isInsideRange, PinMapping } from "./hardwareDefinition";
 
 export const QUICKFIX_DUPLICATE_MSG = 'is already mapped';
@@ -64,17 +64,17 @@ export function quickfix(hwDefinition: HardwareDefinition, parms: CodeActionPara
         return [];
       }
 
-      if (diag.code === DUPLICATE_MAPPING_WARNING_CODE) {
+      if (diag.code === DiagnosticCode.DUPLICATE_MAPPING) {
         findWarningCodeAction(codeActions, "Delete the Duplicate pin mapping", diag, parms, pinMappingToComplete);
         return;
       }
 
-      if (diag.code === NONEXISTENT_MAPPING_ERROR_CODE) {
+      if (diag.code === DiagnosticCode.NONEXISTENT_MAPPING) {
         findWarningCodeAction(codeActions, "Delete the Invalid pin mapping", diag, parms, pinMappingToComplete);
         return;
       }
 
-      if (diag.code === PIN_BLOCK_CONFLICT_WARNING_CODE) {
+      if (diag.code === DiagnosticCode.PIN_BLOCK_CONFLICT) {
         findWarningCodeAction(codeActions, "Assign pin mapping to a pin on a different pin block", diag, parms, pinMappingToComplete);
         return;
       }
