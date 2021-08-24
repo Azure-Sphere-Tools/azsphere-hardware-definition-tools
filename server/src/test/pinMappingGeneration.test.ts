@@ -5,7 +5,7 @@ import { getPinTypes, addPinMappings } from "../pinMappingGeneration";
 import * as jsonc from "jsonc-parser";
 import * as fs from "fs";
 import { Parser } from "../parser";
-import { asURI, getDummyPinMapping } from "./testUtils";
+import { asURI, getDummyPinMapping, getDummyImport } from "./testUtils";
 import { HardwareDefinition } from "../hardwareDefinition";
 
 suite("pinMappingGeneration", () => {
@@ -35,7 +35,9 @@ suite("pinMappingGeneration", () => {
   });
 
   test("Does not suggest types whose pins have all been assigned", async () => {
-    const importedwDef = new HardwareDefinition("anyuri", undefined, [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })]);
+    const importedwDef = getDummyImport({
+      hardwareDefinition: new HardwareDefinition("anyuri", undefined, [getDummyPinMapping({ name: "GPIO1", appManifestValue: 1 })])
+    });
     const hwDefinition = new HardwareDefinition("anyUri", undefined, [getDummyPinMapping({ name: "LED", mapping: "GPIO1" })], [importedwDef]);
     
     const actualPinTypesCount = (await getPinTypes(hwDefinition))?.length;

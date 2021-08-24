@@ -5,9 +5,33 @@ export class HardwareDefinition {
 		public uri: string,
 		public schema: string | undefined,
 		public pinMappings: PinMapping[] = [],
-		public imports: HardwareDefinition[] = [],
-		public unknownImports: UnknownImport[] = []
+		public imports: Import[] = [],
+		public unknownImports: UnknownImport[] = [],
+		public sdkDefined: boolean = false
 	) { }
+}
+
+export type Import = {
+	hardwareDefinition: HardwareDefinition,
+	range: Range,
+	key: {
+		range: Range,
+		text: string
+	},
+	value: {
+		range: Range,
+		text: string
+	}
+}
+
+/**
+ * An imported file which could not be found under the Azure Sphere SDK path or the importing hardware definition file's path
+ */
+export interface UnknownImport {
+	fileName: string,
+	sdkPath: string,
+	hwDefinitionFilePath: string,
+	range: Range
 }
 
 export type PinMappingKey<T> = {
@@ -40,17 +64,6 @@ export class PinMapping {
 	public isRootMapping(): boolean {
 		return this.appManifestValue != undefined;
 	}
-}
-
-/**
- * An imported file which could not be found under the Azure Sphere SDK path or the importing hardware definition file's path
- */
-export interface UnknownImport {
-	fileName: string,
-	sdkPath: string,
-	hwDefinitionFilePath: string,
-	start: number,
-	end: number
 }
 
 export function toRange(text: string, start: number, end: number, lineOffsets?: number[]): Range {

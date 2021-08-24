@@ -4,19 +4,19 @@ import { PinMapping, UnknownImport } from "./hardwareDefinition";
 
 const EXTENSION_SOURCE = 'az sphere';
 
-export const DUPLICATE_NAME_ERROR_CODE = "AST1";
-export const NONEXISTENT_MAPPING_ERROR_CODE = "AST2";
-export const DUPLICATE_MAPPING_WARNING_CODE = "AST3";
-export const INDIRECT_MAPPING_WARNING_CODE = "AST4";
-export const INVALID_PIN_TYPE_ERROR_CODE = "AST5";
-export const PIN_BLOCK_CONFLICT_WARNING_CODE = "AST6";
-
-
-export const UNKNOWN_IMPORT_WARNING_CODE = "AST10";
-export const APP_PIN_BLOCK_CONFLICT_WARNING_CODE = "AST11";
-export const APP_DUPLICATE_VALUE_WARNING_CODE = "AST12";
-export const APP_MANIFEST_NOT_FOUND_WARNING_CODE = "AST13";
-
+export const DiagnosticCode = {
+  DUPLICATE_NAME:         "AST1",
+  NONEXISTENT_MAPPING:    "AST2",
+  DUPLICATE_MAPPING:      "AST3",
+  INDIRECT_MAPPING:       "AST4",
+  INVALID_PIN_TYPE:       "AST5",
+  PIN_BLOCK_CONFLICT:     "AST6",
+  INVALID_IMPORT:         "AST9",
+  UNKNOWN_IMPORT:         "AST10",
+  APP_PIN_BLOCK_CONFLICT: "AST11",
+  APP_DUPLICATE_VALUE:    "AST12",
+  APP_MANIFEST_NOT_FOUND: "AST13"
+};
 
 /**
  * 
@@ -28,7 +28,7 @@ export const APP_MANIFEST_NOT_FOUND_WARNING_CODE = "AST13";
  */
 export function duplicateNameError(badMapping: PinMapping, badMappingUri: string, existingMapping: PinMapping, existingMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
-    code: DUPLICATE_NAME_ERROR_CODE,
+    code: DiagnosticCode.DUPLICATE_NAME,
     message: `Peripheral name ${badMapping.name.value.text} is used multiple times.`,
     range: badMapping.name.value.range,
     severity: DiagnosticSeverity.Error,
@@ -56,7 +56,7 @@ export function duplicateNameError(badMapping: PinMapping, badMappingUri: string
  */
 export function nonexistentMappingError(badMapping: PinMapping): Diagnostic {
   return {
-    code: NONEXISTENT_MAPPING_ERROR_CODE,
+    code: DiagnosticCode.NONEXISTENT_MAPPING,
     message: `Peripheral ${badMapping.mapping?.value.text} not found.`,
     range: badMapping.mapping?.value.range || badMapping.range,
     severity: DiagnosticSeverity.Error,
@@ -73,7 +73,7 @@ export function nonexistentMappingError(badMapping: PinMapping): Diagnostic {
  */
 export function duplicateMappingWarning(duplicateMapping1: PinMapping, duplicateMapping2: PinMapping, duplicateUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
-    code: DUPLICATE_MAPPING_WARNING_CODE,
+    code: DiagnosticCode.DUPLICATE_MAPPING,
     severity: DiagnosticSeverity.Warning,
     range: duplicateMapping1.mapping?.value.range || duplicateMapping1.range,
     message: `${duplicateMapping1.mapping?.value.text} is also mapped to ${duplicateMapping2.name.value.text}.`,
@@ -107,7 +107,7 @@ export function duplicateMappingWarning(duplicateMapping1: PinMapping, duplicate
  */
 export function indirectMappingWarning(badMapping: PinMapping, indirectMapping: PinMapping, indirectMappingUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
-    code: INDIRECT_MAPPING_WARNING_CODE,
+    code: DiagnosticCode.INDIRECT_MAPPING,
     message: `${badMapping.mapping?.value.text} is indirectly imported from ${URI.parse(indirectMappingUri).fsPath}.`,
     range: badMapping.mapping?.value.range || badMapping.range,
     severity: DiagnosticSeverity.Warning,
@@ -136,7 +136,7 @@ export function indirectMappingWarning(badMapping: PinMapping, indirectMapping: 
  */
 export function invalidPinTypeError(pinMapping: PinMapping): Diagnostic {
   const diagnostic: Diagnostic = {
-    code: INVALID_PIN_TYPE_ERROR_CODE,
+    code: DiagnosticCode.INVALID_PIN_TYPE,
     message: `${pinMapping.mapping != undefined ? pinMapping.mapping.value.text : pinMapping.appManifestValue?.value.text} cannot be used as ${pinMapping.type.value.text}`,
     range: pinMapping.range,
     severity: DiagnosticSeverity.Error,
@@ -154,7 +154,7 @@ export function invalidPinTypeError(pinMapping: PinMapping): Diagnostic {
  */
 export function pinBlockConflictWarning(badMapping: PinMapping, existingMapping: PinMapping, hwDefinitionUri: string, includeRelatedInfo: boolean): Diagnostic {
   const diagnostic: Diagnostic = {
-    code: PIN_BLOCK_CONFLICT_WARNING_CODE,
+    code: DiagnosticCode.PIN_BLOCK_CONFLICT,
     message: `${badMapping.name.value.text} configured as ${existingMapping.type.value.text} by ${existingMapping.name.value.text}`,
     range: badMapping.range,
     severity: DiagnosticSeverity.Warning,
@@ -177,19 +177,19 @@ export function pinBlockConflictWarning(badMapping: PinMapping, existingMapping:
   return diagnostic;
 }
 
-export function unknownImportWarning(unknownImport: UnknownImport, unknownImportRange: Range) {
+export function unknownImportWarning(unknownImport: UnknownImport) {
   return {
-    code: UNKNOWN_IMPORT_WARNING_CODE,
+    code: DiagnosticCode.UNKNOWN_IMPORT,
     severity: DiagnosticSeverity.Warning,
-    range: unknownImportRange,
-    message: `Cannot find imported file '${unknownImport.fileName}' under ${unknownImport.hwDefinitionFilePath} or ${unknownImport.sdkPath}`,
+    range: unknownImport.range,
+    message: `Cannot find '${unknownImport.fileName}' under ${unknownImport.hwDefinitionFilePath} or ${unknownImport.sdkPath}.`,
     source: EXTENSION_SOURCE
   };
 }
 
 export function appConflictPinBlock(conflictPinName: string, partnerComponentId: string, range: Range, existingControllerSetup: {pinType: string, pinName: string}) {
   return{
-    code: APP_PIN_BLOCK_CONFLICT_WARNING_CODE,
+    code: DiagnosticCode.APP_PIN_BLOCK_CONFLICT,
     message: `${conflictPinName} configured as ${existingControllerSetup?.pinType} by ${existingControllerSetup?.pinName} in partner app ${partnerComponentId}.`,
     range: range,
     severity: DiagnosticSeverity.Warning,
@@ -199,7 +199,7 @@ export function appConflictPinBlock(conflictPinName: string, partnerComponentId:
 
 export function appConflictDuplicateValue(conflictPinName: string, partnerComponentId: string, range: Range, existingPinName: string) {
   return{
-    code: APP_DUPLICATE_VALUE_WARNING_CODE,
+    code: DiagnosticCode.APP_DUPLICATE_VALUE,
     message: `App manifest value of ${conflictPinName} is also declared in partner app ${partnerComponentId} through ${existingPinName}.`,
     range: range,
     severity: DiagnosticSeverity.Warning,
@@ -209,13 +209,38 @@ export function appConflictDuplicateValue(conflictPinName: string, partnerCompon
 
 export function appManifestNotFound(partnerId: string, partnerAppManifestPath: string, settingsName: string, range: Range) {
   return{
-    code: APP_MANIFEST_NOT_FOUND_WARNING_CODE,
+    code: DiagnosticCode.APP_MANIFEST_NOT_FOUND,
     message: `Could not find partner app ${partnerId} under path "${partnerAppManifestPath}".\n`
       + `Please check your ${settingsName} file to fix the path to the partner app manifest.`,
     range: range,
     severity: DiagnosticSeverity.Warning,
     source: EXTENSION_SOURCE
   };
+}
+
+export function invalidImport(range: Range, importedErrorUri: string, importedErrorRange: Range, includeRelatedInfo: boolean): Diagnostic {
+  const diagnostic: Diagnostic = {
+    code: DiagnosticCode.INVALID_IMPORT,
+    message: `Imported hardware definition contains errors.`,
+    range: range,
+    severity: DiagnosticSeverity.Error,
+    source: EXTENSION_SOURCE
+  };
+  if (includeRelatedInfo) {
+    diagnostic.relatedInformation = [
+      {
+        location: {
+          uri: importedErrorUri,
+          range: importedErrorRange
+        },
+        message: `Imported error`
+      }
+    ];
+  } else {
+    const relatedInfoPosition = importedErrorRange.start;
+    addRelatedInfoAsDiagnosticMessage(diagnostic, relatedInfoPosition, importedErrorUri);
+  }
+  return diagnostic;
 }
 
 /**

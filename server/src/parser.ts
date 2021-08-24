@@ -1,7 +1,7 @@
 import { AppManifest, AppPin, AppPinKey } from "./applicationManifest";
 import * as jsonc from "jsonc-parser";
 import { Logger } from "./utils";
-import { computeLineOffsets, HardwareDefinition, PinMapping, toRange, UnknownImport } from "./hardwareDefinition";
+import { computeLineOffsets, HardwareDefinition, Import, PinMapping, toRange, UnknownImport } from "./hardwareDefinition";
 import { URI } from "vscode-uri";
 import * as fs from "fs";
 import * as path from "path";
@@ -39,16 +39,26 @@ export class Parser {
       }
   
       const unknownImports: UnknownImport[] = [];
-      const validImports: HardwareDefinition[] = [];
+      const validImports: Import[] = [];
       if (Array.isArray(Imports)) {
         const importsNode = jsonc.findNodeAtLocation(hwDefinitionFileRootNode, ["Imports"]) as jsonc.Node;
-        const importsNodeStart = importsNode.offset;
-        const importsNodeEnd = importsNodeStart + importsNode.length;
   
-        for (const { Path } of Imports) {
-          if (typeof Path == "string") {
+        for (let i = 0; i < Imports.length; i++) {
+          const pathNode = importsNode["children"] ? importsNode.children[i] : undefined;
+          if (pathNode == undefined) continue;
+
+          const pathKeyVal = pathNode["children"] ? pathNode.children[0] : undefined;
+          if (pathKeyVal == undefined) continue;
+
+          const pathKey = pathKeyVal["children"] ? pathKeyVal.children[0] : undefined;
+          if (pathKey == undefined) continue;
+
+          const pathVal = pathKeyVal["children"] ? pathKeyVal.children[1] : undefined;
+          if (pathVal == undefined) continue;
+
+          if (typeof Imports[i].Path == "string") {
             const hwDefinitionFilePath = URI.parse(path.dirname(hwDefinitionFileUri)).fsPath;
-            const fullPathToImportedFile = findFullPath(Path, hwDefinitionFilePath, sdkPath);
+            const fullPathToImportedFile = findFullPath(Imports[i].Path, hwDefinitionFilePath, sdkPath);
             if (fullPathToImportedFile) {
               const importedHwDefFileUri = URI.file(fullPathToImportedFile).toString();
               let importedHwDefFileText = this.documents?.get(importedHwDefFileUri)?.getText();
@@ -58,16 +68,29 @@ export class Parser {
               if (importedHwDefFileText) {
                 const importedHwDefinition = this.tryParseHardwareDefinitionFile(importedHwDefFileText, importedHwDefFileUri, sdkPath);
                 if (importedHwDefinition) {
-                  validImports.push(importedHwDefinition);
+                  validImports.push({
+                    hardwareDefinition: importedHwDefinition,
+                    range: toRange(hwDefinitionFileText, pathNode.offset, pathNode.offset + pathNode.length),
+                    key: {
+                      text: pathKey.value,
+                      range: toRange(hwDefinitionFileText, pathKey.offset, pathKey.offset + pathKey.length)
+                    },
+                    value: {
+                      text: pathVal.value,
+                      range: toRange(hwDefinitionFileText, pathVal.offset, pathVal.offset + pathVal.length)
+                    }
+                  });
                 }
               }
             } else {
+              const importsNodeStart = pathNode.offset;
+              const importsNodeEnd = importsNodeStart + pathNode.length;
+
               unknownImports.push({
-                fileName: Path,
+                fileName: Imports[i].Path,
                 hwDefinitionFilePath: hwDefinitionFilePath,
                 sdkPath: sdkPath,
-                start: importsNodeStart,
-                end: importsNodeEnd,
+                range: toRange(hwDefinitionFileText, importsNodeStart, importsNodeEnd)
               });
             }
           }
@@ -105,8 +128,10 @@ export class Parser {
           pinMappings.push(new PinMapping(range, values.get("name"), values.get("type"), values.get("mapping"), values.get("appmanifestvalue"), values.get("comment")));
         }
       }
+
+      const sdkDefined = URI.parse(hwDefinitionFileUri).path.startsWith(sdkPath);
   
-      return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports);
+      return new HardwareDefinition(hwDefinitionFileUri, $schema, pinMappings, validImports, unknownImports, sdkDefined);
     } catch (error) {
       this.logger.log("Cannot parse Hardware Definition file as JSON");
       return;

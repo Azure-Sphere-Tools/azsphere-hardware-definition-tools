@@ -1,10 +1,20 @@
-import { Diagnostic } from 'vscode-languageserver/node';
+import { Diagnostic, DiagnosticSeverity } from 'vscode-languageserver/node';
 
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { HardwareDefinition, PinMapping, toRange } from './hardwareDefinition';
 import { Controller, CONTROLLERS } from './mt3620Controllers';
-import { duplicateMappingWarning, duplicateNameError, indirectMappingWarning, invalidPinTypeError, nonexistentMappingError, pinBlockConflictWarning, unknownImportWarning, appConflictPinBlock, appConflictDuplicateValue } from "./diagnostics";
 import { AppManifest } from "./applicationManifest";
+import { 
+	duplicateMappingWarning, 
+	duplicateNameError, 
+	indirectMappingWarning, 
+	invalidPinTypeError, 
+	nonexistentMappingError, 
+	pinBlockConflictWarning, 
+	unknownImportWarning, 
+	appConflictPinBlock, 
+	appConflictDuplicateValue,
+	invalidImport } from "./diagnostics";
 
 export interface FlatPinMapping {
 	pinMapping: PinMapping,
@@ -52,7 +62,7 @@ export interface FlatPinMapping {
 				const diagnostic = nonexistentMappingError(currentPeripheral);
 				pinDiagnostics.push(diagnostic);
 			} else if (mappedPeripherals.length == 1) {
-				const firstLevelImports = hwDefinition.imports.map(({ uri }) => uri);
+				const firstLevelImports = hwDefinition.imports.map(({ hardwareDefinition }) => hardwareDefinition.uri);
 				const importedMappingUri = mappedPeripherals[0].hardwareDefinitionUri;
 
 				if (importedMappingUri != hwDefinition.uri &&
@@ -118,7 +128,7 @@ export function flatten(hwDefinition: HardwareDefinition): {flattened: FlatPinMa
 	// add imported pins before pins in current hw def
 	// so that we can lookup their app manifest values when resolving current pins' app manifest vals
 	for (const importedDefinition of hwDefinition.imports) {
-		const pinsFromImport = flatten(importedDefinition);
+		const pinsFromImport = flatten(importedDefinition.hardwareDefinition);
 		flatPinMappings.push(...pinsFromImport.flattened);
 		for (const [pinName, pinsForName] of pinsFromImport.indexedByName) {
 			addToIndex(pinsIndexedByName, pinName, ...pinsForName);
@@ -153,7 +163,7 @@ function addToIndex(pinsIndexedByName: Map<string, FlatPinMapping[]>, pinName: s
 export function findUnknownImports(hwDefinition: HardwareDefinition, textDocument: TextDocument): Diagnostic[] {
 	const diagnostics: Diagnostic[] = [];
 	for (const unknownImport of hwDefinition.unknownImports) {
-		const diagnostic = unknownImportWarning(unknownImport, toRange(textDocument.getText(), unknownImport.start, unknownImport.end));
+		const diagnostic = unknownImportWarning(unknownImport);
 		diagnostics.push(diagnostic);
 	}
 	return diagnostics;
@@ -384,6 +394,20 @@ export function scanHardwareDefinition(mainHardwareDefinition: HardwareDefinitio
 	
 	const pinMappingsInCurrentHwDef = reachablePinMappings.filter(p => p.hardwareDefinitionUri === mainHardwareDefinition.uri);
 	diagnostics.push(...validatePinBlock(pinMappingsInCurrentHwDef, controllerSetup, includeRelatedInfo));
+
+	mainHardwareDefinition.imports.some(importedHwDef => {
+		if (!importedHwDef.hardwareDefinition.sdkDefined) {
+			const importedDiagnostics = scanHardwareDefinition(importedHwDef.hardwareDefinition, includeRelatedInfo).diagnostics;
+			const importedErrors = importedDiagnostics.filter(diagnostic => diagnostic.severity == DiagnosticSeverity.Error);
+
+			if (importedErrors.length > 0) {
+				diagnostics.push(
+					invalidImport(importedHwDef.range, importedHwDef.hardwareDefinition.uri, importedErrors[0].range, includeRelatedInfo)
+				);
+				return;
+			}
+		}
+	});
 
 	// drop duplicate names if they exist
 	const allPinsWithoutDuplicates = new Map<string, FlatPinMapping>();

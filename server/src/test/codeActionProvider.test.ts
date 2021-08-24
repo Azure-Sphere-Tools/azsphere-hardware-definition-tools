@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import { HardwareDefinition } from "../hardwareDefinition";
 import { findPinMappingRange, quickfix } from "../codeActionProvider";
-import { asURI, getRange, getDummyPinMapping } from "./testUtils";
+import { asURI, getRange, getDummyPinMapping, getDummyImport } from "./testUtils";
 import { CodeActionParams, Diagnostic } from "vscode-languageserver";
 import { flatten, validateNamesAndMappings, validatePinBlock } from "../validator";
 import * as mockfs from 'mock-fs';
@@ -13,7 +13,9 @@ suite("findPinMappingRange", () => {
   test("Find Warning Pin Mapping", () => {
     const gpioPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
     const importedhwDefFilePath = "my_app/hardwareDef.json";
-    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin]);
+    const importedhwDefinitionFile = getDummyImport({
+      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin])
+    });
 
     const hwDefFilePath = "my_app/ODM.json";
     const validPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 7), name: "LED_RED", type: "Gpio", mapping: { value: { range: getRange(0, 2, 0, 3), text: "GPIO0" } } });
@@ -36,7 +38,9 @@ suite("quickfix", () => {
   test("Delete the Duplicate pin mapping", () => {
     const gpioPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
     const importedhwDefFilePath = "my_app/hardwareDef.json";
-    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin]);
+    const importedhwDefinitionFile = getDummyImport({
+      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin])
+    });
 
     const hwDefFilePath = "my_app/ODM.json";
     const validPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 7), name: "LED_RED", type: "Gpio", mapping: { value: { range: getRange(0, 2, 0, 3), text: "GPIO0" } } });
@@ -62,11 +66,23 @@ suite("quickfix", () => {
   test("Delete the Invalid pin mapping", () => {
     const gpioPin = getDummyPinMapping({ range: getRange(0, 0, 0, 5), name: "GPIO0", type: "Gpio", appManifestValue: 0 });
     const importedhwDefFilePath = "my_app/hardwareDef.json";
-    const importedhwDefinitionFile = new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin]);
+    const importedhwDefinitionFile = getDummyImport({
+      hardwareDefinition: new HardwareDefinition(asURI(importedhwDefFilePath), undefined, [gpioPin])
+    });
 
     const hwDefFilePath = "my_app/ODM.json";
-    const validPin1 = getDummyPinMapping({ range: getRange(0, 0, 0, 7), name: "LED_RED", type: "Gpio", mapping: { value: { range: getRange(0, 2, 0, 3), text: "GPIO0" } } });
-    const validPin2 = getDummyPinMapping({ range: getRange(1, 0, 1, 7), name: "LED_BLUE", type: "Gpio", mapping: { value: { range: getRange(1, 2, 1, 3), text: "GPIO10" } } });
+    const validPin1 = getDummyPinMapping({ 
+      range: getRange(0, 0, 0, 7), 
+      name: "LED_RED", 
+      type: "Gpio", 
+      mapping: { value: { range: getRange(0, 2, 0, 3), text: "GPIO0" } } 
+    });
+    const validPin2 = getDummyPinMapping({ 
+      range: getRange(1, 0, 1, 7), 
+      name: "LED_BLUE", 
+      type: "Gpio", 
+      mapping: { value: { range: getRange(1, 2, 1, 3), text: "GPIO10" } } 
+    });
     const hwDefinitionFile = new HardwareDefinition(asURI(hwDefFilePath), undefined, [validPin1,validPin2], [importedhwDefinitionFile]);
 		const allPeripherals = flatten(hwDefinitionFile).indexedByName;
     const warningDiagnostics: Diagnostic[] = validateNamesAndMappings(hwDefinitionFile, allPeripherals, true);
