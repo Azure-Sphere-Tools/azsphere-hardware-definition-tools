@@ -23,7 +23,9 @@ suite('Should get diagnostics', () => {
 	});
 
 	const appManifestADocUri = getDocUri('applicationA/app_manifest.json');
+	const appManifestBDocUri = getDocUri('applicationB/app_manifest.json');
 	test('Partner ApplicationA Conflict', async () => {
+		await vscode.workspace.openTextDocument(appManifestBDocUri);
 		await testDiagnostics(appManifestADocUri, [
 			{message: 'App manifest value of 5 is also declared in partner app 005180bc-402f-4cb3-a662-72937dbcde47 through $SAMPLE_LED_RED1.', range: toRange(7,12,7,39),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
 			{message: 'App manifest value of $SAMPLE_I2C1 is also declared in partner app 005180bc-402f-4cb3-a662-72937dbcde47 through $SAMPLE_I2C1.', range: toRange(8,17,8,34),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
@@ -32,7 +34,6 @@ suite('Should get diagnostics', () => {
 		]);
 	});
 
-	const appManifestBDocUri = getDocUri('applicationB/app_manifest.json');
 	test('Partner ApplicationB Conflict', async () => {
 		await testDiagnostics(appManifestBDocUri, [
 			{message: '$SAMPLE_LED_RED1 configured as Pwm by $SAMPLE_Pwm2 in partner app 25025d2c-66da-4448-bae1-ac26fcdd3627.', range: toRange(6,12,6,33),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
