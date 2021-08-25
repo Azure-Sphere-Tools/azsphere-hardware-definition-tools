@@ -51,6 +51,12 @@ jobs:
         with:
           name: coverage-summary.json
           path: coverage/coverage-summary.json
+      - name: Archive cucumber report
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: cucumber-report.html
+          path: vscode-extension/cucumber-report.html
       - uses: ncipollo/release-action@v1
         if: github.ref == 'refs/heads/master'
         with:

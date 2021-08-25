@@ -59,6 +59,9 @@ export async function clearWorkingDir(): Promise<void> {
 	await vscode.commands.executeCommand('workbench.action.closeAllEditors');
 	
 	const deleteRecursive = (dir) => {
+		if (!fs.existsSync(dir)) {
+			return;
+		}
 		const files = fs.readdirSync(dir).map(file => path.resolve(dir, file));
 		for (const fileOrDir of files) {
 			if (fs.statSync(fileOrDir).isFile()) {

@@ -96,7 +96,6 @@ When('I add {int} pin mappings of type {string}', async function(pinsToAdd: numb
 	await writeText(pinsToAdd.toString());
 	await vscode.commands.executeCommand(selectCurrentItemCommand);
   await sleep(2000);
-	await vscode.commands.executeCommand("workbench.action.files.save");
 });
 
 Then(/^"([^"]+)" should contain the following pin mappings:$/, async function(hwDefFileName: string, pinMappingsTable: DataTable) {

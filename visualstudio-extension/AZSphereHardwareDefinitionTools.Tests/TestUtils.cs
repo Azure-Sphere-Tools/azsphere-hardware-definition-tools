@@ -134,7 +134,7 @@ namespace AZSphereHardwareDefinitionTools.Tests
     {
       offset = Math.Max(Math.Min(offset, text.Length), 0);
 
-      int line = 1, character = 1;
+      int line = 0, character = 0;
       for (int charIndex = 0; charIndex < offset; charIndex++)
       {
         char currentChar = text[charIndex];
@@ -145,7 +145,7 @@ namespace AZSphereHardwareDefinitionTools.Tests
             charIndex++;
           }
           line++;
-          character = 1;
+          character = 0;
         } else
         {
           character++;
