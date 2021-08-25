@@ -7,7 +7,7 @@
   },
   "license": "MIT",
   "dependencies": {
-    "azsphere-hardware-definition-language-server": "file:../../../server/packed/language-server.tar.gz"
+    "azsphere-hardware-definition-language-server": "file:..\\..\\..\\server\\packed\\language-server.tar.gz"
   },
   "comments": {
     "scripts": {
