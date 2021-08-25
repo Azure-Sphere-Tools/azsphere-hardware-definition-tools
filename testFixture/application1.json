@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/Azure-Sphere-Tools/hardware-definition-schema/master/hardware-definition-schema.json",
+"Metadata":
+  {
+      "Type": "Azure Sphere Hardware Definition",
+      "Version": 1
+  },
+  "Description":
+  {
+      "Name": "MT3620 Reference Development Board (RDB)",
+      "MainCoreHeaderFileTopContent": [
+      ]
+  },
+  "Imports" : [ {"Path": "mt3620.json"} ],
+  "Peripherals": [
+      {"Name": "SAMPLE_LED_RED1", "Type": "Gpio", "Mapping": "MT3620_GPIO5"},
+      {"Name": "SAMPLE_I2C1", "Type": "I2cMaster", "Mapping": "MT3620_ISU0_I2C"},
+      {"Name": "SAMPLE_Pwm1", "Type": "Pwm", "Mapping": "MT3620_PWM_CONTROLLER0"},
+      {"Name": "SAMPLE_UART1", "Type": "Uart", "Mapping": "MT3620_ISU2_UART"},
+      {"Name": "SAMPLE_SpiMaster1", "Type": "SpiMaster", "Mapping": "MT3620_ISU4_SPI"},
+      {"Name": "SAMPLE_ADC_CONTROLLER0", "Type": "Adc", "Mapping": "MT3620_ADC_CONTROLLER0"}
+  ]
+}

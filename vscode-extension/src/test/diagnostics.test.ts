@@ -4,7 +4,6 @@ import { getDocUri, activate } from './helper';
 
 suite('Should get diagnostics', () => {
 	const docUri = getDocUri('diagnostics.json');
-
 	test('Diagnoses duplicate and non-existent mappings', async () => {
 		await testDiagnostics(docUri, [
 			{ message: 'Peripheral USER_BUTTON_A not found.', range: toRange(13, 17, 13, 32), severity: vscode.DiagnosticSeverity.Error, source: 'az sphere' },
@@ -22,7 +21,30 @@ suite('Should get diagnostics', () => {
 			{ message: 'MT3620_RDB_ISU0_SPI configured as I2cMaster by MT3620_RDB_ISU0_I2C', range: toRange(35, 6, 39, 7), severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere' }
 		]);
 	});
+
+	const appManifestADocUri = getDocUri('applicationA/app_manifest.json');
+	test('Partner ApplicationA Conflict', async () => {
+		await testDiagnostics(appManifestADocUri, [
+			{message: 'App manifest value of 5 is also declared in partner app 005180bc-402f-4cb3-a662-72937dbcde47 through $SAMPLE_LED_RED1.', range: toRange(7,12,7,39),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
+			{message: 'App manifest value of $SAMPLE_I2C1 is also declared in partner app 005180bc-402f-4cb3-a662-72937dbcde47 through $SAMPLE_I2C1.', range: toRange(8,17,8,34),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
+			{message: '$SAMPLE_Pwm2 configured as Gpio by $SAMPLE_LED_RED1 in partner app 005180bc-402f-4cb3-a662-72937dbcde47.', range: toRange(9,11,9,29),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
+			{message: 'App manifest value of ADC-CONTROLLER-0 is also declared in partner app 005180bc-402f-4cb3-a662-72937dbcde47 through $SAMPLE_ADC_CONTROLLER0.', range: toRange(12,11,12,33),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'}
+		]);
+	});
+
+	const appManifestBDocUri = getDocUri('applicationB/app_manifest.json');
+	test('Partner ApplicationB Conflict', async () => {
+		await testDiagnostics(appManifestBDocUri, [
+			{message: '$SAMPLE_LED_RED1 configured as Pwm by $SAMPLE_Pwm2 in partner app 25025d2c-66da-4448-bae1-ac26fcdd3627.', range: toRange(6,12,6,33),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
+			{message: 'App manifest value of $SAMPLE_LED_RED1 is also declared in partner app 25025d2c-66da-4448-bae1-ac26fcdd3627 through 5.', range: toRange(6,12,6,33),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
+			{message: 'App manifest value of $SAMPLE_I2C1 is also declared in partner app 25025d2c-66da-4448-bae1-ac26fcdd3627 through $SAMPLE_I2C1.', range: toRange(7,17,7,34),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'},
+			{message: 'App manifest value of $SAMPLE_ADC_CONTROLLER0 is also declared in partner app 25025d2c-66da-4448-bae1-ac26fcdd3627 through ADC-CONTROLLER-0.', range: toRange(11,11,11,40),severity: vscode.DiagnosticSeverity.Warning, source: 'az sphere'}
+		]);
+	});
+
 });
+
+
 
 
 function toRange(sLine: number, sChar: number, eLine: number, eChar: number) {
