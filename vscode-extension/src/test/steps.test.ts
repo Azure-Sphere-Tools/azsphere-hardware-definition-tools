@@ -31,6 +31,21 @@ Given(/^a hardware definition file "([^"]+)":$/, function (fileName: string, fil
 	createFile(fileName, fileContent);
 });
 
+Given(/^a cmake list file "([^"]+)":$/, function (fileName: string, fileContent: string) {
+	createFile(fileName, fileContent);
+});
+
+Given(/^an application manifest file "([^"]+)":$/, function (fileName: string, fileContent: string) {
+	createFile(fileName, fileContent);
+});
+
+Given(/^open "([^"]+)"$/, async function (fileName: string) {
+	const docUri = getDocUri(fileName);
+	await activate(docUri);
+  currentlyOpenDocUri = docUri;
+	await sleep(2000);
+});
+
 When(/^I open "([^"]+)"$/, async function (fileName: string) {
 	const docUri = getDocUri(fileName);
 	await activate(docUri);
