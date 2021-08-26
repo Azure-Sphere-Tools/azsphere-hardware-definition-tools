@@ -9,4 +9,4 @@ README.md
 *.vsix
 /src/**
 /dist/test/**
-/testFixture/**
+/testWorkingDir/**

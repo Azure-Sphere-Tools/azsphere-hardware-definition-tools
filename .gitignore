@@ -4,7 +4,8 @@ node_modules
 *.vsix
 /server/packed
 language-server.tar.gz
-
+testWorkingDir/
+/vscode-extension/cucumber-report.html
 
 ########################
 # Visual Studio specific

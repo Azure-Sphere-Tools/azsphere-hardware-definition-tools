@@ -5,7 +5,9 @@
 		"lib": ["ES2019"],
 		"outDir": "dist",
 		"rootDir": "src",
-		"sourceMap": true
+		"sourceMap": true,
+		"resolveJsonModule": true, // needed for cucumber js
+		"esModuleInterop": true // needed for cucumber js
 	},
 	"include": ["src"],
 	"exclude": ["node_modules", ".vscode-test"]

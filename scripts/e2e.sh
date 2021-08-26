@@ -10,7 +10,6 @@ if [[ "$1" == "ONLY_UNIT_TESTS" ]]; then
   exit 0
 fi
 # Run e2e tests
-export CODE_TESTS_PATH="$(pwd)/vscode-extension/dist/test"
-export CODE_TESTS_WORKSPACE="$(pwd)/testFixture"
+export CODE_TESTS_WORKSPACE="$(pwd)/vscode-extension/testWorkingDir"
 
 node "$(pwd)/vscode-extension/dist/test/runTestsInVsCode"
