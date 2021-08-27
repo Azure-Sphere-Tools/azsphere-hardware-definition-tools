@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
     <Metadata>
-        <Identity Id="ucl-ixn.azsphere-hardware-definition-tools" Version="1.0.1" Language="en-US" Publisher="ucl-ixn" />
+        <Identity Id="AZSphereHardwareDefinitionTools.3e845786-b668-47a0-972e-599dc5b19a74" Version="1.0.1" Language="en-US" Publisher="ucl-ixn" />
         <DisplayName>Azure Sphere Hardware Definition Tools</DisplayName>
         <Description xml:space="preserve">This extension makes it easier to validate, create and maintain Hardware Definition files used for Azure Sphere IoT applications.</Description>
         <Tags>azsphere azure sphere iot</Tags>
