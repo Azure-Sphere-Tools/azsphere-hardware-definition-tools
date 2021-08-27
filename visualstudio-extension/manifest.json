@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json.schemastore.org/vsix-publish",
+  "categories": [
+    "tools",
+    "coding"
+  ],
+  "identity": {
+    "internalName": "azsphere-hardware-definition-tools",
+    "tags": [
+      "azsphere",
+      "azure",
+      "sphere",
+      "iot"
+    ]
+  },
+  "overview": "README.md",
+  "priceCategory": "free",
+  "publisher": "ucl-ixn",
+  "private": false,
+  "qna": true,
+  "repo": "https://github.com/Azure-Sphere-Tools/azsphere-hardware-definition-tools"
+}
