@@ -27,6 +27,8 @@ jobs:
         run: npm install -g vsce
       - name: Install dependencies (step 3/3)
         run: sudo apt -y install jq
+      - name: Fill in extension description
+        run: cat vscode-extension/VSCODE_EXTENSION.md > vscode-extension/README.md
       - name: Pack extension
         run: (cd vscode-extension; vsce package)
       - name: Publish to Visual Studio Marketplace
