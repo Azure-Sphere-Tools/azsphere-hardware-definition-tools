@@ -20,10 +20,6 @@ export async function activate(docUri: vscode.Uri) {
 	}
 }
 
-export const createCMakeFile = (docUri: vscode.Uri) => {
-	return path.resolve(path.join(path.dirname(docUri.fsPath), "CMakeLists.txt"));
-};
-
 export async function positionInDoc(textToFind: string, docUri: vscode.Uri): Promise<vscode.Position> {
 	const openedDoc = await vscode.workspace.openTextDocument(docUri);
 	return openedDoc.positionAt(openedDoc.getText().indexOf(textToFind));

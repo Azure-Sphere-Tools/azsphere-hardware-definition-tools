@@ -35,6 +35,14 @@ jobs:
           echo ">>> Started xvfb"
         shell: bash
       - run: npm run build --if-present
+      - name: Config Linux VS Code settings for e2e tests
+        if: startsWith(matrix.os, 'ubuntu')
+        run: echo "CODE_SETTINGS_PATH=$HOME/.config/Code/User" >> $GITHUB_ENV
+      - name: Config Windows VS Code settings for e2e tests
+        if: startsWith(matrix.os, 'windows')
+        run: echo ("CODE_SETTINGS_PATH=" + $env:APPDATA + "/Code/User") >> $env:GITHUB_ENV
+      - name: Disable workspace trust feature as it breaks e2e tests
+        run: mkdir -p ${{env.CODE_SETTINGS_PATH}}  && echo '{"security.workspace.trust.enabled":false}' > ${{env.CODE_SETTINGS_PATH}}/settings.json 
       - run: npm test
         env:
           DISPLAY: ":99.0" # Only necessary for linux tests
