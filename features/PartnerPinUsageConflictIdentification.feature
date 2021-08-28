@@ -45,11 +45,7 @@ Scenario: Same pins used across partner applications
     ]
   }
   """
-  And a cmake list file "applicationA/CMakeLists.txt":
-  """
-  azsphere_target_hardware_definition(\${PROJECT_NAME} TARGET_DIRECTORY "../hwDefs/" TARGET_DEFINITION "applicationA.json")
-  """
-  And an application manifest file "applicationA/app_manifest.json":
+  And an application manifest file "applicationA/app_manifest.json" using "../hwDefs/applicationA.json" as its target hardware definition:
   """
   {
     "SchemaVersion": 1,
@@ -64,11 +60,7 @@ Scenario: Same pins used across partner applications
     "ApplicationType": "Default"
   }
   """
-  And a cmake list file "applicationB/CMakeLists.txt":
-  """
-  azsphere_target_hardware_definition(\${PROJECT_NAME} TARGET_DIRECTORY "../hwDefs/" TARGET_DEFINITION "applicationB.json")
-  """
-  And an application manifest file "applicationB/app_manifest.json":  
+  And an application manifest file "applicationB/app_manifest.json" using "../hwDefs/applicationB.json" as its target hardware definition:  
   """
   {
     "SchemaVersion": 1,
@@ -129,11 +121,7 @@ Scenario: Pin block conflict across partner applications
     ]
   }
   """
-  And a cmake list file "applicationA/CMakeLists.txt":
-  """
-  azsphere_target_hardware_definition(\${PROJECT_NAME} TARGET_DIRECTORY "../hwDefs/" TARGET_DEFINITION "applicationA.json")
-  """
-  And an application manifest file "applicationA/app_manifest.json":
+  And an application manifest file "applicationA/app_manifest.json" using "../hwDefs/applicationA.json" as its target hardware definition:
   """
   {
     "SchemaVersion": 1,
@@ -147,11 +135,7 @@ Scenario: Pin block conflict across partner applications
     "ApplicationType": "Default"
   }
   """
-  And a cmake list file "applicationB/CMakeLists.txt":
-  """
-  azsphere_target_hardware_definition(\${PROJECT_NAME} TARGET_DIRECTORY "../hwDefs/" TARGET_DEFINITION "applicationB.json")
-  """
-  And an application manifest file "applicationB/app_manifest.json":  
+  And an application manifest file "applicationB/app_manifest.json" using "../hwDefs/applicationB.json" as its target hardware definition:  
   """
   {
     "SchemaVersion": 1,
