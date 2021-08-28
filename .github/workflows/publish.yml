@@ -28,7 +28,7 @@ jobs:
       - name: Install dependencies (step 3/3)
         run: sudo apt -y install jq
       - name: Fill in extension description
-        run: cat OVERVIEW.md > vscode-extension/README.md
+        run: cat vscode-extension/OVERVIEW.md > vscode-extension/README.md
       - name: Pack extension
         run: (cd vscode-extension; vsce package)
       - name: Publish to Visual Studio Marketplace
@@ -74,7 +74,7 @@ jobs:
         working-directory: ${{env.GITHUB_WORKSPACE}}
         run: mv ${{env.VS_EXTENSION_SOLUTION_DIR}}/AZSphereHardwareDefinitionTools/bin/Release/AZSphereHardwareDefinitionTools.vsix VisualStudio-AZSphereHardwareDefinitionTools.vsix 
       - name: Fill in extension description
-        run: cat OVERVIEW.md > visualstudio-extension/README.md
+        run: cat visualstudio-extension/OVERVIEW.md > visualstudio-extension/README.md
       - uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
