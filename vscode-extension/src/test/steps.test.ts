@@ -1,7 +1,8 @@
 import { Given, When, Then, DataTable, Before, After } from '@cucumber/cucumber';
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { activate, clearWorkingDir, createFile, getDocUri, getFileText, positionInDoc, sleep, writeText } from './helper';
+import * as fs from "fs";
+import { activate, clearWorkingDir, createFile, getDocPath, getDocUri, getFileText, positionInDoc, sleep, writeText } from './helper';
 
 // Always use function callbacks instead of arrow functions for cucumber step definitions
 // See the faq for more info: https://github.com/cucumber/cucumber-js/blob/main/docs/faq.md
@@ -112,4 +113,39 @@ Then(/^"([^"]+)" should contain the following pin mappings:$/, async function(hw
 	const actualPins: Pin[] = parsedHwDef.Peripherals;
 
 	assert.deepStrictEqual(actualPins, expectedPins);
+});
+
+Given('the setting {string} is configured as {string}', async function (setting: string, sdkPath: string) {
+	await createFile(".vscode/settings.json", `{"${setting}": ${JSON.stringify(getDocPath(sdkPath))}}`);
+});
+
+When('I run the "Port to another hardware definition" command', async function() {
+	assert.ok(currentlyOpenDocUri);
+	const portingCommand = "azsphere-hardware-definition-tools.porting";
+  await vscode.commands.executeCommand(portingCommand);
+  await sleep(2000);
+});
+
+When('I select {string} as the hardware definition to port to', async function(targetHwDef: string) {
+	assert.ok(currentlyOpenDocUri);
+	const selectCurrentItemCommand = "workbench.action.acceptSelectedQuickOpenItem";
+	
+	await writeText(targetHwDef);
+	await vscode.commands.executeCommand(selectCurrentItemCommand);
+	await sleep(2000);
+});
+
+Then(/^"([^"]+)" should be created$/, async function (hwDefFileName: string) {
+	assert.strictEqual(fs.existsSync(getDocPath(hwDefFileName)), true);
+});
+
+Then(/^"([^"]+)" should import "([^"]+)"$/, async function (hwDefFileName: string, targetImportedHwDef: string) {
+	type ImportHwDef = { Path: string };
+
+	const targetImports: ImportHwDef[] = [{ Path: targetImportedHwDef }];
+
+	const parsedHwDef = JSON.parse(await getFileText(hwDefFileName));
+	const actualImports: ImportHwDef[] = parsedHwDef.Imports;
+
+	assert.deepStrictEqual(actualImports, targetImports);
 });
