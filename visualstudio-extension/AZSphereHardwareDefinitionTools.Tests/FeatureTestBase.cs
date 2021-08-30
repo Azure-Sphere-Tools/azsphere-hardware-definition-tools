@@ -27,9 +27,10 @@ namespace AZSphereHardwareDefinitionTools.Tests
       await TestUtils.OpenSolutionAsync("TestSolution.sln.test");
     }
 
-    async Task IAsyncLifetime.DisposeAsync()
+    public async Task DisposeAsync()
     {
       await TestUtils.CloseSolutionAsync();
+      HardwareDefinitionLanguageClient.Instance = null;
     }
 
     private const string TEST_PROJ_DIRECTORY = "AZSphereHardwareDefinitionTools.Tests";
@@ -56,7 +57,7 @@ namespace AZSphereHardwareDefinitionTools.Tests
 
         scenario.Action.Invoke();
 
-        await TestUtils.CloseSolutionAsync();
+        await DisposeAsync();
       }
     }
 

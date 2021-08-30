@@ -15,6 +15,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion;
 using Microsoft.VisualStudio.Language.Intellisense.AsyncCompletion.Data;
+using Microsoft.VisualStudio.Imaging.Interop;
 
 namespace AZSphereHardwareDefinitionTools.Tests
 {
@@ -76,6 +77,16 @@ namespace AZSphereHardwareDefinitionTools.Tests
       await Task.Run(() => System.Threading.Thread.Sleep(mill)).ConfigureAwait(false);
     }
 
+    public static async Task RetryWhile(Func<bool> condition, Func<Task> retryFunc, int maxAttempts = 5)
+    {
+      int attempts = 0;
+      while (attempts < maxAttempts && condition())
+      {
+        await retryFunc();
+        attempts++;
+      }
+    }
+
     public static async Task<ServiceProvider> GetServiceProviderAsync()
     {
       await ThreadHelper.JoinableTaskFactory.SwitchToMainThreadAsync();
@@ -117,6 +128,17 @@ namespace AZSphereHardwareDefinitionTools.Tests
       }
       return resultCode == Microsoft.VisualStudio.VSConstants.S_OK;
 
+    }
+
+    public static async Task ExecuteCommandAsync(string commandName)
+    {
+      await VS.Commands.ExecuteAsync(commandName);
+    }
+
+
+    public static InfoBarActionItemEventArgs InfoBarActionEvent(InfoBarActionItem selectedAction)
+    {
+      return new InfoBarActionItemEventArgs(new MockInfoBarUIElement(), new MockVsInfoBar(), selectedAction);
     }
 
     public static async Task<bool> MoveCaretAsync(int line, int character)
@@ -331,6 +353,55 @@ namespace AZSphereHardwareDefinitionTools.Tests
       }
 
       return value;
+    }
+  }
+
+  class MockVsInfoBar : IVsInfoBar
+  {
+    public ImageMoniker Image => throw new NotImplementedException();
+
+    public bool IsCloseButtonVisible => throw new NotImplementedException();
+
+    public IVsInfoBarTextSpanCollection TextSpans => throw new NotImplementedException();
+
+    public IVsInfoBarActionItemCollection ActionItems => throw new NotImplementedException();
+  }
+
+  class MockInfoBarUIElement : IVsInfoBarUIElement
+  {
+    public int get_DataSource(out IVsUISimpleDataSource ppDataSource)
+    {
+      throw new NotImplementedException();
+    }
+
+    public int put_DataSource(IVsUISimpleDataSource pDataSource)
+    {
+      throw new NotImplementedException();
+    }
+
+    public int TranslateAccelerator(IVsUIAccelerator pAccel)
+    {
+      throw new NotImplementedException();
+    }
+
+    public int GetUIObject(out object ppUnk)
+    {
+      throw new NotImplementedException();
+    }
+
+    public int Close()
+    {
+      throw new NotImplementedException();
+    }
+
+    public int Advise(IVsInfoBarUIEvents eventSink, out uint cookie)
+    {
+      throw new NotImplementedException();
+    }
+
+    public int Unadvise(uint cookie)
+    {
+      throw new NotImplementedException();
     }
   }
 }
