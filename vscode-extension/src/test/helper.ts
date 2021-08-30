@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from "fs";
-
 export const WORKING_DIR = path.resolve(__dirname, "../../testWorkingDir");
 
 
@@ -20,6 +19,10 @@ export async function activate(docUri: vscode.Uri) {
 		console.error(e);
 	}
 }
+
+export const createCMakeFile = (docUri: vscode.Uri) => {
+	return path.resolve(path.join(path.dirname(docUri.fsPath), "CMakeLists.txt"));
+};
 
 export async function positionInDoc(textToFind: string, docUri: vscode.Uri): Promise<vscode.Position> {
 	const openedDoc = await vscode.workspace.openTextDocument(docUri);

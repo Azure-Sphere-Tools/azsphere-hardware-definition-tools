@@ -280,31 +280,33 @@ export const validateAppPinConflict = (hwDefScan: HardwareDefinitionScan, partne
 	}
 
 	for(const [pinType, value] of appManifestMap){
-		if(partnerMap.has(pinType)){
-			const partnerPinNames = partnerMap.get(pinType)?.value.text;
-			const appPinNames = value?.value.text;
-			const appManifestValues = findAppManifestValue(hwDefScan, appPinNames);
-			const partnerAppManifestValues = findAppManifestValue(partnerHWDefScan, partnerPinNames);
+		if (pinType == "AllowedApplicationConnections"){
+			continue;
+		}
+			
+		const partnerPinNames = partnerMap.get(pinType)?.value.text;
+		const appPinNames = value?.value.text;
+		const appManifestValues = findAppManifestValue(hwDefScan, appPinNames);
+		const partnerAppManifestValues = findAppManifestValue(partnerHWDefScan, partnerPinNames);
 
-			for (let index = 0; index < appManifestValues.length; index++) {
-				// find the pin conflict base on the pin block
-				const controller = getController(pinType, appManifestValues[index]);
-				const existingControllerSetup = partnerController.get(controller.name);
-				if(existingControllerSetup?.pinType != undefined &&
-					existingControllerSetup?.pinType != pinType){
-					const range = value?.value.range;
-					const diagnostic: Diagnostic = appConflictPinBlock(appPinNames[index], partnerAppManifest.ComponentId, range, existingControllerSetup);
-					warningDiagnostics.push(diagnostic);
-				}
-				
-				// find the pin conflic for duplicate name
-				if(partnerAppManifestValues.includes(appManifestValues[index])){
-					const location = partnerAppManifestValues.indexOf(appManifestValues[index]);
-					const existingPinName = partnerPinNames[location];
-					const range = value?.value.range;
-					const diagnostic: Diagnostic = appConflictDuplicateValue(appPinNames[index], partnerAppManifest.ComponentId, range, existingPinName);
-					warningDiagnostics.push(diagnostic);
-				}
+		for (let index = 0; index < appManifestValues.length; index++) {
+			// find the pin conflict base on the pin block
+			const controller = getController(pinType, appManifestValues[index]);
+			const existingControllerSetup = partnerController.get(controller.name);
+			if(existingControllerSetup?.pinType != undefined &&
+				existingControllerSetup?.pinType != pinType){
+				const range = value?.value.range;
+				const diagnostic: Diagnostic = appConflictPinBlock(appPinNames[index], partnerAppManifest.ComponentId, range, existingControllerSetup);
+				warningDiagnostics.push(diagnostic);
+			}
+			
+			// find the pin conflic for duplicate name
+			if(partnerAppManifestValues.includes(appManifestValues[index])){
+				const location = partnerAppManifestValues.indexOf(appManifestValues[index]);
+				const existingPinName = partnerPinNames[location];
+				const range = value?.value.range;
+				const diagnostic: Diagnostic = appConflictDuplicateValue(appPinNames[index], partnerAppManifest.ComponentId, range, existingPinName);
+				warningDiagnostics.push(diagnostic);
 			}
 		}
 	}

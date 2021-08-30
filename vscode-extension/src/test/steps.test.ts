@@ -1,7 +1,7 @@
 import { Given, When, Then, DataTable, Before, After } from '@cucumber/cucumber';
 import * as assert from 'assert';
 import * as vscode from 'vscode';
-import { activate, clearWorkingDir, createFile, getDocUri, getFileText, positionInDoc, sleep, writeText } from './helper';
+import { activate, clearWorkingDir, createCMakeFile, createFile, getDocUri, getFileText, positionInDoc, sleep, writeText } from './helper';
 
 // Always use function callbacks instead of arrow functions for cucumber step definitions
 // See the faq for more info: https://github.com/cucumber/cucumber-js/blob/main/docs/faq.md
@@ -29,6 +29,19 @@ Given(/^a hardware definition file "([^"]+)":$/, function (fileName: string, fil
 		fileContent = fileContent.substring(0, closingBracketIndex) + ",\n" + schemaProperty + fileContent.substring(closingBracketIndex);
 	}
 	createFile(fileName, fileContent);
+});
+
+Given(/^an application manifest file "([^"]+)" using "([^"]+)" as its target hardware definition:$/, function (appManifestPath: string, targetHwDefPath: string, fileContent: string) {
+	createFile(appManifestPath, fileContent);
+	const cMakeListsPath = createCMakeFile(getDocUri(appManifestPath));
+	const contentArray = targetHwDefPath.split("/");
+	let targetDir = "";
+	const targetDefin = contentArray[contentArray.length - 1];
+	for(let i = 0; i < contentArray.length - 1; i++){
+		targetDir += contentArray[i] + "/";
+	}
+	const cMakeListContent = "azsphere_target_hardware_definition(${PROJECT_NAME} TARGET_DIRECTORY " + '"' + targetDir + '"' +" TARGET_DEFINITION " + '"' +targetDefin + '"' + ")";
+	createFile(cMakeListsPath, cMakeListContent);
 });
 
 When(/^I open "([^"]+)"$/, async function (fileName: string) {
