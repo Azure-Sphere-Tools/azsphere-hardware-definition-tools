@@ -27,6 +27,8 @@ jobs:
         run: npm install -g vsce
       - name: Install dependencies (step 3/3)
         run: sudo apt -y install jq
+      - name: Fill in extension description
+        run: cat vscode-extension/OVERVIEW.md > vscode-extension/README.md
       - name: Pack extension
         run: (cd vscode-extension; vsce package)
       - name: Publish to Visual Studio Marketplace
@@ -64,6 +66,8 @@ jobs:
         working-directory: ${{env.GITHUB_WORKSPACE}}
         run: nuget restore ./${{env.VS_EXTENSION_SOLUTION_DIR}}
         shell: powershell
+      - name: Fill in extension description
+        run: cat visualstudio-extension/OVERVIEW.md > visualstudio-extension/README.md
       - name: Build
         working-directory: ${{env.GITHUB_WORKSPACE}}
         run: msbuild ./${{env.VS_EXTENSION_SOLUTION_DIR}} /p:configuration=Release /nowarn:MSB3277
@@ -71,6 +75,12 @@ jobs:
       - name: Rename vsix package
         working-directory: ${{env.GITHUB_WORKSPACE}}
         run: mv ${{env.VS_EXTENSION_SOLUTION_DIR}}/AZSphereHardwareDefinitionTools/bin/Release/AZSphereHardwareDefinitionTools.vsix VisualStudio-AZSphereHardwareDefinitionTools.vsix 
+      - name: Publish to Visual Studio Marketplace
+        uses: cezarypiatek/VsixPublisherAction@0.2
+        with:
+            extension-file: VisualStudio-AZSphereHardwareDefinitionTools.vsix
+            publish-manifest-file: ${{env.VS_EXTENSION_SOLUTION_DIR}}/manifest.json
+            personal-access-code: ${{ secrets.VSCE_PAT }}
       - uses: ncipollo/release-action@v1
         with:
           allowUpdates: true

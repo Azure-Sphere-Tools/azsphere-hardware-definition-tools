@@ -72,3 +72,4 @@ Scenario: Conflicting pin blocks
     | severity | message                                                 |
     | Warning  | APP_PWM_CONTROLLER0 configured as Gpio by LED1_BLUE     |
     | Warning  | APP_ISU0_SPI configured as I2cMaster by APP_ISU0_I2C    |
+    
