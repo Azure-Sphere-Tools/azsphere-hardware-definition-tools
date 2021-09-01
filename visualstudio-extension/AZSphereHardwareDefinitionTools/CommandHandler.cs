@@ -9,9 +9,10 @@ using System.Threading.Tasks;
 
 namespace AZSphereHardwareDefinitionTools
 {
-  abstract class CommandHandler
+  public abstract class CommandHandler
   {
     protected InfoBar currentInfoBar;
+    public IReadOnlyCollection<InfoBarActionItem> currentInfoBarActions;
 
     /// <summary>
     /// Returns the path to the currently open file
@@ -44,9 +45,10 @@ namespace AZSphereHardwareDefinitionTools
       {
         actions = new InfoBarActionItem[] { };
       }
-      
+
       var infoBarElement = VS.InfoBar.CreateInfoBar(currentFilePath, new InfoBarModel(message, actions));
       currentInfoBar = infoBarElement;
+      currentInfoBarActions = actions.ToList();
 
       if (eventHandler != null)
       {
@@ -62,6 +64,8 @@ namespace AZSphereHardwareDefinitionTools
       {
         currentInfoBar?.Close();
       }
+      currentInfoBar = null;
+      currentInfoBarActions = null;
     }
   }
 }

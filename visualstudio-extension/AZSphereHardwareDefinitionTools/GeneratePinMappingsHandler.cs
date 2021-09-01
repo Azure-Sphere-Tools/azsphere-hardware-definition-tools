@@ -1,5 +1,6 @@
 ﻿using Community.VisualStudio.Toolkit;
 using Microsoft.VisualStudio.Shell;
+using Microsoft.VisualStudio.Shell.Interop;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace AZSphereHardwareDefinitionTools
 {
-  class GeneratePinMappingsHandler : CommandHandler
+  public class GeneratePinMappingsHandler : CommandHandler
   {
     public static GeneratePinMappingsHandler Instance = new GeneratePinMappingsHandler();
 
@@ -42,7 +43,7 @@ namespace AZSphereHardwareDefinitionTools
       }
     }
 
-    private void OnPinTypeSelected(object sender, InfoBarActionItemEventArgs e)
+    public void OnPinTypeSelected(object sender, InfoBarActionItemEventArgs e)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
       CloseCurrentInfoBar();
@@ -64,17 +65,17 @@ namespace AZSphereHardwareDefinitionTools
 
     }
 
-    private void OnPinMappingsSelected(object sender, InfoBarActionItemEventArgs e)
+    public void OnPinMappingsSelected(object sender, InfoBarActionItemEventArgs e)
     {
       ThreadHelper.ThrowIfNotOnUIThread();
       CloseCurrentInfoBar();
 
       PinMappingActionContext selected = e.ActionItem.ActionContext;
+
       _ = System.Threading.Tasks.Task.Run(async () =>
       {
         await HardwareDefinitionLanguageClient.Instance.PostPinAmountToGenerateAsync(selected.CurrentFileUri, selected.PinMappingsToAdd, selected.PinType);
       });
-
     }
   }
 
