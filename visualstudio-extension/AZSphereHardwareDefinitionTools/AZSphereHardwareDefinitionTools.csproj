@@ -63,6 +63,10 @@
     <Content Include="AZSphereHardwareDefinitionToolsExtension.pkgdef">
       <IncludeInVSIX>true</IncludeInVSIX>
     </Content>
+    <Content Include="icon.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <IncludeInVSIX>true</IncludeInVSIX>
+    </Content>
     <Content Include="Resources\GeneratePinMappingsCommand.png" />
     <Content Include="Resources\PortHardwareDefinitionCommand.png" />
     <VSCTCompile Include="AZSphereHardwareDefinitionToolsPackage.vsct">
