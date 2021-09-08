@@ -5,6 +5,7 @@
         <DisplayName>Azure Sphere Hardware Definition Tools</DisplayName>
         <Description xml:space="preserve">This extension makes it easier to validate, create and maintain Hardware Definition files used for Azure Sphere IoT applications.</Description>
         <License>LICENSE.txt</License>
+        <Icon>icon.png</Icon>
         <Tags>azsphere azure sphere iot</Tags>
     </Metadata>
     <Installation>
