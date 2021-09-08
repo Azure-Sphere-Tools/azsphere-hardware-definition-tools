@@ -3,6 +3,7 @@
   "displayName": "Azure Sphere Hardware Definition Tools",
   "description": "VSCode extension for Azure Sphere Hardware Definition support",
   "author": "UCL IXN",
+  "icon": "icon.png",
   "contributors": [
     "Jiachen Weng",
     "Tsung-Hai Tsai",

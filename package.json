@@ -2,6 +2,7 @@
 	"name": "azsphere-hardware-definition-root",
 	"description": "Root package.json which defines common dev tools for the vscode extension and language server projects",
 	"version": "1.0.0",
+	"license": "MIT",
 	"scripts": {
 		"build": "rimraf ./server/dist/ ./vscode-extension/dist/ && tsc -b --clean && tsc -b",
 		"watch": "tsc -b -w",
