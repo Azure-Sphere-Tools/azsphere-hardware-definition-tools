@@ -81,11 +81,13 @@ jobs:
             extension-file: VisualStudio-AZSphereHardwareDefinitionTools.vsix
             publish-manifest-file: ${{env.VS_EXTENSION_SOLUTION_DIR}}/manifest.json
             personal-access-code: ${{ secrets.VSCE_PAT }}
+      - name: Set github release tag
+        run: echo "RELEASE_TAG=$(([xml](cat ${{env.VS_EXTENSION_SOLUTION_DIR}}/AZSphereHardwareDefinitionTools/source.extension.vsixmanifest)).packagemanifest.metadata.identity.version)" >> $env:GITHUB_ENV
       - uses: ncipollo/release-action@v1
         with:
           allowUpdates: true
           artifacts: "VisualStudio-AZSphereHardwareDefinitionTools.vsix"
           bodyFile: "README.md"
-          tag: "1.0.0"
+          tag: ${{ env.RELEASE_TAG }}
           commit: ${{ env.GITHUB_SHA }}
           token: ${{ secrets.GITHUB_TOKEN }}
