@@ -4,7 +4,7 @@
 
 ## About
 
-Azure Sphere Hardware Definition Tools extension for Visual Studio Code and Visual Studio. 
+Azure Sphere Hardware Definition Tools extension for [Visual Studio](https://marketplace.visualstudio.com/items?itemName=ucl-ixn.azspherehardwaredefinitiontools) and [Visual Studio Code](https://marketplace.visualstudio.com/items?itemName=ucl-ixn.azsphere-hardware-definition-tools). 
 
 ## Features
 - [Hardware Definition Validation](#DiagnosticsGenerated)
