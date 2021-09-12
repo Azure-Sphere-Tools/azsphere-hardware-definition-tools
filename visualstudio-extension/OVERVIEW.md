@@ -1,6 +1,8 @@
 # Azure Sphere Hardware Definition Tools
 This extension makes it easier to validate, create and maintain [Hardware Definition files](https://docs.microsoft.com/en-us/azure-sphere/app-development/manage-hardware-dependencies) used for [Azure Sphere](https://docs.microsoft.com/en-us/azure-sphere/) IoT applications.
 
+## Installation
+Before installing the extension, make sure to have [Node.js 14.17+](https://nodejs.org/en/) installed and added to your PATH.
 
 ## Features
 - [Hardware Definition Validation](#DiagnosticsGenerated)
